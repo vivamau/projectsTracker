@@ -1,0 +1,54 @@
+import client from './client';
+
+export const getProjects = (params) =>
+  client.get('/projects', { params });
+
+export const getProject = (id) =>
+  client.get(`/projects/${id}`);
+
+export const createProject = (data) =>
+  client.post('/projects', data);
+
+export const updateProject = (id, data) =>
+  client.put(`/projects/${id}`, data);
+
+export const deleteProject = (id) =>
+  client.delete(`/projects/${id}`);
+
+export const getProjectStats = () =>
+  client.get('/projects/stats');
+
+export const getHealthStatuses = (projectId) =>
+  client.get(`/projects/${projectId}/health-statuses`);
+
+export const createHealthStatus = (projectId, data) =>
+  client.post(`/projects/${projectId}/health-statuses`, data);
+
+// Completions (milestones)
+export const getCompletions = (projectId) =>
+  client.get(`/projects/${projectId}/completions`);
+
+export const createCompletion = (projectId, data) =>
+  client.post(`/projects/${projectId}/completions`, data);
+
+export const updateCompletion = (projectId, completionId, data) =>
+  client.put(`/projects/${projectId}/completions/${completionId}`, data);
+
+export const deleteCompletion = (projectId, completionId) =>
+  client.delete(`/projects/${projectId}/completions/${completionId}`);
+
+// Budgets
+export const getBudgets = (projectId) =>
+  client.get(`/projects/${projectId}/budgets`);
+
+export const getBudgetTotal = (projectId) =>
+  client.get(`/projects/${projectId}/budgets/total`);
+
+export const createBudget = (projectId, data) =>
+  client.post(`/projects/${projectId}/budgets`, data);
+
+export const updateBudget = (projectId, budgetId, data) =>
+  client.put(`/projects/${projectId}/budgets/${budgetId}`, data);
+
+export const deleteBudget = (projectId, budgetId) =>
+  client.delete(`/projects/${projectId}/budgets/${budgetId}`);

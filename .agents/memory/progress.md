@@ -1,0 +1,24 @@
+# Progress Log
+
+- [x] Project Tracker MVP <!-- id: 200 -->
+  - [x] Backend scaffolding (Express, SQLite, config, migrations, seeders) <!-- id: 201 -->
+  - [x] Backend services with TDD (auth, user, project, division, country, healthStatus, initiative, deliveryPath) <!-- id: 202 -->
+  - [x] Backend routes (auth, projects, divisions, users, countries, initiatives, deliveryPaths) <!-- id: 203 -->
+  - [x] Frontend foundation (Vite + React + TailwindCSS, Mantis-inspired layout) <!-- id: 204 -->
+  - [x] Frontend pages (login, dashboard, projects CRUD, divisions, initiatives, delivery paths, users, settings) <!-- id: 205 -->
+  - [x] 232 tests, 89.48% coverage <!-- id: 206 -->
+- [x] CSS layout fix - removed `*` reset that overrode Tailwind v4 layered utilities <!-- id: 207 -->
+- [x] Dummy data seeding <!-- id: 208 -->
+  - [x] seed_dummy_data.js: 15 divisions, 8 initiatives, 5 delivery paths, 5 currencies, 20 projects <!-- id: 209 -->
+  - [x] Health statuses, completions, budgets, and country links for all projects <!-- id: 210 -->
+- [x] Completions (milestones) feature <!-- id: 211 -->
+  - [x] Migration 003: project_id FK + completion_is_deleted on completions table <!-- id: 212 -->
+  - [x] completionService.js with TDD (16 tests) <!-- id: 213 -->
+  - [x] Completion routes on projectRoutes.js with TDD (15 tests) <!-- id: 214 -->
+- [x] Budgets feature (many-to-many with projects) <!-- id: 217 -->
+  - [x] budgetService.js with TDD (19 tests): CRUD, link/unlink, getTotalByProjectId <!-- id: 218 -->
+  - [x] currencyService.js with TDD (6 tests): getAll, getById, create, softDelete <!-- id: 219 -->
+  - [x] Budget routes on projectRoutes.js with TDD (16 tests) <!-- id: 220 -->
+  - [x] Currency routes (GET, POST, DELETE /api/currencies) <!-- id: 221 -->
+  - [x] Dummy data: 5 currencies, 32 budgets linked to projects <!-- id: 222 -->
+  - [x] 304 tests, 22 suites, all passing <!-- id: 223 -->
