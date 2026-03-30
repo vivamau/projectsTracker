@@ -60,6 +60,19 @@ const PROJECTS = [
   { name: 'Employee Wellness Program', description: 'Launch digital wellness and benefits platform', health: 3 }
 ];
 
+const VENDORS = [
+  { name: 'Accenture Digital', address: '500 W Madison St, Chicago, IL', phone: '+1-312-555-0100', email: 'contact@accenture-digital.com', website: 'https://accenture.com' },
+  { name: 'Deloitte Consulting', address: '30 Rockefeller Plaza, New York, NY', phone: '+1-212-555-0200', email: 'info@deloitte.com', website: 'https://deloitte.com' },
+  { name: 'AWS Professional Services', address: '410 Terry Ave N, Seattle, WA', phone: '+1-206-555-0300', email: 'aws-ps@amazon.com', website: 'https://aws.amazon.com' },
+  { name: 'Infosys Technologies', address: '44 Electronics City, Bangalore', phone: '+91-80-555-0400', email: 'info@infosys.com', website: 'https://infosys.com' },
+  { name: 'Wipro Limited', address: 'Doddakannelli, Bangalore', phone: '+91-80-555-0500', email: 'info@wipro.com', website: 'https://wipro.com' },
+  { name: 'IBM Consulting', address: '1 New Orchard Road, Armonk, NY', phone: '+1-914-555-0600', email: 'consulting@ibm.com', website: 'https://ibm.com' },
+  { name: 'Capgemini', address: '11 rue de Tilsitt, Paris', phone: '+33-1-555-0700', email: 'contact@capgemini.com', website: 'https://capgemini.com' },
+  { name: 'TCS (Tata Consultancy)', address: '9 TCS House, Mumbai', phone: '+91-22-555-0800', email: 'info@tcs.com', website: 'https://tcs.com' },
+  { name: 'Cognizant', address: '300 Frank W Burr Blvd, Teaneck, NJ', phone: '+1-201-555-0900', email: 'inquiry@cognizant.com', website: 'https://cognizant.com' },
+  { name: 'McKinsey Digital', address: '55 E 52nd St, New York, NY', phone: '+1-212-555-1000', email: 'digital@mckinsey.com', website: 'https://mckinsey.com' }
+];
+
 const CURRENCIES = ['USD', 'EUR', 'GBP', 'CHF', 'JPY'];
 
 const MILESTONES = [
@@ -295,6 +308,18 @@ async function seedDummyData(db) {
       }
     }
     console.log('  Seeded focal points for divisions.');
+  }
+
+  // --- Vendors ---
+  const existingVendors = await getOne(db, 'SELECT COUNT(*) as c FROM vendors WHERE vendor_is_deleted = 0 OR vendor_is_deleted IS NULL');
+  if (existingVendors.c === 0) {
+    for (const v of VENDORS) {
+      await runQuery(db,
+        'INSERT INTO vendors (vendor_name, vendor_address, vendor_phone, vendor_email, vendor_website, vendor_create_date, vendor_update_date, user_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+        [v.name, v.address, v.phone, v.email, v.website, daysAgo(randomInt(30, 180)), now, ownerId]
+      );
+    }
+    console.log(`  Seeded ${VENDORS.length} vendors.`);
   }
 }
 

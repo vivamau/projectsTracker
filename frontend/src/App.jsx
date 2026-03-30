@@ -11,6 +11,7 @@ import DivisionDetailPage from './pages/divisions/detail';
 import BudgetDetailPage from './pages/budgets/detail';
 import InitiativesPage from './pages/initiatives/index';
 import DeliveryPathsPage from './pages/deliveryPaths/index';
+import VendorsPage from './pages/vendors/index';
 import UsersPage from './pages/users/index';
 import SettingsPage from './pages/settings/index';
 
@@ -36,6 +37,7 @@ export default function App() {
         <Route path="/budgets/:id" element={<BudgetDetailPage />} />
         <Route path="/initiatives" element={<InitiativesPage />} />
         <Route path="/delivery-paths" element={<DeliveryPathsPage />} />
+        <Route path="/vendors" element={<VendorsPage />} />
         <Route path="/users" element={<UsersPage />} />
         <Route path="/settings" element={<SettingsPage />} />
       </Route>

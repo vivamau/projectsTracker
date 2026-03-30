@@ -13,6 +13,12 @@ export const removeDivisionFocalPoint = (divisionId, fpId) => client.delete(`/di
 export const syncDivisionFocalPoints = (id, userIds) => client.put(`/divisions/${id}/focal-points`, { user_ids: userIds });
 export const getDivisionProjectManagers = (id) => client.get(`/divisions/${id}/project-managers`);
 
+export const getVendors = () => client.get('/vendors');
+export const getVendor = (id) => client.get(`/vendors/${id}`);
+export const createVendor = (data) => client.post('/vendors', data);
+export const updateVendor = (id, data) => client.put(`/vendors/${id}`, data);
+export const deleteVendor = (id) => client.delete(`/vendors/${id}`);
+
 export const getInitiatives = () => client.get('/initiatives');
 export const createInitiative = (data) => client.post('/initiatives', data);
 export const updateInitiative = (id, data) => client.put(`/initiatives/${id}`, data);

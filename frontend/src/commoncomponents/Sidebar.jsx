@@ -7,6 +7,7 @@ import {
   Settings,
   Route,
   Flag,
+  Store,
   ChevronLeft
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
@@ -17,6 +18,7 @@ const navItems = [
   { label: 'Divisions', path: '/divisions', icon: Building2 },
   { label: 'Initiatives', path: '/initiatives', icon: Flag },
   { label: 'Delivery Paths', path: '/delivery-paths', icon: Route },
+  { label: 'Vendors', path: '/vendors', icon: Store },
   { label: 'Users', path: '/users', icon: Users, roles: ['superadmin', 'admin'] },
   { label: 'Settings', path: '/settings', icon: Settings },
 ];
