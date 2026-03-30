@@ -20,7 +20,8 @@ export default function ProjectFormPage() {
     project_plan_date: '',
     project_start_date: '',
     project_end_date: '',
-    country_codes: []
+    country_codes: [],
+    project_managers: []
   });
   const [divisions, setDivisions] = useState([]);
   const [initiatives, setInitiatives] = useState([]);
@@ -55,7 +56,8 @@ export default function ProjectFormPage() {
             project_plan_date: tsToInput(p.project_plan_date),
             project_start_date: tsToInput(p.project_start_date),
             project_end_date: tsToInput(p.project_end_date),
-            country_codes: p.countries ? p.countries.map(c => c.UN_country_code) : []
+            country_codes: p.countries ? p.countries.map(c => c.UN_country_code) : [],
+            project_managers: p.project_managers ? p.project_managers.map(pm => ({ user_id: pm.user_id, division_id: pm.division_id || '' })) : []
           });
         })
       );
@@ -87,6 +89,27 @@ export default function ProjectFormPage() {
     }));
   };
 
+  const togglePM = (userId) => {
+    setForm(f => {
+      const exists = f.project_managers.find(pm => pm.user_id === userId);
+      return {
+        ...f,
+        project_managers: exists
+          ? f.project_managers.filter(pm => pm.user_id !== userId)
+          : [...f.project_managers, { user_id: userId, division_id: '' }]
+      };
+    });
+  };
+
+  const updatePMDivision = (userId, divisionId) => {
+    setForm(f => ({
+      ...f,
+      project_managers: f.project_managers.map(pm =>
+        pm.user_id === userId ? { ...pm, division_id: divisionId ? parseInt(divisionId) : null } : pm
+      )
+    }));
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
@@ -107,7 +130,11 @@ export default function ProjectFormPage() {
         project_plan_date: inputToTs(form.project_plan_date),
         project_start_date: inputToTs(form.project_start_date),
         project_end_date: inputToTs(form.project_end_date),
-        country_codes: form.country_codes
+        country_codes: form.country_codes,
+        project_managers: form.project_managers.map(pm => ({
+          user_id: pm.user_id,
+          division_id: pm.division_id || null
+        }))
       };
 
       if (isEdit) {
@@ -219,6 +246,47 @@ export default function ProjectFormPage() {
                 </select>
               </FormField>
             </div>
+
+            {/* Project Managers */}
+            <FormField label="Project Managers">
+              {form.project_managers.length > 0 && (
+                <div className="mb-2 space-y-2">
+                  {form.project_managers.map(pm => {
+                    const u = users.find(usr => usr.id === pm.user_id);
+                    return (
+                      <div key={pm.user_id} className="flex items-center gap-2 rounded-lg border border-primary-200 bg-primary-50 px-3 py-2">
+                        <span className="text-sm font-medium text-primary-700 min-w-[140px]">
+                          {u ? `${u.user_name} ${u.user_lastname}` : `User #${pm.user_id}`}
+                        </span>
+                        <select
+                          value={pm.division_id || ''}
+                          onChange={e => updatePMDivision(pm.user_id, e.target.value)}
+                          className="flex-1 rounded border border-border-dark px-2 py-1 text-xs outline-none focus:border-primary-500"
+                        >
+                          <option value="">No division</option>
+                          {divisions.map(d => <option key={d.id} value={d.id}>{d.division_name}</option>)}
+                        </select>
+                        <button type="button" onClick={() => togglePM(pm.user_id)} className="text-error-400 hover:text-error-600 text-lg leading-none">&times;</button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+              <div className="max-h-40 overflow-y-auto rounded-lg border border-border">
+                {users.map(u => (
+                  <label key={u.id} className="flex items-center gap-2 px-3 py-1.5 hover:bg-surface cursor-pointer text-sm">
+                    <input
+                      type="checkbox"
+                      checked={!!form.project_managers.find(pm => pm.user_id === u.id)}
+                      onChange={() => togglePM(u.id)}
+                      className="rounded border-border-dark text-primary-500 focus:ring-primary-500"
+                    />
+                    <span>{u.user_name} {u.user_lastname}</span>
+                    <span className="text-text-secondary text-xs">({u.user_email})</span>
+                  </label>
+                ))}
+              </div>
+            </FormField>
 
             {/* Dates row */}
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">

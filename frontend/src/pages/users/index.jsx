@@ -12,7 +12,7 @@ import LoadingSpinner from '../../commoncomponents/LoadingSpinner';
 const ROLES = [
   { id: 1, name: 'superadmin' },
   { id: 2, name: 'admin' },
-  { id: 3, name: 'reader' },
+  { id: 3, name: 'contributor' },
   { id: 4, name: 'guest' },
 ];
 

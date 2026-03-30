@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { Pencil, Trash2, Plus, MapPin, Calendar, User, Target, DollarSign } from 'lucide-react';
+import { Pencil, Trash2, Plus, MapPin, Calendar, User, Users, Target, DollarSign } from 'lucide-react';
 import {
   getProject, deleteProject,
   getHealthStatuses, createHealthStatus,
@@ -339,6 +339,30 @@ export default function ProjectDetailPage() {
                     <span className="font-bold text-text-primary">{budgetTotal.toLocaleString('en-US')}</span>
                   </div>
                 )}
+              </div>
+            )}
+          </Card>
+
+          {/* Project Managers */}
+          <Card title="Project Managers">
+            {(!project.project_managers || project.project_managers.length === 0) ? (
+              <p className="text-sm text-text-secondary">No project managers assigned</p>
+            ) : (
+              <div className="space-y-2">
+                {project.project_managers.map(pm => (
+                  <div key={pm.id} className="flex items-center gap-2.5">
+                    <span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary-50 text-xs font-bold text-primary-600">
+                      {(pm.user_name?.[0] || '') + (pm.user_lastname?.[0] || '')}
+                    </span>
+                    <div>
+                      <p className="text-sm font-medium text-text-primary">{pm.user_name} {pm.user_lastname}</p>
+                      <p className="text-xs text-text-secondary">
+                        {pm.user_email}
+                        {pm.division_name && <span className="ml-1.5 text-primary-500">· {pm.division_name}</span>}
+                      </p>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </Card>

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { Plus, Pencil, Trash2 } from 'lucide-react';
 import { getDivisions, createDivision, updateDivision, deleteDivision } from '../../api/entitiesApi';
 import { useAuth } from '../../hooks/useAuth';
@@ -75,7 +76,9 @@ export default function DivisionsPage() {
                 <tr><td colSpan={3} className="px-6 py-12 text-center text-text-secondary">No divisions</td></tr>
               ) : divisions.map(d => (
                 <tr key={d.id} className="border-b border-border last:border-0 hover:bg-surface/30 transition-colors">
-                  <td className="px-6 py-3 font-medium">{d.division_name}</td>
+                  <td className="px-6 py-3 font-medium">
+                    <Link to={`/divisions/${d.id}`} className="text-primary-500 hover:text-primary-600 hover:underline">{d.division_name}</Link>
+                  </td>
                   <td className="px-6 py-3 text-text-secondary">{d.division_create_date ? new Date(d.division_create_date).toLocaleDateString() : '-'}</td>
                   {isAdmin && (
                     <td className="px-6 py-3">

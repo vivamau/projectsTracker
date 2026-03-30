@@ -52,3 +52,10 @@ export const updateBudget = (projectId, budgetId, data) =>
 
 export const deleteBudget = (projectId, budgetId) =>
   client.delete(`/projects/${projectId}/budgets/${budgetId}`);
+
+// Project Managers
+export const getProjectManagers = (projectId) =>
+  client.get(`/projects/${projectId}/project-managers`);
+
+export const syncProjectManagers = (projectId, projectManagers) =>
+  client.put(`/projects/${projectId}/project-managers`, { project_managers: projectManagers });

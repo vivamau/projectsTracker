@@ -7,6 +7,7 @@ import ProjectsPage from './pages/projects/index';
 import ProjectDetailPage from './pages/projects/detail';
 import ProjectFormPage from './pages/projects/form';
 import DivisionsPage from './pages/divisions/index';
+import DivisionDetailPage from './pages/divisions/detail';
 import InitiativesPage from './pages/initiatives/index';
 import DeliveryPathsPage from './pages/deliveryPaths/index';
 import UsersPage from './pages/users/index';
@@ -30,6 +31,7 @@ export default function App() {
         <Route path="/projects/:id" element={<ProjectDetailPage />} />
         <Route path="/projects/:id/edit" element={<ProjectFormPage />} />
         <Route path="/divisions" element={<DivisionsPage />} />
+        <Route path="/divisions/:id" element={<DivisionDetailPage />} />
         <Route path="/initiatives" element={<InitiativesPage />} />
         <Route path="/delivery-paths" element={<DeliveryPathsPage />} />
         <Route path="/users" element={<UsersPage />} />

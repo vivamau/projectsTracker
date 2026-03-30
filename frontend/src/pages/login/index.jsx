@@ -10,7 +10,6 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
-
   if (!loading && isAuthenticated) {
     return <Navigate to="/dashboard" replace />;
   }
