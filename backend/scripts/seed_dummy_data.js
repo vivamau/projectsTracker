@@ -111,7 +111,8 @@ async function seedDummyData(db) {
   // Check if dummy data already exists (need both divisions and projects)
   const existingProjectCount = await getOne(db, 'SELECT COUNT(*) as c FROM projects WHERE project_is_deleted = 0 OR project_is_deleted IS NULL');
   const existingDivisionCount = await getOne(db, 'SELECT COUNT(*) as c FROM divisions WHERE division_is_deleted = 0 OR division_is_deleted IS NULL');
-  if (existingDivisionCount.c >= 5 && existingProjectCount.c >= 10) {
+  const existingVendorCount = await getOne(db, 'SELECT COUNT(*) as c FROM vendors WHERE vendor_is_deleted = 0 OR vendor_is_deleted IS NULL');
+  if (existingDivisionCount.c >= 5 && existingProjectCount.c >= 10 && existingVendorCount.c >= 5) {
     console.log('  Dummy data already seeded, skipping.');
     return;
   }
