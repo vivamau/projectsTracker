@@ -3,7 +3,7 @@ const { getOne, getAll, runQuery } = require('../config/database');
 const DEFAULT_ROLES = [
   { name: 'superadmin', description: 'Full system access' },
   { name: 'admin', description: 'Administrative access' },
-  { name: 'reader', description: 'Read-only access' },
+  { name: 'contributor', description: 'Contributor access' },
   { name: 'guest', description: 'Limited guest access' }
 ];
 

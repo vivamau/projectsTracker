@@ -4,6 +4,7 @@ const projectService = require('../services/projectService');
 const healthStatusService = require('../services/healthStatusService');
 const completionService = require('../services/completionService');
 const budgetService = require('../services/budgetService');
+const projectManagerService = require('../services/projectManagerService');
 const { success, error, paginated } = require('../utilities/responseHelper');
 
 function createProjectRoutes(db) {
@@ -236,6 +237,29 @@ function createProjectRoutes(db) {
       return success(res, { message: 'Budget deleted' });
     } catch (err) {
       return error(res, 'Failed to delete budget');
+    }
+  });
+
+  // Project Managers
+  router.get('/:id/project-managers', authenticate, async (req, res) => {
+    try {
+      const pms = await projectManagerService.getByProjectId(db, parseInt(req.params.id));
+      return success(res, pms);
+    } catch (err) {
+      return error(res, 'Failed to get project managers');
+    }
+  });
+
+  router.put('/:id/project-managers', authenticate, authorize('superadmin', 'admin'), async (req, res) => {
+    try {
+      const { project_managers } = req.body;
+      if (!Array.isArray(project_managers)) {
+        return error(res, 'project_managers array is required', 400);
+      }
+      await projectManagerService.syncProjectManagers(db, parseInt(req.params.id), project_managers);
+      return success(res, { message: 'Project managers updated' });
+    } catch (err) {
+      return error(res, 'Failed to update project managers');
     }
   });
 

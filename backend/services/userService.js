@@ -33,7 +33,7 @@ async function getAllUsers(db, { page = 1, limit = 20, search } = {}) {
   );
 
   return {
-    users,
+    data: users,
     total: countRow.total,
     page,
     limit,

@@ -16,37 +16,37 @@ describe('userService', () => {
   describe('getAll', () => {
     it('should return paginated users with role name', async () => {
       const result = await userService.getAll(db);
-      expect(result.users.length).toBe(4);
+      expect(result.data.length).toBe(4);
       expect(result.total).toBe(4);
       expect(result.page).toBe(1);
       expect(result.totalPages).toBe(1);
-      expect(result.users[0].role).toBe('superadmin');
+      expect(result.data[0].role).toBe('superadmin');
       // Should not include password hash
-      expect(result.users[0].user_password_hash).toBeUndefined();
+      expect(result.data[0].user_password_hash).toBeUndefined();
     });
 
     it('should paginate results', async () => {
       const result = await userService.getAll(db, { page: 1, limit: 2 });
-      expect(result.users.length).toBe(2);
+      expect(result.data.length).toBe(2);
       expect(result.total).toBe(4);
       expect(result.totalPages).toBe(2);
     });
 
     it('should return second page', async () => {
       const result = await userService.getAll(db, { page: 2, limit: 2 });
-      expect(result.users.length).toBe(2);
+      expect(result.data.length).toBe(2);
       expect(result.page).toBe(2);
     });
 
     it('should filter by search term', async () => {
       const result = await userService.getAll(db, { search: 'superadmin@' });
-      expect(result.users.length).toBe(1);
-      expect(result.users[0].user_email).toBe('superadmin@test.com');
+      expect(result.data.length).toBe(1);
+      expect(result.data[0].user_email).toBe('superadmin@test.com');
     });
 
     it('should search by name', async () => {
       const result = await userService.getAll(db, { search: 'Super' });
-      expect(result.users.length).toBe(1);
+      expect(result.data.length).toBe(1);
     });
 
     it('should not return deleted users', async () => {
@@ -59,7 +59,7 @@ describe('userService', () => {
       });
       await userService.softDelete(db, created.lastID);
       const result = await userService.getAll(db, { search: 'deleted@test.com' });
-      expect(result.users.length).toBe(0);
+      expect(result.data.length).toBe(0);
     });
   });
 

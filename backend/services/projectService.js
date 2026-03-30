@@ -1,4 +1,5 @@
 const { runQuery, getOne, getAll } = require('../config/database');
+const projectManagerService = require('./projectManagerService');
 
 async function getAllProjects(db, { page = 1, limit = 20, search, division_id } = {}) {
   const offset = (page - 1) * limit;
@@ -81,12 +82,16 @@ async function getById(db, id) {
     [id]
   );
 
+  // Get project managers
+  const projectManagers = await projectManagerService.getByProjectId(db, id);
+
   return {
     ...project,
     owner_name: project.user_name,
     owner_lastname: project.user_lastname,
     latest_health_status: healthStatus ? healthStatus.healthstatus_value : null,
-    countries
+    countries,
+    project_managers: projectManagers
   };
 }
 
@@ -119,6 +124,11 @@ async function create(db, data) {
         [result.lastID, code]
       );
     }
+  }
+
+  // Sync project managers if provided
+  if (data.project_managers) {
+    await projectManagerService.syncProjectManagers(db, result.lastID, data.project_managers);
   }
 
   return result;
@@ -192,7 +202,19 @@ async function update(db, id, data) {
       );
     }
     // If only countries changed, mark as updated
-    if (fields.length === 0) {
+    if (fields.length === 0 && !data.project_managers) {
+      await runQuery(db,
+        'UPDATE projects SET project_update_date = ? WHERE id = ?',
+        [now, id]
+      );
+      result = { changes: 1 };
+    }
+  }
+
+  // Sync project managers if provided
+  if (data.project_managers !== undefined) {
+    await projectManagerService.syncProjectManagers(db, id, data.project_managers);
+    if (fields.length === 0 && !data.country_codes) {
       await runQuery(db,
         'UPDATE projects SET project_update_date = ? WHERE id = ?',
         [now, id]

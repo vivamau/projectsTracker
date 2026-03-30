@@ -234,6 +234,31 @@ async function seedDummyData(db) {
       );
     }
 
+    // Assign 1-2 project managers from existing users
+    const numPMs = randomInt(1, 2);
+    const usedPMUsers = new Set();
+    for (let i = 0; i < numPMs; i++) {
+      const pmUserId = randomInt(1, 4);
+      if (usedPMUsers.has(pmUserId)) continue;
+      usedPMUsers.add(pmUserId);
+      // Find or create projectmanager record
+      const existing = await getOne(db, 'SELECT id FROM projectmanagers WHERE user_id = ?', [pmUserId]);
+      let pmId;
+      if (existing) {
+        pmId = existing.id;
+      } else {
+        const pmResult = await runQuery(db,
+          'INSERT INTO projectmanagers (user_id, division_id) VALUES (?, ?)',
+          [pmUserId, divisionId]
+        );
+        pmId = pmResult.lastID;
+      }
+      await runQuery(db,
+        'INSERT INTO projects_to_projectmanagers (project_id, projectmanager_id, division_id, project_to_projectmanager_create_date, project_to_projectmanager_start_date) VALUES (?, ?, ?, ?, ?)',
+        [projectId, pmId, divisionId, daysAgo(randomInt(7, 60)), daysAgo(randomInt(0, 30))]
+      );
+    }
+
     // Add 1-2 budgets per project
     const numBudgets = randomInt(1, 2);
     for (let i = 0; i < numBudgets; i++) {
@@ -252,6 +277,25 @@ async function seedDummyData(db) {
     }
   }
   console.log(`  Seeded ${PROJECTS.length} projects with health statuses, completions, budgets, and country links.`);
+
+  // --- Focal Points (1-2 per division) ---
+  const existingFPs = await getOne(db, 'SELECT COUNT(*) as c FROM focalpoints');
+  if (existingFPs.c === 0) {
+    for (const divId of divisionIds) {
+      const numFPs = randomInt(1, 2);
+      const usedUsers = new Set();
+      for (let i = 0; i < numFPs; i++) {
+        const userId = randomInt(1, 4);
+        if (usedUsers.has(userId)) continue;
+        usedUsers.add(userId);
+        await runQuery(db,
+          'INSERT INTO focalpoints (division_id, user_id) VALUES (?, ?)',
+          [divId, userId]
+        );
+      }
+    }
+    console.log('  Seeded focal points for divisions.');
+  }
 }
 
 module.exports = { seedDummyData };

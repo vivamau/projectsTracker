@@ -4,7 +4,7 @@ const { getOne, getAll, runQuery } = require('../config/database');
 const DEFAULT_USERS = [
   { email: 'superadmin@projecttracker.it', name: 'Super', lastname: 'Admin', password: 'superadminpassword', role: 'superadmin' },
   { email: 'admin@projecttracker.it', name: 'Project', lastname: 'Admin', password: 'adminpassword', role: 'admin' },
-  { email: 'reader@projecttracker.it', name: 'Project', lastname: 'Reader', password: 'readerpassword', role: 'reader' },
+  { email: 'contributor@projecttracker.it', name: 'Project', lastname: 'Contributor', password: 'contributorpassword', role: 'contributor' },
   { email: 'guest@projecttracker.it', name: 'Project', lastname: 'Guest', password: 'guestpassword', role: 'guest' }
 ];
 
