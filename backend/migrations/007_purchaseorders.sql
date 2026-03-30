@@ -1,6 +1,12 @@
 -- 007_purchaseorders.sql
 -- Creation of the purchaseorders, purchaseorderitems tables
 
+CREATE TABLE IF NOT EXISTS purchaseorderstatuses (
+  id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+  purchaseorderstatus_name TEXT NOT NULL,
+  purchaseorderstatus_create_date INTEGER NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS purchaseorders (
   id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
   purchaseorder_description TEXT,
@@ -22,7 +28,7 @@ CREATE TABLE IF NOT EXISTS purchaseorderitems (
   purchaseorderitem_start_date INTEGER NOT NULL,
   purchaseorderitem_end_date INTEGER,
   purchaseorderitems_discounted_rate NUMERIC,
-  purchaseorderitems_days NUMERIC
+  purchaseorderitems_days NUMERIC,
   purchaseorder_id INTEGER REFERENCES purchaseorders(id),
   currency_id INTEGER REFERENCES currencies(id),
   vendorcontractrole_id INTEGER REFERENCES vendorcontractroles(id),

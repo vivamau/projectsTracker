@@ -39,3 +39,13 @@
 **Date:** 2026-03-29
 **Decision:** All custom CSS must be inside `@layer base` to avoid overriding Tailwind utility classes. Un-layered CSS has higher cascade priority than `@layer utilities` in CSS cascade layers.
 **Status:** Implemented (fixed broken layout).
+
+## PM-Division Link is Per-Project
+**Date:** 2026-03-30
+**Decision:** The association between a project manager and a division is stored on the `projects_to_projectmanagers` junction table (not on the `projectmanagers` table), so a PM can be linked to different divisions on different projects. `syncProjectManagers` accepts `[{user_id, division_id}]` objects.
+**Status:** Implemented (migration 005).
+
+## Focal Points are Hard Deletes
+**Date:** 2026-03-30
+**Decision:** The `focalpoints` table has no soft delete column — focal points are physically deleted. This matches the simple junction table schema (id, division_id, user_id) with no timestamps.
+**Status:** Implemented.

@@ -7,6 +7,7 @@ const createCountryRoutes = require('./countryRoutes');
 const createInitiativeRoutes = require('./initiativeRoutes');
 const createDeliveryPathRoutes = require('./deliveryPathRoutes');
 const createCurrencyRoutes = require('./currencyRoutes');
+const createBudgetRoutes = require('./budgetRoutes');
 
 function createRoutes(db) {
   const router = express.Router();
@@ -17,6 +18,7 @@ function createRoutes(db) {
   router.use('/users', createUserRoutes(db));
   router.use('/countries', createCountryRoutes(db));
   router.use('/currencies', createCurrencyRoutes(db));
+  router.use('/budgets', createBudgetRoutes(db));
   router.use('/initiatives', createInitiativeRoutes(db));
   router.use('/deliverypaths', createDeliveryPathRoutes(db));
 

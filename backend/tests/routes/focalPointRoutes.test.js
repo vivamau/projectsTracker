@@ -161,6 +161,45 @@ describe('GET /api/divisions/:id/projects', () => {
   });
 });
 
+describe('GET /api/divisions/:id/project-managers', () => {
+  beforeAll(async () => {
+    // Create a project with a PM assigned to division 1
+    await request(app)
+      .post('/api/projects')
+      .set('Cookie', ['token=' + adminToken()])
+      .send({
+        project_name: 'PM Division Project',
+        division_id: 1,
+        project_managers: [{ user_id: 1, division_id: 1 }]
+      });
+  });
+
+  it('should return project managers for a division', async () => {
+    const res = await request(app)
+      .get('/api/divisions/1/project-managers')
+      .set('Cookie', ['token=' + adminToken()]);
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.length).toBeGreaterThanOrEqual(1);
+    expect(res.body.data[0].user_name).toBeDefined();
+    expect(res.body.data[0].project_name).toBeDefined();
+  });
+
+  it('should return empty array for division with no PMs', async () => {
+    const divRes = await request(app)
+      .post('/api/divisions')
+      .set('Cookie', ['token=' + adminToken()])
+      .send({ division_name: 'No PM Division' });
+
+    const res = await request(app)
+      .get(`/api/divisions/${divRes.body.data.id}/project-managers`)
+      .set('Cookie', ['token=' + adminToken()]);
+
+    expect(res.status).toBe(200);
+    expect(res.body.data).toEqual([]);
+  });
+});
+
 describe('GET /api/divisions/:id (detail)', () => {
   it('should return division with focal points count and project count', async () => {
     const res = await request(app)
@@ -171,5 +210,6 @@ describe('GET /api/divisions/:id (detail)', () => {
     expect(res.body.data.division_name).toBe('Engineering');
     expect(res.body.data.focal_points_count).toBeDefined();
     expect(res.body.data.projects_count).toBeDefined();
+    expect(res.body.data.total_budget).toBeDefined();
   });
 });

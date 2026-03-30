@@ -10,7 +10,7 @@
 - [x] CSS layout fix - removed `*` reset that overrode Tailwind v4 layered utilities <!-- id: 207 -->
 - [x] Dummy data seeding <!-- id: 208 -->
   - [x] seed_dummy_data.js: 15 divisions, 8 initiatives, 5 delivery paths, 5 currencies, 20 projects <!-- id: 209 -->
-  - [x] Health statuses, completions, budgets, and country links for all projects <!-- id: 210 -->
+  - [x] Health statuses, completions, budgets, country links, focal points for all projects/divisions <!-- id: 210 -->
 - [x] Completions (milestones) feature <!-- id: 211 -->
   - [x] Migration 003: project_id FK + completion_is_deleted on completions table <!-- id: 212 -->
   - [x] completionService.js with TDD (16 tests) <!-- id: 213 -->
@@ -21,4 +21,24 @@
   - [x] Budget routes on projectRoutes.js with TDD (16 tests) <!-- id: 220 -->
   - [x] Currency routes (GET, POST, DELETE /api/currencies) <!-- id: 221 -->
   - [x] Dummy data: 5 currencies, 32 budgets linked to projects <!-- id: 222 -->
-  - [x] 304 tests, 22 suites, all passing <!-- id: 223 -->
+- [x] Project Managers per-project division association <!-- id: 224 -->
+  - [x] Migration 005: division_id on projects_to_projectmanagers junction table <!-- id: 225 -->
+  - [x] projectManagerService.js updated: linkToProject with divisionId, syncProjectManagers with [{user_id, division_id}] <!-- id: 226 -->
+  - [x] Route + service tests updated (24 tests) <!-- id: 227 -->
+  - [x] Frontend form: division dropdown per PM, detail page shows division per PM <!-- id: 228 -->
+- [x] Focal Points feature <!-- id: 229 -->
+  - [x] focalPointService.js with TDD (12 tests): getByDivisionId, create, remove, syncFocalPoints <!-- id: 230 -->
+  - [x] Focal point routes on divisionRoutes.js with TDD (15 tests) <!-- id: 231 -->
+- [x] Division Detail Page <!-- id: 232 -->
+  - [x] Projects table with health status, owner, start date <!-- id: 233 -->
+  - [x] Focal points sidebar with add/remove <!-- id: 234 -->
+  - [x] Project managers sidebar grouped by user with project links <!-- id: 235 -->
+  - [x] Total budget, project count, focal points count in header <!-- id: 236 -->
+  - [x] Division list names now link to detail page <!-- id: 237 -->
+- [x] Purchase Orders feature <!-- id: 239 -->
+  - [x] Migration 007 fixed (syntax + purchaseorderstatuses table), migration 008 (soft delete) <!-- id: 240 -->
+  - [x] purchaseOrderService.js with TDD (13 tests): getByBudgetId, getById, create, update, softDelete <!-- id: 241 -->
+  - [x] budgetRoutes.js with TDD (11 tests): budget detail + PO CRUD <!-- id: 242 -->
+  - [x] Budget detail page at /budgets/:id with PO table, create/edit/delete <!-- id: 243 -->
+  - [x] Budget amounts on project detail now link to budget detail <!-- id: 244 -->
+- [x] 379 tests, 28 suites, all passing <!-- id: 245 -->

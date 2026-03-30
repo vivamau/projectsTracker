@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { Pencil, Trash2, Plus, Users, FolderOpen } from 'lucide-react';
+import { Pencil, Trash2, Plus, Users, FolderOpen, DollarSign } from 'lucide-react';
 import {
   getDivision, deleteDivision,
   getDivisionProjects, getDivisionFocalPoints,
   addDivisionFocalPoint, removeDivisionFocalPoint,
-  getUsers
+  getDivisionProjectManagers, getUsers
 } from '../../api/entitiesApi';
 import { useAuth } from '../../hooks/useAuth';
 import Card from '../../commoncomponents/Card';
@@ -21,6 +21,7 @@ export default function DivisionDetailPage() {
   const [division, setDivision] = useState(null);
   const [projects, setProjects] = useState([]);
   const [focalPoints, setFocalPoints] = useState([]);
+  const [projectManagers, setProjectManagers] = useState([]);
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -33,6 +34,7 @@ export default function DivisionDetailPage() {
       getDivision(id).then(r => setDivision(r.data.data)),
       getDivisionProjects(id).then(r => setProjects(r.data.data)),
       getDivisionFocalPoints(id).then(r => setFocalPoints(r.data.data)),
+      getDivisionProjectManagers(id).then(r => setProjectManagers(r.data.data)),
       getUsers({ limit: 100 }).then(r => setUsers(r.data.data)).catch(() => {})
     ])
       .catch(() => navigate('/divisions'))
@@ -93,6 +95,7 @@ export default function DivisionDetailPage() {
           <div className="mt-1 flex items-center gap-4 text-sm text-text-secondary">
             <span className="flex items-center gap-1"><FolderOpen size={14} /> {division.projects_count} project{division.projects_count !== 1 ? 's' : ''}</span>
             <span className="flex items-center gap-1"><Users size={14} /> {division.focal_points_count} focal point{division.focal_points_count !== 1 ? 's' : ''}</span>
+            <span className="flex items-center gap-1"><DollarSign size={14} /> {Number(division.total_budget).toLocaleString('en-US')} total budget</span>
           </div>
         </div>
         {isAdmin && (
@@ -190,6 +193,40 @@ export default function DivisionDetailPage() {
               </div>
             )}
           </Card>
+
+          {/* Project Managers */}
+          {projectManagers.length > 0 && (
+            <Card title="Project Managers">
+              <div className="space-y-3">
+                {Object.values(
+                  projectManagers.reduce((acc, pm) => {
+                    if (!acc[pm.user_id]) {
+                      acc[pm.user_id] = { ...pm, projects: [] };
+                    }
+                    acc[pm.user_id].projects.push({ id: pm.project_id, name: pm.project_name });
+                    return acc;
+                  }, {})
+                ).map(pm => (
+                  <div key={pm.user_id} className="flex items-start gap-2.5">
+                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-50 text-xs font-bold text-primary-600">
+                      {(pm.user_name?.[0] || '') + (pm.user_lastname?.[0] || '')}
+                    </span>
+                    <div>
+                      <p className="text-sm font-medium text-text-primary">{pm.user_name} {pm.user_lastname}</p>
+                      <p className="text-xs text-text-secondary">{pm.user_email}</p>
+                      <div className="mt-1 flex flex-wrap gap-1">
+                        {pm.projects.map(p => (
+                          <Link key={p.id} to={`/projects/${p.id}`} className="text-xs text-primary-500 hover:underline">
+                            {p.name}
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          )}
 
           {/* Metadata */}
           <Card title="Metadata">

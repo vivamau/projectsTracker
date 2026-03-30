@@ -30,11 +30,21 @@ function createDivisionRoutes(db) {
         'SELECT COUNT(*) as count FROM projects WHERE division_id = ? AND (project_is_deleted = 0 OR project_is_deleted IS NULL)',
         [division.id]
       );
+      const totalBudget = await getOne(db,
+        `SELECT COALESCE(SUM(b.budget_amount), 0) as total
+         FROM budgets b
+         INNER JOIN projects_to_budgets ptb ON b.id = ptb.budget_id
+         INNER JOIN projects p ON ptb.project_id = p.id
+         WHERE p.division_id = ? AND (p.project_is_deleted = 0 OR p.project_is_deleted IS NULL)
+           AND (b.budget_is_deleted = 0 OR b.budget_is_deleted IS NULL)`,
+        [division.id]
+      );
 
       return success(res, {
         ...division,
         focal_points_count: focalPointsCount.count,
-        projects_count: projectsCount.count
+        projects_count: projectsCount.count,
+        total_budget: totalBudget.total
       });
     } catch (err) {
       return error(res, 'Failed to get division');
@@ -116,6 +126,26 @@ function createDivisionRoutes(db) {
       return success(res, { message: 'Focal point removed' });
     } catch (err) {
       return error(res, 'Failed to remove focal point');
+    }
+  });
+
+  // Project managers for a division
+  router.get('/:id/project-managers', authenticate, async (req, res) => {
+    try {
+      const pms = await getAll(db,
+        `SELECT DISTINCT pm.id, pm.user_id, u.user_name, u.user_lastname, u.user_email,
+                p.id as project_id, p.project_name
+         FROM projectmanagers pm
+         INNER JOIN projects_to_projectmanagers ppm ON pm.id = ppm.projectmanager_id
+         INNER JOIN projects p ON ppm.project_id = p.id
+         LEFT JOIN users u ON pm.user_id = u.id
+         WHERE ppm.division_id = ? AND (p.project_is_deleted = 0 OR p.project_is_deleted IS NULL)
+         ORDER BY u.user_name, p.project_name`,
+        [parseInt(req.params.id)]
+      );
+      return success(res, pms);
+    } catch (err) {
+      return error(res, 'Failed to get division project managers');
     }
   });
 

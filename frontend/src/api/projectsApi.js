@@ -59,3 +59,19 @@ export const getProjectManagers = (projectId) =>
 
 export const syncProjectManagers = (projectId, projectManagers) =>
   client.put(`/projects/${projectId}/project-managers`, { project_managers: projectManagers });
+
+// Budget detail & Purchase Orders
+export const getBudget = (budgetId) =>
+  client.get(`/budgets/${budgetId}`);
+
+export const getPurchaseOrders = (budgetId) =>
+  client.get(`/budgets/${budgetId}/purchase-orders`);
+
+export const createPurchaseOrder = (budgetId, data) =>
+  client.post(`/budgets/${budgetId}/purchase-orders`, data);
+
+export const updatePurchaseOrder = (budgetId, poId, data) =>
+  client.put(`/budgets/${budgetId}/purchase-orders/${poId}`, data);
+
+export const deletePurchaseOrder = (budgetId, poId) =>
+  client.delete(`/budgets/${budgetId}/purchase-orders/${poId}`);

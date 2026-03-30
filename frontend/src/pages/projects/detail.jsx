@@ -311,10 +311,10 @@ export default function ProjectDetailPage() {
                 {budgets.map(b => (
                   <div key={b.id} className="flex items-start justify-between rounded-lg border border-border px-3 py-2.5">
                     <div>
-                      <p className="text-sm font-semibold text-text-primary flex items-center gap-1.5">
+                      <Link to={`/budgets/${b.id}`} className="text-sm font-semibold text-primary-500 hover:text-primary-600 hover:underline flex items-center gap-1.5">
                         <DollarSign size={13} className="text-success-500" />
                         {formatCurrency(b.budget_amount, b.currency_name)}
-                      </p>
+                      </Link>
                       <p className="text-xs text-text-secondary mt-0.5">
                         {b.budget_start_date && b.budget_end_date
                           ? `${formatDate(b.budget_start_date)} – ${formatDate(b.budget_end_date)}`
