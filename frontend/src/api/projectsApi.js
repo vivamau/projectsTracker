@@ -75,3 +75,16 @@ export const updatePurchaseOrder = (budgetId, poId, data) =>
 
 export const deletePurchaseOrder = (budgetId, poId) =>
   client.delete(`/budgets/${budgetId}/purchase-orders/${poId}`);
+
+// PO Items
+export const getPurchaseOrderItems = (budgetId, poId) =>
+  client.get(`/budgets/${budgetId}/purchase-orders/${poId}/items`);
+
+export const createPurchaseOrderItem = (budgetId, poId, data) =>
+  client.post(`/budgets/${budgetId}/purchase-orders/${poId}/items`, data);
+
+export const updatePurchaseOrderItem = (budgetId, poId, itemId, data) =>
+  client.put(`/budgets/${budgetId}/purchase-orders/${poId}/items/${itemId}`, data);
+
+export const deletePurchaseOrderItem = (budgetId, poId, itemId) =>
+  client.delete(`/budgets/${budgetId}/purchase-orders/${poId}/items/${itemId}`);

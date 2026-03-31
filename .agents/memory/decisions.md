@@ -49,3 +49,18 @@
 **Date:** 2026-03-30
 **Decision:** The `focalpoints` table has no soft delete column — focal points are physically deleted. This matches the simple junction table schema (id, division_id, user_id) with no timestamps.
 **Status:** Implemented.
+
+## Vendor Selection in Purchase Orders is Optional
+**Date:** 2026-03-31
+**Decision:** Purchase orders can be created without a vendor. The vendor dropdown in PO forms is optional with a "Select a vendor..." placeholder. Users can later update POs to add/change vendors. This allows flexibility in PO creation workflow.
+**Status:** Implemented.
+
+## PO Items - Core Fields Only (Deferred Vendor Role FKs)
+**Date:** 2026-03-31
+**Decision:** Implement PO items with core fields only: description, start_date (required), end_date, days, discounted_rate, currency_id. Vendor role FKs (vendorcontractrole_id, vendorrolerate_id, vendorresource_id) are left nullable and deferred because their parent tables (contracts, roles, resources) have zero backend service coverage. Adding those FKs would require implementing 3-4 new services in parallel. Defer to next iteration when vendor sub-resource services are built.
+**Status:** Implemented.
+
+## PO Items Modal - Self-Contained Component
+**Date:** 2026-03-31
+**Decision:** Implement PO items management in a separate PoItemsModal.jsx component (not inline expand rows). This keeps the parent detail.jsx under 1000 lines, matches existing modal-based patterns (vendors, POs, budgets all use modals), and provides cleaner component separation. The modal is nested (outer: items list, inner: item create/edit form).
+**Status:** Implemented.

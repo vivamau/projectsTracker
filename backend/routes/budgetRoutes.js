@@ -2,6 +2,7 @@ const express = require('express');
 const { authenticate, authorize } = require('../middleware/auth');
 const budgetService = require('../services/budgetService');
 const purchaseOrderService = require('../services/purchaseOrderService');
+const purchaseOrderItemService = require('../services/purchaseOrderItemService');
 const { success, error } = require('../utilities/responseHelper');
 
 function createBudgetRoutes(db) {
@@ -60,6 +61,51 @@ function createBudgetRoutes(db) {
       return success(res, { message: 'Purchase order deleted' });
     } catch (err) {
       return error(res, 'Failed to delete purchase order');
+    }
+  });
+
+  // Purchase order items
+  router.get('/:id/purchase-orders/:poId/items', authenticate, async (req, res) => {
+    try {
+      const items = await purchaseOrderItemService.getByPoId(db, parseInt(req.params.poId));
+      return success(res, items);
+    } catch (err) {
+      return error(res, 'Failed to get purchase order items');
+    }
+  });
+
+  router.post('/:id/purchase-orders/:poId/items', authenticate, authorize('superadmin', 'admin'), async (req, res) => {
+    try {
+      const { purchaseorderitem_start_date } = req.body;
+      if (!purchaseorderitem_start_date) return error(res, 'purchaseorderitem_start_date is required', 400);
+
+      const result = await purchaseOrderItemService.create(db, {
+        ...req.body,
+        purchaseorder_id: parseInt(req.params.poId)
+      });
+      return success(res, { id: result.lastID }, 201);
+    } catch (err) {
+      return error(res, 'Failed to create purchase order item');
+    }
+  });
+
+  router.put('/:id/purchase-orders/:poId/items/:itemId', authenticate, authorize('superadmin', 'admin'), async (req, res) => {
+    try {
+      const result = await purchaseOrderItemService.update(db, parseInt(req.params.itemId), req.body);
+      if (result.changes === 0) return error(res, 'Item not found', 404);
+      return success(res, { message: 'Purchase order item updated' });
+    } catch (err) {
+      return error(res, 'Failed to update purchase order item');
+    }
+  });
+
+  router.delete('/:id/purchase-orders/:poId/items/:itemId', authenticate, authorize('superadmin', 'admin'), async (req, res) => {
+    try {
+      const result = await purchaseOrderItemService.softDelete(db, parseInt(req.params.itemId));
+      if (result.changes === 0) return error(res, 'Item not found', 404);
+      return success(res, { message: 'Purchase order item deleted' });
+    } catch (err) {
+      return error(res, 'Failed to delete purchase order item');
     }
   });
 

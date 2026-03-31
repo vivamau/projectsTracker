@@ -41,4 +41,12 @@
   - [x] budgetRoutes.js with TDD (11 tests): budget detail + PO CRUD <!-- id: 242 -->
   - [x] Budget detail page at /budgets/:id with PO table, create/edit/delete <!-- id: 243 -->
   - [x] Budget amounts on project detail now link to budget detail <!-- id: 244 -->
-- [x] 379 tests, 28 suites, all passing <!-- id: 245 -->
+  - [x] Vendor information added to PO create/edit forms with dropdown selector <!-- id: 246 -->
+- [x] Purchase Order Items feature (core fields) <!-- id: 247 -->
+  - [x] Migration 010: purchaseorderitem_is_deleted soft delete column <!-- id: 248 -->
+  - [x] purchaseOrderItemService.js with TDD (21 tests): getByPoId, getById, create, update, softDelete <!-- id: 249 -->
+  - [x] budgetRoutes.js extended with PO item CRUD routes (4 endpoints) <!-- id: 250 -->
+  - [x] purchaseOrderItemRoutes.test.js with TDD (16 tests) <!-- id: 251 -->
+  - [x] PoItemsModal.jsx component: nested items table + create/edit/delete <!-- id: 252 -->
+  - [x] Budget detail page wired with Items button, currencies dropdown support <!-- id: 253 -->
+- [x] 442 tests, 32 suites, all passing <!-- id: 245 -->

@@ -1,12 +1,14 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Plus, Pencil, Trash2, DollarSign, Calendar, ArrowLeft } from 'lucide-react';
+import { Plus, Pencil, Trash2, DollarSign, Calendar, ArrowLeft, List } from 'lucide-react';
 import { getBudget, getPurchaseOrders, createPurchaseOrder, updatePurchaseOrder, deletePurchaseOrder } from '../../api/projectsApi';
+import { getVendors, getCurrencies } from '../../api/entitiesApi';
 import { useAuth } from '../../hooks/useAuth';
 import Card from '../../commoncomponents/Card';
 import Modal from '../../commoncomponents/Modal';
 import ConfirmDialog from '../../commoncomponents/ConfirmDialog';
 import LoadingSpinner from '../../commoncomponents/LoadingSpinner';
+import PoItemsModal from './PoItemsModal';
 
 export default function BudgetDetailPage() {
   const { id } = useParams();
@@ -14,26 +16,33 @@ export default function BudgetDetailPage() {
   const { isAdmin } = useAuth();
   const [budget, setBudget] = useState(null);
   const [purchaseOrders, setPurchaseOrders] = useState([]);
+  const [vendors, setVendors] = useState([]);
+  const [currencies, setCurrencies] = useState([]);
   const [loading, setLoading] = useState(true);
   const [poModal, setPoModal] = useState(false);
   const [editPo, setEditPo] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [selectedPo, setSelectedPo] = useState(null);
+  const [itemsModalOpen, setItemsModalOpen] = useState(false);
   const [poForm, setPoForm] = useState({
     purchaseorder_description: '',
     purchaseorder_start_date: '',
-    purchaseorder_end_date: ''
+    purchaseorder_end_date: '',
+    vendor_id: ''
   });
 
-  const fetchData = () => {
+  const fetchData = useCallback(() => {
     Promise.all([
       getBudget(id).then(r => setBudget(r.data.data)),
-      getPurchaseOrders(id).then(r => setPurchaseOrders(r.data.data))
+      getPurchaseOrders(id).then(r => setPurchaseOrders(r.data.data)),
+      getVendors().then(r => setVendors(r.data.data)),
+      getCurrencies().then(r => setCurrencies(r.data.data))
     ])
       .catch(() => navigate(-1))
       .finally(() => setLoading(false));
-  };
+  }, [id, navigate]);
 
-  useEffect(() => { fetchData(); }, [id]);
+  useEffect(() => { fetchData(); }, [fetchData]);
 
   const formatDate = (ts) => {
     if (!ts) return '-';
@@ -58,7 +67,7 @@ export default function BudgetDetailPage() {
 
   const openCreate = () => {
     setEditPo(null);
-    setPoForm({ purchaseorder_description: '', purchaseorder_start_date: '', purchaseorder_end_date: '' });
+    setPoForm({ purchaseorder_description: '', purchaseorder_start_date: '', purchaseorder_end_date: '', vendor_id: '' });
     setPoModal(true);
   };
 
@@ -67,7 +76,8 @@ export default function BudgetDetailPage() {
     setPoForm({
       purchaseorder_description: po.purchaseorder_description || '',
       purchaseorder_start_date: tsToInput(po.purchaseorder_start_date),
-      purchaseorder_end_date: tsToInput(po.purchaseorder_end_date)
+      purchaseorder_end_date: tsToInput(po.purchaseorder_end_date),
+      vendor_id: po.vendor_id || ''
     });
     setPoModal(true);
   };
@@ -77,7 +87,8 @@ export default function BudgetDetailPage() {
     const data = {
       purchaseorder_description: poForm.purchaseorder_description.trim(),
       purchaseorder_start_date: inputToTs(poForm.purchaseorder_start_date),
-      purchaseorder_end_date: inputToTs(poForm.purchaseorder_end_date)
+      purchaseorder_end_date: inputToTs(poForm.purchaseorder_end_date),
+      vendor_id: poForm.vendor_id ? parseInt(poForm.vendor_id) : null
     };
 
     if (editPo) {
@@ -168,6 +179,13 @@ export default function BudgetDetailPage() {
                       {isAdmin && (
                         <td className="px-6 py-3">
                           <div className="flex justify-end gap-1">
+                            <button
+                              onClick={() => { setSelectedPo(po); setItemsModalOpen(true); }}
+                              className="inline-flex items-center gap-1 rounded-lg border border-border-dark px-2 py-1.5 text-xs text-text-secondary hover:bg-surface hover:text-primary-500 transition-colors"
+                              title="Manage items"
+                            >
+                              <List size={14} /> Items
+                            </button>
                             <button onClick={() => openEdit(po)} className="rounded-lg p-1.5 text-text-secondary hover:bg-surface hover:text-primary-500 transition-colors">
                               <Pencil size={16} />
                             </button>
@@ -239,6 +257,19 @@ export default function BudgetDetailPage() {
               placeholder="Purchase order description..."
             />
           </div>
+          <div>
+            <label className="mb-1.5 block text-sm font-medium">Vendor</label>
+            <select
+              value={poForm.vendor_id}
+              onChange={e => setPoForm(f => ({ ...f, vendor_id: e.target.value }))}
+              className="w-full rounded-lg border border-border-dark px-3 py-2 text-sm outline-none focus:border-primary-500"
+            >
+              <option value="">Select a vendor...</option>
+              {vendors.map(v => (
+                <option key={v.id} value={v.id}>{v.vendor_name}</option>
+              ))}
+            </select>
+          </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="mb-1.5 block text-sm font-medium">Start Date <span className="text-error-500">*</span></label>
@@ -278,6 +309,16 @@ export default function BudgetDetailPage() {
         onConfirm={handleDeletePo}
         title="Delete Purchase Order"
         message={`Delete purchase order "${deleteTarget?.purchaseorder_description || 'this PO'}"?`}
+      />
+
+      {/* PO Items Modal */}
+      <PoItemsModal
+        open={itemsModalOpen}
+        onClose={() => { setItemsModalOpen(false); setSelectedPo(null); }}
+        budgetId={id}
+        po={selectedPo}
+        currencies={currencies}
+        isAdmin={isAdmin}
       />
     </div>
   );
