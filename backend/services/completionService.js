@@ -21,16 +21,16 @@ async function getLatest(db, projectId) {
   return result || null;
 }
 
-async function create(db, { project_id, completion_value, completion_comment, user_id }) {
+async function create(db, { project_id, completion_value, completion_comment, user_id, completion_start_date, completion_end_date }) {
   const now = Date.now();
   return runQuery(db,
-    `INSERT INTO completions (completion_value, completion_comment, completion_create_date, completion_update_date, project_id, user_id)
-     VALUES (?, ?, ?, ?, ?, ?)`,
-    [completion_value, completion_comment || null, now, now, project_id, user_id || null]
+    `INSERT INTO completions (completion_value, completion_comment, completion_create_date, completion_update_date, project_id, user_id, completion_start_date, completion_end_date)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    [completion_value, completion_comment || null, now, now, project_id, user_id || null, completion_start_date || null, completion_end_date || null]
   );
 }
 
-async function update(db, id, { completion_value, completion_comment }) {
+async function update(db, id, { completion_value, completion_comment, completion_start_date, completion_end_date }) {
   const fields = [];
   const values = [];
 
@@ -41,6 +41,14 @@ async function update(db, id, { completion_value, completion_comment }) {
   if (completion_comment !== undefined) {
     fields.push('completion_comment = ?');
     values.push(completion_comment);
+  }
+  if (completion_start_date !== undefined) {
+    fields.push('completion_start_date = ?');
+    values.push(completion_start_date);
+  }
+  if (completion_end_date !== undefined) {
+    fields.push('completion_end_date = ?');
+    values.push(completion_end_date);
   }
 
   if (fields.length === 0) return { changes: 0 };

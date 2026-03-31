@@ -133,7 +133,7 @@ function createProjectRoutes(db) {
 
   router.post('/:id/completions', authenticate, authorize('superadmin', 'admin'), async (req, res) => {
     try {
-      const { completion_value, completion_comment } = req.body;
+      const { completion_value, completion_comment, completion_start_date, completion_end_date } = req.body;
       if (completion_value === undefined || completion_value === null) {
         return error(res, 'completion_value is required', 400);
       }
@@ -145,6 +145,8 @@ function createProjectRoutes(db) {
         project_id: parseInt(req.params.id),
         completion_value,
         completion_comment,
+        completion_start_date,
+        completion_end_date,
         user_id: req.user.id
       });
       return success(res, { id: result.lastID }, 201);

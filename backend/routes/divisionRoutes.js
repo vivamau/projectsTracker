@@ -171,6 +171,29 @@ function createDivisionRoutes(db) {
     }
   });
 
+  // Projects where division is supporting
+  router.get('/:id/supporting-projects', authenticate, async (req, res) => {
+    try {
+      const projects = await getAll(db,
+        `SELECT p.id, p.project_name, p.project_description, p.project_create_date,
+                p.project_start_date, p.project_end_date,
+                u.user_name as owner_name, u.user_lastname as owner_lastname,
+                (SELECT hs.healthstatus_value FROM healthstatuses hs
+                 WHERE hs.project_id = p.id
+                 ORDER BY hs.healthstatus_create_date DESC, hs.id DESC LIMIT 1) as health_status
+         FROM projects p
+         LEFT JOIN users u ON p.user_id = u.id
+         JOIN projects_to_divisions ptd ON p.id = ptd.project_id
+         WHERE ptd.division_id = ? AND (p.project_is_deleted = 0 OR p.project_is_deleted IS NULL)
+         ORDER BY p.project_create_date DESC`,
+        [parseInt(req.params.id)]
+      );
+      return success(res, projects);
+    } catch (err) {
+      return error(res, 'Failed to get supporting projects');
+    }
+  });
+
   return router;
 }
 

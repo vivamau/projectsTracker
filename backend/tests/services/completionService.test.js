@@ -52,6 +52,34 @@ describe('completionService.create', () => {
 
     expect(result.lastID).toBeDefined();
   });
+
+  it('should create a milestone with start and end dates', async () => {
+    const startDate = Date.now();
+    const endDate = Date.now() + 86400000; // 1 day later
+    const result = await completionService.create(db, {
+      project_id: projectId,
+      completion_value: 35,
+      completion_comment: 'Milestone with dates',
+      completion_start_date: startDate,
+      completion_end_date: endDate,
+      user_id: 1
+    });
+
+    expect(result.lastID).toBeDefined();
+    expect(result.changes).toBe(1);
+  });
+
+  it('should create a milestone with only start date', async () => {
+    const startDate = Date.now();
+    const result = await completionService.create(db, {
+      project_id: projectId,
+      completion_value: 40,
+      completion_start_date: startDate,
+      user_id: 1
+    });
+
+    expect(result.lastID).toBeDefined();
+  });
 });
 
 describe('completionService.getByProjectId', () => {
@@ -196,6 +224,31 @@ describe('completionService.update', () => {
       completion_value: 50
     });
 
+    expect(result.changes).toBe(0);
+  });
+
+  it('should update completion with start and end dates', async () => {
+    const startDate = Date.now();
+    const endDate = Date.now() + 86400000;
+    const result = await completionService.update(db, completionId, {
+      completion_start_date: startDate,
+      completion_end_date: endDate
+    });
+
+    expect(result.changes).toBe(1);
+  });
+
+  it('should update completion with only end date', async () => {
+    const endDate = Date.now() + 172800000; // 2 days from now
+    const result = await completionService.update(db, completionId, {
+      completion_end_date: endDate
+    });
+
+    expect(result.changes).toBe(1);
+  });
+
+  it('should return changes=0 when no fields provided', async () => {
+    const result = await completionService.update(db, completionId, {});
     expect(result.changes).toBe(0);
   });
 });

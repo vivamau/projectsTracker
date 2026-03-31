@@ -74,6 +74,14 @@ async function getById(db, id) {
     [id]
   );
 
+  // Get supporting divisions
+  const supportingDivisions = await getAll(db,
+    `SELECT d.* FROM divisions d
+     JOIN projects_to_divisions ptd ON d.id = ptd.division_id
+     WHERE ptd.project_id = ? AND (d.division_is_deleted = 0 OR d.division_is_deleted IS NULL)`,
+    [id]
+  );
+
   // Get latest health status
   const healthStatus = await getOne(db,
     `SELECT * FROM healthstatuses
@@ -91,6 +99,7 @@ async function getById(db, id) {
     owner_lastname: project.user_lastname,
     latest_health_status: healthStatus ? healthStatus.healthstatus_value : null,
     countries,
+    supporting_divisions: supportingDivisions,
     project_managers: projectManagers
   };
 }
@@ -122,6 +131,18 @@ async function create(db, data) {
       await runQuery(db,
         'INSERT INTO projects_to_countries (project_id, UN_country_code) VALUES (?, ?)',
         [result.lastID, code]
+      );
+    }
+  }
+
+  // Link supporting divisions if provided
+  if (data.supporting_division_ids && data.supporting_division_ids.length > 0) {
+    const mainDivId = data.division_id ? parseInt(data.division_id) : null;
+    for (const divId of data.supporting_division_ids) {
+      if (divId === mainDivId) continue;
+      await runQuery(db,
+        'INSERT INTO projects_to_divisions (project_id, division_id) VALUES (?, ?)',
+        [result.lastID, divId]
       );
     }
   }
@@ -202,7 +223,31 @@ async function update(db, id, data) {
       );
     }
     // If only countries changed, mark as updated
-    if (fields.length === 0 && !data.project_managers) {
+    if (fields.length === 0 && !data.project_managers && data.supporting_division_ids === undefined) {
+      await runQuery(db,
+        'UPDATE projects SET project_update_date = ? WHERE id = ?',
+        [now, id]
+      );
+      result = { changes: 1 };
+    }
+  }
+
+  // Sync supporting divisions if provided
+  if (data.supporting_division_ids !== undefined) {
+    await runQuery(db,
+      'DELETE FROM projects_to_divisions WHERE project_id = ?',
+      [id]
+    );
+    const mainDivId = data.division_id ? parseInt(data.division_id) : null;
+    for (const divId of data.supporting_division_ids) {
+      if (divId === mainDivId) continue;
+      await runQuery(db,
+        'INSERT INTO projects_to_divisions (project_id, division_id) VALUES (?, ?)',
+        [id, divId]
+      );
+    }
+    // If only supporting divisions changed, mark as updated
+    if (fields.length === 0 && !data.country_codes && !data.project_managers) {
       await runQuery(db,
         'UPDATE projects SET project_update_date = ? WHERE id = ?',
         [now, id]

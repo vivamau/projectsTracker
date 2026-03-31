@@ -102,4 +102,39 @@ describe('Division Routes', () => {
       expect(res.status).toBe(404);
     });
   });
+
+  describe('GET /api/divisions/:id/supporting-projects', () => {
+    it('should return empty list when no supporting projects', async () => {
+      const res = await request(app)
+        .get('/api/divisions/1/supporting-projects')
+        .set('Cookie', ['token=' + adminToken()]);
+      expect(res.status).toBe(200);
+      expect(Array.isArray(res.body.data)).toBe(true);
+    });
+
+    it('should return supporting projects when division participates', async () => {
+      // First, create a project with a supporting division
+      const projRes = await request(app)
+        .post('/api/projects')
+        .set('Cookie', ['token=' + adminToken()])
+        .send({
+          project_name: 'Project with Supporting Div',
+          division_id: 1,
+          user_id: 1,
+          initiative_id: 1,
+          deliverypath_id: 1,
+          supporting_division_ids: [2]
+        });
+      expect(projRes.status).toBe(201);
+
+      // Now fetch supporting projects for division 2
+      const res = await request(app)
+        .get('/api/divisions/2/supporting-projects')
+        .set('Cookie', ['token=' + adminToken()]);
+      expect(res.status).toBe(200);
+      expect(Array.isArray(res.body.data)).toBe(true);
+      expect(res.body.data.length).toBeGreaterThan(0);
+      expect(res.body.data[0].project_name).toBe('Project with Supporting Div');
+    });
+  });
 });

@@ -252,6 +252,19 @@ async function seedDummyData(db) {
       );
     }
 
+    // Link 0-2 random supporting divisions (excluding main division)
+    const numSupportingDivs = randomInt(0, 2);
+    const usedSupportingDivs = new Set();
+    for (let i = 0; i < numSupportingDivs && divisionIds.length > 0; i++) {
+      const supportingDivId = pick(divisionIds);
+      if (supportingDivId === divisionId || usedSupportingDivs.has(supportingDivId)) continue;
+      usedSupportingDivs.add(supportingDivId);
+      await runQuery(db,
+        'INSERT INTO projects_to_divisions (project_id, division_id) VALUES (?, ?)',
+        [projectId, supportingDivId]
+      );
+    }
+
     // Add 1-3 health statuses over time
     const numStatuses = randomInt(1, 3);
     for (let i = 0; i < numStatuses; i++) {
@@ -265,15 +278,31 @@ async function seedDummyData(db) {
       );
     }
 
-    // Add completion milestones - pick a random completion % and add milestones up to it
+    // Add completion milestones with start/end dates
     const targetCompletion = pick([20, 30, 40, 50, 60, 70, 80, 90, 100]);
     const relevantMilestones = MILESTONES.filter(m => m.value <= targetCompletion);
+
+    // Spread milestones across the project timeline
+    const projectDuration = endDate - startDate;
     for (let i = 0; i < relevantMilestones.length; i++) {
       const ms = relevantMilestones[i];
-      const msDate = daysAgo(targetCompletion === 100 ? randomInt(0, 10) : (relevantMilestones.length - i) * randomInt(3, 10));
+      const progressPercent = ms.value / 100;
+      const estimatedMilestoneTime = startDate + (projectDuration * progressPercent);
+
+      // Create start date (1-2 weeks before estimated)
+      const msStartDate = estimatedMilestoneTime - randomInt(7, 14) * 24 * 60 * 60 * 1000;
+
+      // Create end date (1-4 weeks after start)
+      const msEndDate = msStartDate + randomInt(7, 28) * 24 * 60 * 60 * 1000;
+
+      // Creation date is when the milestone was recorded (could be in the past or today)
+      const msCreateDate = targetCompletion === 100
+        ? daysAgo(randomInt(0, 10))
+        : (relevantMilestones.length - i) * randomInt(3, 10) * 24 * 60 * 60 * 1000 - Date.now();
+
       await runQuery(db,
-        'INSERT INTO completions (completion_value, completion_comment, completion_create_date, completion_update_date, project_id, user_id) VALUES (?, ?, ?, ?, ?, ?)',
-        [ms.value, ms.comment, msDate, msDate, projectId, ownerId]
+        'INSERT INTO completions (completion_value, completion_comment, completion_start_date, completion_end_date, completion_create_date, completion_update_date, project_id, user_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+        [ms.value, ms.comment, msStartDate, msEndDate, msCreateDate, msCreateDate, projectId, ownerId]
       );
     }
 
