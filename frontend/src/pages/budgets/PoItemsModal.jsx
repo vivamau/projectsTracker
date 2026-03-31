@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Plus, Pencil, Trash2 } from 'lucide-react';
 import { getPurchaseOrderItems, createPurchaseOrderItem, updatePurchaseOrderItem, deletePurchaseOrderItem } from '../../api/projectsApi';
+import { getVendors, getVendorContracts, getVendorContractRoles, getVendorRoleRates } from '../../api/entitiesApi';
 import Modal from '../../commoncomponents/Modal';
 import ConfirmDialog from '../../commoncomponents/ConfirmDialog';
 import LoadingSpinner from '../../commoncomponents/LoadingSpinner';
@@ -11,13 +12,26 @@ export default function PoItemsModal({ open, onClose, budgetId, po, currencies, 
   const [itemModal, setItemModal] = useState(false);
   const [editItem, setEditItem] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
+
+  // Dropdown data
+  const [vendors, setVendors] = useState([]);
+  const [contracts, setContracts] = useState([]);
+  const [roles, setRoles] = useState([]);
+  const [rates, setRates] = useState([]);
+  const [resources, setResources] = useState([]);
+
   const [itemForm, setItemForm] = useState({
     purchaseorderitem_description: '',
     purchaseorderitem_start_date: '',
     purchaseorderitem_end_date: '',
     purchaseorderitems_days: '',
     purchaseorderitems_discounted_rate: '',
-    currency_id: ''
+    currency_id: '',
+    vendor_id: '',
+    vendorcontract_id: '',
+    vendorcontractrole_id: '',
+    vendorrolerate_id: '',
+    vendorresource_id: ''
   });
 
   const fetchItems = useCallback(() => {
@@ -29,11 +43,52 @@ export default function PoItemsModal({ open, onClose, budgetId, po, currencies, 
       .finally(() => setLoading(false));
   }, [budgetId, po?.id]);
 
+  const fetchVendors = useCallback(() => {
+    getVendors()
+      .then(r => setVendors(r.data.data || []))
+      .catch(() => setVendors([]));
+  }, []);
+
+  const fetchContracts = useCallback((vendorId) => {
+    if (!vendorId) {
+      setContracts([]);
+      setRoles([]);
+      setRates([]);
+      setResources([]);
+      return;
+    }
+    getVendorContracts(vendorId)
+      .then(r => setContracts(r.data.data || []))
+      .catch(() => setContracts([]));
+  }, []);
+
+  const fetchRoles = useCallback((vendorId, contractId) => {
+    if (!vendorId || !contractId) {
+      setRoles([]);
+      setRates([]);
+      return;
+    }
+    getVendorContractRoles(vendorId, contractId)
+      .then(r => setRoles(r.data.data || []))
+      .catch(() => setRoles([]));
+  }, []);
+
+  const fetchRates = useCallback((vendorId, contractId, roleId) => {
+    if (!vendorId || !contractId || !roleId) {
+      setRates([]);
+      return;
+    }
+    getVendorRoleRates(vendorId, contractId, roleId)
+      .then(r => setRates(r.data.data || []))
+      .catch(() => setRates([]));
+  }, []);
+
   useEffect(() => {
     if (open && po?.id) {
       fetchItems();
+      fetchVendors();
     }
-  }, [open, po?.id, fetchItems]);
+  }, [open, po?.id, fetchItems, fetchVendors]);
 
   const formatDate = (ts) => {
     if (!ts) return '-';
@@ -63,8 +118,17 @@ export default function PoItemsModal({ open, onClose, budgetId, po, currencies, 
       purchaseorderitem_end_date: '',
       purchaseorderitems_days: '',
       purchaseorderitems_discounted_rate: '',
-      currency_id: ''
+      currency_id: '',
+      vendor_id: '',
+      vendorcontract_id: '',
+      vendorcontractrole_id: '',
+      vendorrolerate_id: '',
+      vendorresource_id: ''
     });
+    setContracts([]);
+    setRoles([]);
+    setRates([]);
+    setResources([]);
     setItemModal(true);
   };
 
@@ -76,7 +140,12 @@ export default function PoItemsModal({ open, onClose, budgetId, po, currencies, 
       purchaseorderitem_end_date: tsToInput(item.purchaseorderitem_end_date),
       purchaseorderitems_days: item.purchaseorderitems_days || '',
       purchaseorderitems_discounted_rate: item.purchaseorderitems_discounted_rate || '',
-      currency_id: item.currency_id || ''
+      currency_id: item.currency_id || '',
+      vendor_id: '',
+      vendorcontract_id: '',
+      vendorcontractrole_id: item.vendorcontractrole_id || '',
+      vendorrolerate_id: item.vendorrolerate_id || '',
+      vendorresource_id: item.vendorresource_id || ''
     });
     setItemModal(true);
   };
@@ -91,7 +160,10 @@ export default function PoItemsModal({ open, onClose, budgetId, po, currencies, 
       purchaseorderitem_end_date: inputToTs(itemForm.purchaseorderitem_end_date),
       purchaseorderitems_days: itemForm.purchaseorderitems_days ? parseFloat(itemForm.purchaseorderitems_days) : null,
       purchaseorderitems_discounted_rate: itemForm.purchaseorderitems_discounted_rate ? parseFloat(itemForm.purchaseorderitems_discounted_rate) : null,
-      currency_id: itemForm.currency_id ? parseInt(itemForm.currency_id) : null
+      currency_id: itemForm.currency_id ? parseInt(itemForm.currency_id) : null,
+      vendorcontractrole_id: itemForm.vendorcontractrole_id ? parseInt(itemForm.vendorcontractrole_id) : null,
+      vendorrolerate_id: itemForm.vendorrolerate_id ? parseInt(itemForm.vendorrolerate_id) : null,
+      vendorresource_id: itemForm.vendorresource_id ? parseInt(itemForm.vendorresource_id) : null
     };
 
     if (editItem) {
@@ -102,6 +174,62 @@ export default function PoItemsModal({ open, onClose, budgetId, po, currencies, 
 
     fetchItems();
     setItemModal(false);
+  };
+
+  const handleVendorChange = (vendorId) => {
+    setItemForm(f => ({
+      ...f,
+      vendor_id: vendorId,
+      vendorcontract_id: '',
+      vendorcontractrole_id: '',
+      vendorrolerate_id: '',
+      vendorresource_id: ''
+    }));
+    setContracts([]);
+    setRoles([]);
+    setRates([]);
+    setResources([]);
+    if (vendorId) {
+      fetchContracts(vendorId);
+    }
+  };
+
+  const handleContractChange = (contractId) => {
+    setItemForm(f => ({
+      ...f,
+      vendorcontract_id: contractId,
+      vendorcontractrole_id: '',
+      vendorrolerate_id: '',
+      vendorresource_id: ''
+    }));
+    setRoles([]);
+    setRates([]);
+    if (itemForm.vendor_id && contractId) {
+      fetchRoles(itemForm.vendor_id, contractId);
+    }
+  };
+
+  const handleRoleChange = (roleId) => {
+    setItemForm(f => ({
+      ...f,
+      vendorcontractrole_id: roleId,
+      vendorrolerate_id: '',
+      purchaseorderitems_discounted_rate: ''
+    }));
+    setRates([]);
+    if (itemForm.vendor_id && itemForm.vendorcontract_id && roleId) {
+      fetchRates(itemForm.vendor_id, itemForm.vendorcontract_id, roleId);
+    }
+  };
+
+  const handleRateChange = (rateId) => {
+    const selectedRate = rates.find(r => r.id === parseInt(rateId));
+    setItemForm(f => ({
+      ...f,
+      vendorrolerate_id: rateId,
+      purchaseorderitems_discounted_rate: selectedRate ? selectedRate.vendorrolerate_rate : '',
+      currency_id: selectedRate ? selectedRate.currency_id : itemForm.currency_id
+    }));
   };
 
   const handleDeleteItem = async () => {
@@ -142,6 +270,7 @@ export default function PoItemsModal({ open, onClose, budgetId, po, currencies, 
                     <th className="px-4 py-3 text-right font-medium text-text-secondary">Days</th>
                     <th className="px-4 py-3 text-right font-medium text-text-secondary">Rate</th>
                     <th className="px-4 py-3 text-left font-medium text-text-secondary">Currency</th>
+                    <th className="px-4 py-3 text-left font-medium text-text-secondary">Vendor Role</th>
                     {isAdmin && <th className="px-4 py-3 text-right font-medium text-text-secondary">Actions</th>}
                   </tr>
                 </thead>
@@ -154,6 +283,7 @@ export default function PoItemsModal({ open, onClose, budgetId, po, currencies, 
                       <td className="px-4 py-3 text-right text-text-secondary">{item.purchaseorderitems_days || '-'}</td>
                       <td className="px-4 py-3 text-right text-text-secondary">{formatCurrency(item.purchaseorderitems_discounted_rate)}</td>
                       <td className="px-4 py-3 text-text-secondary">{item.currency_name || '-'}</td>
+                      <td className="px-4 py-3 text-text-secondary">{item.vendorcontractrole_name || '-'}</td>
                       {isAdmin && (
                         <td className="px-4 py-3">
                           <div className="flex justify-end gap-1">
@@ -207,7 +337,7 @@ export default function PoItemsModal({ open, onClose, budgetId, po, currencies, 
                 value={itemForm.purchaseorderitem_start_date}
                 onChange={e => setItemForm(f => ({ ...f, purchaseorderitem_start_date: e.target.value }))}
                 required
-                className="w-full rounded-lg border border-border-dark px-3 py-2 text-sm outline-none focus:border-primary-500"
+                className="w-full rounded-lg border border-border-dark bg-surface px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 appearance-none"
               />
             </div>
             <div>
@@ -216,7 +346,7 @@ export default function PoItemsModal({ open, onClose, budgetId, po, currencies, 
                 type="date"
                 value={itemForm.purchaseorderitem_end_date}
                 onChange={e => setItemForm(f => ({ ...f, purchaseorderitem_end_date: e.target.value }))}
-                className="w-full rounded-lg border border-border-dark px-3 py-2 text-sm outline-none focus:border-primary-500"
+                className="w-full rounded-lg border border-border-dark bg-surface px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 appearance-none"
               />
             </div>
           </div>
@@ -229,7 +359,7 @@ export default function PoItemsModal({ open, onClose, budgetId, po, currencies, 
                 step="0.01"
                 value={itemForm.purchaseorderitems_days}
                 onChange={e => setItemForm(f => ({ ...f, purchaseorderitems_days: e.target.value }))}
-                className="w-full rounded-lg border border-border-dark px-3 py-2 text-sm outline-none focus:border-primary-500"
+                className="w-full rounded-lg border border-border-dark bg-surface px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 appearance-none"
                 placeholder="0"
               />
             </div>
@@ -240,7 +370,7 @@ export default function PoItemsModal({ open, onClose, budgetId, po, currencies, 
                 step="0.01"
                 value={itemForm.purchaseorderitems_discounted_rate}
                 onChange={e => setItemForm(f => ({ ...f, purchaseorderitems_discounted_rate: e.target.value }))}
-                className="w-full rounded-lg border border-border-dark px-3 py-2 text-sm outline-none focus:border-primary-500"
+                className="w-full rounded-lg border border-border-dark bg-surface px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 appearance-none"
                 placeholder="0"
               />
             </div>
@@ -251,7 +381,7 @@ export default function PoItemsModal({ open, onClose, budgetId, po, currencies, 
             <select
               value={itemForm.currency_id}
               onChange={e => setItemForm(f => ({ ...f, currency_id: e.target.value }))}
-              className="w-full rounded-lg border border-border-dark px-3 py-2 text-sm outline-none focus:border-primary-500"
+              className="w-full rounded-lg border border-border-dark bg-surface px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 appearance-none"
             >
               <option value="">Select a currency...</option>
               {currencies.map(c => (
@@ -259,6 +389,70 @@ export default function PoItemsModal({ open, onClose, budgetId, po, currencies, 
               ))}
             </select>
           </div>
+
+          <div>
+            <label className="mb-1.5 block text-sm font-medium">Vendor</label>
+            <select
+              value={itemForm.vendor_id}
+              onChange={e => handleVendorChange(e.target.value)}
+              className="w-full rounded-lg border border-border-dark bg-surface px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 appearance-none"
+            >
+              <option value="">Select a vendor...</option>
+              {vendors.map(v => (
+                <option key={v.id} value={v.id}>{v.vendor_name}</option>
+              ))}
+            </select>
+          </div>
+
+          {itemForm.vendor_id && (
+            <div>
+              <label className="mb-1.5 block text-sm font-medium">Contract</label>
+              <select
+                value={itemForm.vendorcontract_id}
+                onChange={e => handleContractChange(e.target.value)}
+                className="w-full rounded-lg border border-border-dark bg-surface px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 appearance-none"
+              >
+                <option value="">Select a contract...</option>
+                {contracts.map(c => (
+                  <option key={c.id} value={c.id}>{c.contract_name}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {itemForm.vendorcontract_id && (
+            <div>
+              <label className="mb-1.5 block text-sm font-medium">Role</label>
+              <select
+                value={itemForm.vendorcontractrole_id}
+                onChange={e => handleRoleChange(e.target.value)}
+                className="w-full rounded-lg border border-border-dark bg-surface px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 appearance-none"
+              >
+                <option value="">Select a role...</option>
+                {roles.map(r => (
+                  <option key={r.id} value={r.id}>{r.vendorcontractrole_name}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {itemForm.vendorcontractrole_id && (
+            <div>
+              <label className="mb-1.5 block text-sm font-medium">Rate</label>
+              <select
+                value={itemForm.vendorrolerate_id}
+                onChange={e => handleRateChange(e.target.value)}
+                className="w-full rounded-lg border border-border-dark bg-surface px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 appearance-none"
+              >
+                <option value="">Select a rate...</option>
+                {rates.map(r => (
+                  <option key={r.id} value={r.id}>
+                    {r.currency_symbol || ''}{r.vendorrolerate_rate?.toFixed(2)} ({r.currency_name}) - {r.seniority_description || 'No seniority'}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           <div className="flex justify-end gap-3 pt-2">
             <button

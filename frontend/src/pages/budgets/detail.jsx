@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { Plus, Pencil, Trash2, DollarSign, Calendar, ArrowLeft, List } from 'lucide-react';
-import { getBudget, getPurchaseOrders, createPurchaseOrder, updatePurchaseOrder, deletePurchaseOrder } from '../../api/projectsApi';
+import { getBudget, getPurchaseOrders, createPurchaseOrder, updatePurchaseOrder, deletePurchaseOrder, getPurchaseOrderItems } from '../../api/projectsApi';
 import { getVendors, getCurrencies } from '../../api/entitiesApi';
 import { useAuth } from '../../hooks/useAuth';
 import Card from '../../commoncomponents/Card';
@@ -24,6 +24,7 @@ export default function BudgetDetailPage() {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [selectedPo, setSelectedPo] = useState(null);
   const [itemsModalOpen, setItemsModalOpen] = useState(false);
+  const [poTotals, setPoTotals] = useState({});
   const [poForm, setPoForm] = useState({
     purchaseorder_description: '',
     purchaseorder_start_date: '',
@@ -31,16 +32,38 @@ export default function BudgetDetailPage() {
     vendor_id: ''
   });
 
+  const calculatePoTotals = useCallback(async (pos) => {
+    const totals = {};
+    for (const po of pos) {
+      try {
+        const itemsRes = await getPurchaseOrderItems(id, po.id);
+        const items = itemsRes.data.data || [];
+        const total = items.reduce((sum, item) => {
+          const days = item.purchaseorderitems_days || 0;
+          const rate = item.purchaseorderitems_discounted_rate || 0;
+          return sum + (days * rate);
+        }, 0);
+        totals[po.id] = total;
+      } catch (err) {
+        totals[po.id] = 0;
+      }
+    }
+    setPoTotals(totals);
+  }, [id]);
+
   const fetchData = useCallback(() => {
     Promise.all([
       getBudget(id).then(r => setBudget(r.data.data)),
-      getPurchaseOrders(id).then(r => setPurchaseOrders(r.data.data)),
+      getPurchaseOrders(id).then(r => {
+        setPurchaseOrders(r.data.data);
+        calculatePoTotals(r.data.data);
+      }),
       getVendors().then(r => setVendors(r.data.data)),
       getCurrencies().then(r => setCurrencies(r.data.data))
     ])
       .catch(() => navigate(-1))
       .finally(() => setLoading(false));
-  }, [id, navigate]);
+  }, [id, navigate, calculatePoTotals]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -112,6 +135,9 @@ export default function BudgetDetailPage() {
   if (loading) return <LoadingSpinner size="lg" className="mt-20" />;
   if (!budget) return null;
 
+  const totalPoAmount = Object.values(poTotals).reduce((sum, total) => sum + total, 0);
+  const currentBalance = budget.budget_amount - totalPoAmount;
+
   return (
     <div>
       {/* Header */}
@@ -128,9 +154,13 @@ export default function BudgetDetailPage() {
               <DollarSign size={22} className="text-success-500" />
               Budget: {formatCurrency(budget.budget_amount, budget.currency_name)}
             </h1>
-            <div className="mt-1 flex items-center gap-4 text-sm text-text-secondary">
+            <div className="mt-3 space-y-1 text-sm">
+              <div className="flex items-center gap-4">
+                <span className="text-text-secondary">Purchase Orders: {formatCurrency(totalPoAmount, budget.currency_name)}</span>
+                <span className="text-text-secondary">Current Balance: <span className={currentBalance < 0 ? 'text-error-500 font-semibold' : 'text-success-600 font-semibold'}>{formatCurrency(currentBalance, budget.currency_name)}</span></span>
+              </div>
               {budget.budget_start_date && (
-                <span className="flex items-center gap-1">
+                <span className="flex items-center gap-1 text-text-secondary">
                   <Calendar size={14} /> {formatDate(budget.budget_start_date)} – {formatDate(budget.budget_end_date)}
                 </span>
               )}
@@ -139,9 +169,8 @@ export default function BudgetDetailPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+      <div>
         {/* Purchase Orders */}
-        <div className="lg:col-span-2">
           <Card
             title={`Purchase Orders (${purchaseOrders.length})`}
             noPadding
@@ -166,16 +195,28 @@ export default function BudgetDetailPage() {
                     <th className="px-6 py-3 text-left font-medium text-text-secondary">Start Date</th>
                     <th className="px-6 py-3 text-left font-medium text-text-secondary">End Date</th>
                     <th className="px-6 py-3 text-left font-medium text-text-secondary">Vendor</th>
+                    <th className="px-6 py-3 text-right font-medium text-text-secondary">Total</th>
                     {isAdmin && <th className="px-6 py-3 text-right font-medium text-text-secondary">Actions</th>}
                   </tr>
                 </thead>
                 <tbody>
                   {purchaseOrders.map(po => (
                     <tr key={po.id} className="border-b border-border last:border-0 hover:bg-surface/30 transition-colors">
-                      <td className="px-6 py-3 font-medium">{po.purchaseorder_description || '-'}</td>
+                      <td className="px-6 py-3">
+                        <p className="font-medium text-text-primary">{po.purchaseorder_description || '-'}</p>
+                      </td>
                       <td className="px-6 py-3 text-text-secondary">{formatDate(po.purchaseorder_start_date)}</td>
                       <td className="px-6 py-3 text-text-secondary">{formatDate(po.purchaseorder_end_date)}</td>
-                      <td className="px-6 py-3 text-text-secondary">{po.vendor_name || '-'}</td>
+                      <td className="px-6 py-3">
+                        {po.vendor_id ? (
+                          <Link to={`/vendors/${po.vendor_id}`} className="font-medium text-primary-600 hover:text-primary-700">
+                            {po.vendor_name || '-'}
+                          </Link>
+                        ) : (
+                          <span className="text-text-secondary">-</span>
+                        )}
+                      </td>
+                      <td className="px-6 py-3 text-right font-semibold text-text-primary">{formatCurrency(poTotals[po.id] || 0, budget.currency_name)}</td>
                       {isAdmin && (
                         <td className="px-6 py-3">
                           <div className="flex justify-end gap-1">
@@ -201,47 +242,6 @@ export default function BudgetDetailPage() {
               </table>
             )}
           </Card>
-        </div>
-
-        {/* Sidebar */}
-        <div className="space-y-6">
-          <Card title="Budget Details">
-            <div className="space-y-3 text-sm">
-              <div className="flex justify-between">
-                <span className="text-text-secondary">Amount</span>
-                <span className="font-bold">{formatCurrency(budget.budget_amount, budget.currency_name)}</span>
-              </div>
-              {budget.currency_name && (
-                <div className="flex justify-between">
-                  <span className="text-text-secondary">Currency</span>
-                  <span className="font-medium">{budget.currency_name}</span>
-                </div>
-              )}
-              <div className="flex justify-between">
-                <span className="text-text-secondary">Start Date</span>
-                <span className="font-medium">{formatDate(budget.budget_start_date)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-text-secondary">End Date</span>
-                <span className="font-medium">{formatDate(budget.budget_end_date)}</span>
-              </div>
-              {budget.budget_approve_date && (
-                <div className="flex justify-between">
-                  <span className="text-text-secondary">Approved</span>
-                  <span className="font-medium">{formatDate(budget.budget_approve_date)}</span>
-                </div>
-              )}
-              <div className="flex justify-between">
-                <span className="text-text-secondary">Created</span>
-                <span className="font-medium">{formatDate(budget.budget_create_date)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-text-secondary">ID</span>
-                <span className="font-mono text-text-secondary">#{budget.id}</span>
-              </div>
-            </div>
-          </Card>
-        </div>
       </div>
 
       {/* PO Create/Edit Modal */}
@@ -262,7 +262,7 @@ export default function BudgetDetailPage() {
             <select
               value={poForm.vendor_id}
               onChange={e => setPoForm(f => ({ ...f, vendor_id: e.target.value }))}
-              className="w-full rounded-lg border border-border-dark px-3 py-2 text-sm outline-none focus:border-primary-500"
+              className="w-full rounded-lg border border-border-dark bg-surface px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 appearance-none"
             >
               <option value="">Select a vendor...</option>
               {vendors.map(v => (
@@ -278,7 +278,7 @@ export default function BudgetDetailPage() {
                 value={poForm.purchaseorder_start_date}
                 onChange={e => setPoForm(f => ({ ...f, purchaseorder_start_date: e.target.value }))}
                 required
-                className="w-full rounded-lg border border-border-dark px-3 py-2 text-sm outline-none focus:border-primary-500"
+                className="w-full rounded-lg border border-border-dark bg-surface px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 appearance-none"
               />
             </div>
             <div>
@@ -287,7 +287,7 @@ export default function BudgetDetailPage() {
                 type="date"
                 value={poForm.purchaseorder_end_date}
                 onChange={e => setPoForm(f => ({ ...f, purchaseorder_end_date: e.target.value }))}
-                className="w-full rounded-lg border border-border-dark px-3 py-2 text-sm outline-none focus:border-primary-500"
+                className="w-full rounded-lg border border-border-dark bg-surface px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 appearance-none"
               />
             </div>
           </div>
@@ -314,7 +314,15 @@ export default function BudgetDetailPage() {
       {/* PO Items Modal */}
       <PoItemsModal
         open={itemsModalOpen}
-        onClose={() => { setItemsModalOpen(false); setSelectedPo(null); }}
+        onClose={() => {
+          setItemsModalOpen(false);
+          setSelectedPo(null);
+          // Recalculate totals after items are modified
+          getPurchaseOrders(id).then(r => {
+            setPurchaseOrders(r.data.data);
+            calculatePoTotals(r.data.data);
+          });
+        }}
         budgetId={id}
         po={selectedPo}
         currencies={currencies}

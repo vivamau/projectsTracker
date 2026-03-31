@@ -1,20 +1,61 @@
 import { useState, useEffect } from 'react';
 import { FolderKanban, Activity, Building2, HeartPulse } from 'lucide-react';
-import { getProjectStats } from '../../api/projectsApi';
+import { getProjectStats, getRecentBudgets, getPurchaseOrders, getPurchaseOrderItems } from '../../api/projectsApi';
 import KpiCard from './components/KpiCard';
 import HealthChart from './components/HealthChart';
 import RecentProjects from './components/RecentProjects';
+import RecentBudgets from './components/RecentBudgets';
 import LoadingSpinner from '../../commoncomponents/LoadingSpinner';
 
 export default function DashboardPage() {
   const [stats, setStats] = useState(null);
+  const [budgets, setBudgets] = useState([]);
   const [loading, setLoading] = useState(true);
- 
+
   useEffect(() => {
-    getProjectStats()
-      .then(res => setStats(res.data.data))
-      .catch(() => setStats(null))
-      .finally(() => setLoading(false));
+    const fetchData = async () => {
+      try {
+        const [statsRes, budgetsRes] = await Promise.all([
+          getProjectStats(),
+          getRecentBudgets(5)
+        ]);
+
+        setStats(statsRes.data.data);
+
+        // Fetch PO items for each budget to calculate balance
+        const budgetsWithItems = await Promise.all(
+          (budgetsRes.data.data || []).map(async (budget) => {
+            try {
+              const posRes = await getPurchaseOrders(budget.id);
+              const pos = posRes.data.data || [];
+
+              let allItems = [];
+              for (const po of pos) {
+                try {
+                  const itemsRes = await getPurchaseOrderItems(budget.id, po.id);
+                  allItems.push(...(itemsRes.data.data || []));
+                } catch {
+                  // Continue if items fetch fails
+                }
+              }
+
+              return { ...budget, items: allItems };
+            } catch {
+              return { ...budget, items: [] };
+            }
+          })
+        );
+
+        setBudgets(budgetsWithItems);
+      } catch {
+        setStats(null);
+        setBudgets([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
   }, []);
 
   if (loading) return <LoadingSpinner size="lg" className="mt-20" />;
@@ -64,6 +105,11 @@ export default function DashboardPage() {
         <div className="lg:col-span-2">
           <RecentProjects projects={stats?.recentProjects || []} />
         </div>
+      </div>
+
+      {/* Recent Budgets */}
+      <div className="mt-6">
+        <RecentBudgets budgets={budgets} />
       </div>
     </div>
   );

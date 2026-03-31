@@ -1,10 +1,14 @@
 const express = require('express');
 const { authenticate, authorize } = require('../middleware/auth');
 const vendorService = require('../services/vendorService');
+const vendorContractRoutes = require('./vendorContractRoutes');
 const { success, error } = require('../utilities/responseHelper');
 
 function createVendorRoutes(db) {
   const router = express.Router();
+
+  // Nested vendor contracts routes
+  router.use('/:vendorId/contracts', vendorContractRoutes(db));
 
   router.get('/', authenticate, async (req, res) => {
     try {

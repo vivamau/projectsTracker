@@ -20,3 +20,14 @@ Port 5000 is occupied by macOS ControlCenter. Use 5001 for the backend.
 
 ## Database files must be fully cleaned
 When recreating a SQLite database, remove `.sqlite-wal` and `.sqlite-shm` files too, not just the main `.sqlite` file, to avoid SQLITE_CORRUPT errors.
+
+## Dummy data seeding runs on app startup only
+The `seed_dummy_data.js` function runs during app initialization (in `index.js`). If a feature depends on seeded data (e.g., seniorities dropdown), that data only exists after a fresh app start. Changes to seeding logic won't take effect until the next app restart.
+
+## React dropdown handling for nested response data
+When fetching API data for React dropdowns, the response structure varies:
+- Some APIs return `{ success: true, data: [] }`
+- Others may return `{ data: [] }` directly
+- Handle both with: `const data = response.data?.data || response.data || []`
+- Always validate `Array.isArray()` before rendering options
+- Add console.error logging in catch blocks for troubleshooting

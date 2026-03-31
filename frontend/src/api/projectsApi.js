@@ -61,6 +61,12 @@ export const syncProjectManagers = (projectId, projectManagers) =>
   client.put(`/projects/${projectId}/project-managers`, { project_managers: projectManagers });
 
 // Budget detail & Purchase Orders
+export const getAllBudgets = () =>
+  client.get(`/budgets`);
+
+export const getRecentBudgets = (limit = 5) =>
+  client.get(`/budgets/recent`, { params: { limit } });
+
 export const getBudget = (budgetId) =>
   client.get(`/budgets/${budgetId}`);
 

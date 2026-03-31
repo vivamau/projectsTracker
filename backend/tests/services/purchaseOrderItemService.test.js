@@ -4,9 +4,10 @@ const budgetService = require('../../services/budgetService');
 const currencyService = require('../../services/currencyService');
 const purchaseOrderService = require('../../services/purchaseOrderService');
 const projectService = require('../../services/projectService');
+const vendorService = require('../../services/vendorService');
 
 let db;
-let budgetId, poId, currencyId;
+let budgetId, poId, currencyId, vendorId, vendorContractId, vendorRoleId, vendorRoleRateId, vendorResourceId;
 
 beforeAll(async () => {
   db = await initTestDb();
@@ -28,6 +29,69 @@ beforeAll(async () => {
   });
   currencyId = currRes.lastID;
 
+  // Create vendor
+  const vendorRes = await vendorService.create(db, {
+    vendor_name: 'Test Vendor',
+    vendor_email: 'vendor@test.com'
+  });
+  vendorId = vendorRes.lastID;
+
+  // Create vendor contract
+  const contractRes = await new Promise((resolve, reject) => {
+    db.run(
+      `INSERT INTO vendorcontracts (contract_name, contract_start_date, vendor_id, contract_create_date)
+       VALUES (?, ?, ?, ?)`,
+      ['Test Contract', Date.now(), vendorId, Date.now()],
+      function(err) {
+        if (err) reject(err);
+        else resolve({ lastID: this.lastID });
+      }
+    );
+  });
+  vendorContractId = contractRes.lastID;
+
+  // Create vendor contract role
+  const roleRes = await new Promise((resolve, reject) => {
+    db.run(
+      `INSERT INTO vendorcontractroles (vendorcontractrole_name, vendorcontract_id, vendorcontractrole_create_date)
+       VALUES (?, ?, ?)`,
+      ['Consultant', vendorContractId, Date.now()],
+      function(err) {
+        if (err) reject(err);
+        else resolve({ lastID: this.lastID });
+      }
+    );
+  });
+  vendorRoleId = roleRes.lastID;
+
+  // Create vendor role rate
+  const rateRes = await new Promise((resolve, reject) => {
+    db.run(
+      `INSERT INTO vendorrolerates (vendorrolerate_rate, vendorcontractrole_id, currency_id, vendorrolerate_create_date)
+       VALUES (?, ?, ?, ?)`,
+      [150.00, vendorRoleId, currencyId, Date.now()],
+      function(err) {
+        if (err) reject(err);
+        else resolve({ lastID: this.lastID });
+      }
+    );
+  });
+  vendorRoleRateId = rateRes.lastID;
+
+  // Create vendor resource
+  const resourceRes = await new Promise((resolve, reject) => {
+    db.run(
+      `INSERT INTO vendorresources (vendorresource_name, vendorresource_lastname, vendor_id, vendorresource_create_date)
+       VALUES (?, ?, ?, ?)`,
+      ['John', 'Doe', vendorId, Date.now()],
+      function(err) {
+        if (err) reject(err);
+        else resolve({ lastID: this.lastID });
+      }
+    );
+  });
+  vendorResourceId = resourceRes.lastID;
+
   // Create budget
   const budgetRes = await budgetService.create(db, {
     budget_name: 'Test Budget',
@@ -44,7 +108,8 @@ beforeAll(async () => {
   const poRes = await purchaseOrderService.create(db, {
     purchaseorder_description: 'Test PO',
     purchaseorder_start_date: Date.now(),
-    budget_id: budgetId
+    budget_id: budgetId,
+    vendor_id: vendorId
   });
   poId = poRes.lastID;
 });
@@ -89,6 +154,68 @@ describe('purchaseOrderItemService.create', () => {
     expect(item.purchaseorderitems_days).toBe(5);
     expect(item.purchaseorderitems_discounted_rate).toBe(1500.50);
     expect(item.currency_id).toBe(currencyId);
+  });
+
+  it('creates an item with vendor contract role', async () => {
+    const startDate = Date.now();
+    const result = await purchaseOrderItemService.create(db, {
+      purchaseorderitem_description: 'Item with vendor role',
+      purchaseorderitem_start_date: startDate,
+      purchaseorder_id: poId,
+      vendorcontractrole_id: vendorRoleId
+    });
+    expect(result.lastID).toBeGreaterThan(0);
+
+    const item = await purchaseOrderItemService.getById(db, result.lastID);
+    expect(item.vendorcontractrole_id).toBe(vendorRoleId);
+    expect(item.vendorcontractrole_name).toBe('Consultant');
+  });
+
+  it('creates an item with vendor role rate', async () => {
+    const startDate = Date.now();
+    const result = await purchaseOrderItemService.create(db, {
+      purchaseorderitem_description: 'Item with vendor rate',
+      purchaseorderitem_start_date: startDate,
+      purchaseorder_id: poId,
+      vendorrolerate_id: vendorRoleRateId
+    });
+    expect(result.lastID).toBeGreaterThan(0);
+
+    const item = await purchaseOrderItemService.getById(db, result.lastID);
+    expect(item.vendorrolerate_id).toBe(vendorRoleRateId);
+  });
+
+  it('creates an item with vendor resource', async () => {
+    const startDate = Date.now();
+    const result = await purchaseOrderItemService.create(db, {
+      purchaseorderitem_description: 'Item with vendor resource',
+      purchaseorderitem_start_date: startDate,
+      purchaseorder_id: poId,
+      vendorresource_id: vendorResourceId
+    });
+    expect(result.lastID).toBeGreaterThan(0);
+
+    const item = await purchaseOrderItemService.getById(db, result.lastID);
+    expect(item.vendorresource_id).toBe(vendorResourceId);
+  });
+
+  it('creates an item with all vendor fields', async () => {
+    const startDate = Date.now();
+    const result = await purchaseOrderItemService.create(db, {
+      purchaseorderitem_description: 'Item with all vendor info',
+      purchaseorderitem_start_date: startDate,
+      purchaseorder_id: poId,
+      vendorcontractrole_id: vendorRoleId,
+      vendorrolerate_id: vendorRoleRateId,
+      vendorresource_id: vendorResourceId
+    });
+    expect(result.lastID).toBeGreaterThan(0);
+
+    const item = await purchaseOrderItemService.getById(db, result.lastID);
+    expect(item.vendorcontractrole_id).toBe(vendorRoleId);
+    expect(item.vendorcontractrole_name).toBe('Consultant');
+    expect(item.vendorrolerate_id).toBe(vendorRoleRateId);
+    expect(item.vendorresource_id).toBe(vendorResourceId);
   });
 
   it('stores nullable fields as null when not provided', async () => {
@@ -288,6 +415,55 @@ describe('purchaseOrderItemService.update', () => {
 
     const item = await purchaseOrderItemService.getById(db, result.lastID);
     expect(item.currency_id).toBeNull();
+  });
+
+  it('updates vendorcontractrole_id', async () => {
+    const startDate = Date.now();
+    const result = await purchaseOrderItemService.create(db, {
+      purchaseorderitem_description: 'Item',
+      purchaseorderitem_start_date: startDate,
+      purchaseorder_id: poId
+    });
+
+    await purchaseOrderItemService.update(db, result.lastID, {
+      vendorcontractrole_id: vendorRoleId
+    });
+
+    const item = await purchaseOrderItemService.getById(db, result.lastID);
+    expect(item.vendorcontractrole_id).toBe(vendorRoleId);
+    expect(item.vendorcontractrole_name).toBe('Consultant');
+  });
+
+  it('updates vendorrolerate_id', async () => {
+    const startDate = Date.now();
+    const result = await purchaseOrderItemService.create(db, {
+      purchaseorderitem_description: 'Item',
+      purchaseorderitem_start_date: startDate,
+      purchaseorder_id: poId
+    });
+
+    await purchaseOrderItemService.update(db, result.lastID, {
+      vendorrolerate_id: vendorRoleRateId
+    });
+
+    const item = await purchaseOrderItemService.getById(db, result.lastID);
+    expect(item.vendorrolerate_id).toBe(vendorRoleRateId);
+  });
+
+  it('updates vendorresource_id', async () => {
+    const startDate = Date.now();
+    const result = await purchaseOrderItemService.create(db, {
+      purchaseorderitem_description: 'Item',
+      purchaseorderitem_start_date: startDate,
+      purchaseorder_id: poId
+    });
+
+    await purchaseOrderItemService.update(db, result.lastID, {
+      vendorresource_id: vendorResourceId
+    });
+
+    const item = await purchaseOrderItemService.getById(db, result.lastID);
+    expect(item.vendorresource_id).toBe(vendorResourceId);
   });
 
   it('returns changes=0 when no updatable fields provided', async () => {

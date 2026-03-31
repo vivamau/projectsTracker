@@ -239,3 +239,120 @@ describe('budgetService.getTotalByProjectId', () => {
     expect(total).toBe(0);
   });
 });
+
+describe('getRecent', () => {
+  let recentTestProjectId;
+
+  beforeAll(async () => {
+    const proj = await runQuery(db,
+      "INSERT INTO projects (project_name, project_create_date, division_id) VALUES (?, ?, ?)",
+      ['Recent Budget Project', Date.now(), 1]
+    );
+    recentTestProjectId = proj.lastID;
+
+    // Create multiple budgets with different timestamps
+    for (let i = 0; i < 3; i++) {
+      const b = await budgetService.create(db, {
+        budget_amount: 5000 + i * 1000,
+        budget_start_date: Date.now() + i * 1000,
+        budget_end_date: Date.now() + (i + 1) * 1000
+      });
+      await budgetService.linkToProject(db, recentTestProjectId, b.lastID);
+    }
+  });
+
+  it('should return recent budgets with project info', async () => {
+    const budgets = await budgetService.getRecent(db, 5);
+    expect(Array.isArray(budgets)).toBe(true);
+    expect(budgets.length).toBeGreaterThan(0);
+
+    // Verify structure
+    if (budgets.length > 0) {
+      expect(budgets[0]).toHaveProperty('id');
+      expect(budgets[0]).toHaveProperty('budget_amount');
+      expect(budgets[0]).toHaveProperty('project_name');
+    }
+  });
+
+  it('should respect limit parameter', async () => {
+    const budgets = await budgetService.getRecent(db, 2);
+    expect(budgets.length).toBeLessThanOrEqual(2);
+  });
+
+  it('should return budgets in descending order by create date', async () => {
+    const budgets = await budgetService.getRecent(db, 5);
+    if (budgets.length > 1) {
+      for (let i = 0; i < budgets.length - 1; i++) {
+        expect(budgets[i].budget_create_date).toBeGreaterThanOrEqual(budgets[i + 1].budget_create_date);
+      }
+    }
+  });
+
+  it('should exclude soft deleted budgets', async () => {
+    const allBudgets = await budgetService.getRecent(db, 100);
+    const deletedBudgetId = allBudgets[0]?.id;
+
+    if (deletedBudgetId) {
+      await budgetService.softDelete(db, deletedBudgetId);
+      const budgetsAfterDelete = await budgetService.getRecent(db, 100);
+      const stillExists = budgetsAfterDelete.some(b => b.id === deletedBudgetId);
+      expect(stillExists).toBe(false);
+    }
+  });
+});
+
+describe('getAllBudgets', () => {
+  let allBudgetsTestProjectId;
+
+  beforeAll(async () => {
+    const proj = await runQuery(db,
+      "INSERT INTO projects (project_name, project_create_date, division_id) VALUES (?, ?, ?)",
+      ['All Budgets Project', Date.now(), 1]
+    );
+    allBudgetsTestProjectId = proj.lastID;
+
+    // Create multiple budgets
+    for (let i = 0; i < 5; i++) {
+      const b = await budgetService.create(db, {
+        budget_amount: 2000 + i * 500,
+        budget_start_date: Date.now() + i * 1000,
+        budget_end_date: Date.now() + (i + 1) * 1000
+      });
+      await budgetService.linkToProject(db, allBudgetsTestProjectId, b.lastID);
+    }
+  });
+
+  it('should return all budgets with project info', async () => {
+    const budgets = await budgetService.getAllBudgets(db);
+    expect(Array.isArray(budgets)).toBe(true);
+    expect(budgets.length).toBeGreaterThanOrEqual(5);
+
+    // Verify structure
+    if (budgets.length > 0) {
+      expect(budgets[0]).toHaveProperty('id');
+      expect(budgets[0]).toHaveProperty('budget_amount');
+      expect(budgets[0]).toHaveProperty('project_name');
+    }
+  });
+
+  it('should return budgets in descending order by create date', async () => {
+    const budgets = await budgetService.getAllBudgets(db);
+    if (budgets.length > 1) {
+      for (let i = 0; i < budgets.length - 1; i++) {
+        expect(budgets[i].budget_create_date).toBeGreaterThanOrEqual(budgets[i + 1].budget_create_date);
+      }
+    }
+  });
+
+  it('should exclude soft deleted budgets', async () => {
+    const allBudgets = await budgetService.getAllBudgets(db);
+    const deletedBudgetId = allBudgets[0]?.id;
+
+    if (deletedBudgetId) {
+      await budgetService.softDelete(db, deletedBudgetId);
+      const budgetsAfterDelete = await budgetService.getAllBudgets(db);
+      const stillExists = budgetsAfterDelete.some(b => b.id === deletedBudgetId);
+      expect(stillExists).toBe(false);
+    }
+  });
+});

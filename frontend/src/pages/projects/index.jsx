@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { Plus, Eye, Pencil, Trash2 } from 'lucide-react';
-import { getProjects, deleteProject } from '../../api/projectsApi';
+import { getProjects, deleteProject, getBudgets } from '../../api/projectsApi';
 import { getDivisions } from '../../api/entitiesApi';
 import { useAuth } from '../../hooks/useAuth';
 import Card from '../../commoncomponents/Card';
@@ -15,6 +15,7 @@ export default function ProjectsPage() {
   const { isAdmin } = useAuth();
   const [projects, setProjects] = useState([]);
   const [divisions, setDivisions] = useState([]);
+  const [budgetsData, setBudgetsData] = useState({});
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState({});
@@ -30,6 +31,22 @@ export default function ProjectsPage() {
       const res = await getProjects(params);
       setProjects(res.data.data);
       setPagination(res.data.pagination);
+
+      // Fetch budgets for each project
+      const budgetsByProject = {};
+      for (const project of res.data.data) {
+        try {
+          const budgetsRes = await getBudgets(project.id);
+          const projectBudgets = budgetsRes.data.data || [];
+          budgetsByProject[project.id] = {
+            total: projectBudgets.reduce((sum, b) => sum + (b.budget_amount || 0), 0),
+            budgets: projectBudgets
+          };
+        } catch {
+          budgetsByProject[project.id] = { total: 0, budgets: [] };
+        }
+      }
+      setBudgetsData(budgetsByProject);
     } catch (err) {
       console.error('Failed to fetch projects', err);
     } finally {
@@ -65,6 +82,13 @@ export default function ProjectsPage() {
     return new Date(ts).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
   };
 
+  const formatCurrency = (amount) => {
+    if (amount === null || amount === undefined) return '-';
+    const num = Number(amount);
+    if (isNaN(num)) return '-';
+    return num.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+  };
+
   return (
     <div>
       <div className="mb-6 flex items-center justify-between">
@@ -92,7 +116,7 @@ export default function ProjectsPage() {
           <select
             value={divisionFilter}
             onChange={(e) => setDivisionFilter(e.target.value)}
-            className="rounded-lg border border-border-dark bg-white px-3 py-2 text-sm outline-none focus:border-primary-500"
+            className="rounded-lg border border-border-dark bg-surface px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 appearance-none"
           >
             <option value="">All Divisions</option>
             {divisions.map(d => (
@@ -111,8 +135,8 @@ export default function ProjectsPage() {
                 <tr className="border-b border-border bg-surface/50">
                   <th className="px-6 py-3 text-left font-medium text-text-secondary">Name</th>
                   <th className="px-6 py-3 text-left font-medium text-text-secondary">Division</th>
-                  <th className="px-6 py-3 text-left font-medium text-text-secondary">Owner</th>
                   <th className="px-6 py-3 text-left font-medium text-text-secondary">Health</th>
+                  <th className="px-6 py-3 text-left font-medium text-text-secondary">Current Budget</th>
                   <th className="px-6 py-3 text-left font-medium text-text-secondary">Start Date</th>
                   <th className="px-6 py-3 text-left font-medium text-text-secondary">End Date</th>
                   <th className="px-6 py-3 text-right font-medium text-text-secondary">Actions</th>
@@ -121,7 +145,7 @@ export default function ProjectsPage() {
               <tbody>
                 {projects.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="px-6 py-12 text-center text-text-secondary">
+                    <td colSpan={6} className="px-6 py-12 text-center text-text-secondary">
                       No projects found
                     </td>
                   </tr>
@@ -133,12 +157,26 @@ export default function ProjectsPage() {
                           {p.project_name}
                         </Link>
                       </td>
-                      <td className="px-6 py-3 text-text-secondary">{p.division_name || '-'}</td>
-                      <td className="px-6 py-3 text-text-secondary">
-                        {p.owner_name ? `${p.owner_name} ${p.owner_lastname || ''}`.trim() : '-'}
+                      <td className="px-6 py-3">
+                        {p.division_id ? (
+                          <Link to={`/divisions/${p.division_id}`} className="font-medium text-primary-600 hover:text-primary-700">
+                            {p.division_name || '-'}
+                          </Link>
+                        ) : (
+                          <span className="text-text-secondary">-</span>
+                        )}
                       </td>
                       <td className="px-6 py-3">
                         <StatusBadge value={p.health_status} />
+                      </td>
+                      <td className="px-6 py-3">
+                        {budgetsData[p.id]?.budgets?.length > 0 ? (
+                          <Link to={`/budgets/${budgetsData[p.id].budgets[0].id}`} className="font-medium text-primary-600 hover:text-primary-700">
+                            {formatCurrency(budgetsData[p.id].total || 0)}
+                          </Link>
+                        ) : (
+                          <span className="text-text-secondary">-</span>
+                        )}
                       </td>
                       <td className="px-6 py-3 text-text-secondary">{formatDate(p.project_start_date)}</td>
                       <td className="px-6 py-3 text-text-secondary">{formatDate(p.project_end_date)}</td>

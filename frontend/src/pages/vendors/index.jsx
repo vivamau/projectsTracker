@@ -1,19 +1,27 @@
 import { useState, useEffect } from 'react';
-import { Plus, Pencil, Trash2, Globe, Mail, Phone } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Plus, Pencil, Trash2, Globe, Mail, Phone, FileText } from 'lucide-react';
 import { getVendors, createVendor, updateVendor, deleteVendor } from '../../api/entitiesApi';
 import { useAuth } from '../../hooks/useAuth';
 import Card from '../../commoncomponents/Card';
 import Modal from '../../commoncomponents/Modal';
 import ConfirmDialog from '../../commoncomponents/ConfirmDialog';
 import LoadingSpinner from '../../commoncomponents/LoadingSpinner';
+import SearchInput from '../../commoncomponents/SearchInput';
+import ContractsModal from './ContractsModal';
 
 export default function VendorsPage() {
   const { isAdmin } = useAuth();
+  const navigate = useNavigate();
   const [vendors, setVendors] = useState([]);
+  const [allVendors, setAllVendors] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(false);
   const [editItem, setEditItem] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [contractsModal, setContractsModal] = useState(false);
+  const [selectedVendor, setSelectedVendor] = useState(null);
+  const [search, setSearch] = useState('');
   const [form, setForm] = useState({
     vendor_name: '', vendor_address: '', vendor_phone: '', vendor_email: '', vendor_website: ''
   });
@@ -21,11 +29,33 @@ export default function VendorsPage() {
   const fetchVendors = () => {
     setLoading(true);
     getVendors()
-      .then(r => setVendors(r.data.data))
+      .then(r => {
+        setAllVendors(r.data.data);
+        filterVendors(r.data.data, search);
+      })
       .finally(() => setLoading(false));
   };
 
+  const filterVendors = (vendorsList, searchTerm) => {
+    if (!searchTerm.trim()) {
+      setVendors(vendorsList);
+      return;
+    }
+
+    const filtered = vendorsList.filter(v =>
+      v.vendor_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      v.vendor_email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      v.vendor_phone?.includes(searchTerm) ||
+      v.vendor_address?.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+    setVendors(filtered);
+  };
+
   useEffect(() => { fetchVendors(); }, []);
+
+  useEffect(() => {
+    filterVendors(allVendors, search);
+  }, [search, allVendors]);
 
   const openCreate = () => {
     setEditItem(null);
@@ -87,6 +117,13 @@ export default function VendorsPage() {
       </div>
 
       <Card noPadding>
+        {/* Search Filter */}
+        <div className="border-b border-border px-6 py-4">
+          <div className="w-64">
+            <SearchInput value={search} onChange={setSearch} placeholder="Search vendors..." />
+          </div>
+        </div>
+
         {loading ? <LoadingSpinner className="py-12" /> : (
           <table className="w-full text-sm">
             <thead>
@@ -104,12 +141,14 @@ export default function VendorsPage() {
               ) : vendors.map(v => (
                 <tr key={v.id} className="border-b border-border last:border-0 hover:bg-surface/30 transition-colors">
                   <td className="px-6 py-3">
-                    <p className="font-medium">{v.vendor_name}</p>
-                    {v.vendor_website && (
-                      <p className="text-xs text-primary-500 flex items-center gap-1 mt-0.5">
-                        <Globe size={11} /> {v.vendor_website.replace(/^https?:\/\//, '')}
-                      </p>
-                    )}
+                    <button onClick={() => navigate(`/vendors/${v.id}`)} className="text-left hover:text-primary-500 transition-colors w-full">
+                      <p className="font-medium text-primary-600 hover:underline">{v.vendor_name}</p>
+                      {v.vendor_website && (
+                        <p className="text-xs text-primary-500 flex items-center gap-1 mt-0.5">
+                          <Globe size={11} /> {v.vendor_website.replace(/^https?:\/\//, '')}
+                        </p>
+                      )}
+                    </button>
                   </td>
                   <td className="px-6 py-3">
                     {v.vendor_email && (
@@ -125,6 +164,13 @@ export default function VendorsPage() {
                   {isAdmin && (
                     <td className="px-6 py-3">
                       <div className="flex justify-end gap-1">
+                        <button
+                          onClick={() => { setSelectedVendor(v); setContractsModal(true); }}
+                          className="rounded-lg p-1.5 text-text-secondary hover:bg-surface hover:text-primary-500 transition-colors"
+                          title="Contracts"
+                        >
+                          <FileText size={16} />
+                        </button>
                         <button onClick={() => openEdit(v)} className="rounded-lg p-1.5 text-text-secondary hover:bg-surface hover:text-primary-500 transition-colors"><Pencil size={16} /></button>
                         <button onClick={() => setDeleteTarget(v)} className="rounded-lg p-1.5 text-text-secondary hover:bg-error-50 hover:text-error-500 transition-colors"><Trash2 size={16} /></button>
                       </div>
@@ -172,6 +218,13 @@ export default function VendorsPage() {
           </div>
         </form>
       </Modal>
+
+      <ContractsModal
+        open={contractsModal}
+        onClose={() => { setContractsModal(false); setSelectedVendor(null); }}
+        vendor={selectedVendor}
+        isAdmin={isAdmin}
+      />
 
       <ConfirmDialog open={!!deleteTarget} onClose={() => setDeleteTarget(null)} onConfirm={handleDelete} title="Delete Vendor" message={`Delete "${deleteTarget?.vendor_name}"?`} />
     </div>

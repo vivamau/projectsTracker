@@ -420,7 +420,7 @@ export default function ProjectDetailPage() {
             <select
               value={healthForm.healthstatus_value}
               onChange={e => setHealthForm(f => ({ ...f, healthstatus_value: e.target.value }))}
-              className="w-full rounded-lg border border-border-dark px-3 py-2 text-sm outline-none focus:border-primary-500"
+              className="w-full rounded-lg border border-border-dark bg-surface px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 appearance-none"
             >
               <option value={3}>On Track</option>
               <option value={2}>Needs Attention</option>
@@ -460,7 +460,7 @@ export default function ProjectDetailPage() {
               value={completionForm.completion_value}
               onChange={e => setCompletionForm(f => ({ ...f, completion_value: e.target.value }))}
               required
-              className="w-full rounded-lg border border-border-dark px-3 py-2 text-sm outline-none focus:border-primary-500"
+              className="w-full rounded-lg border border-border-dark bg-surface px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 appearance-none"
               placeholder="e.g. 50"
             />
           </div>
@@ -497,7 +497,7 @@ export default function ProjectDetailPage() {
               value={budgetForm.budget_amount}
               onChange={e => setBudgetForm(f => ({ ...f, budget_amount: e.target.value }))}
               required
-              className="w-full rounded-lg border border-border-dark px-3 py-2 text-sm outline-none focus:border-primary-500"
+              className="w-full rounded-lg border border-border-dark bg-surface px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 appearance-none"
               placeholder="e.g. 50000"
             />
           </div>
@@ -506,7 +506,7 @@ export default function ProjectDetailPage() {
             <select
               value={budgetForm.currency_id}
               onChange={e => setBudgetForm(f => ({ ...f, currency_id: e.target.value }))}
-              className="w-full rounded-lg border border-border-dark px-3 py-2 text-sm outline-none focus:border-primary-500"
+              className="w-full rounded-lg border border-border-dark bg-surface px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 appearance-none"
             >
               <option value="">Select currency</option>
               {currencies.map(c => (
@@ -521,7 +521,7 @@ export default function ProjectDetailPage() {
                 type="date"
                 value={budgetForm.budget_start_date}
                 onChange={e => setBudgetForm(f => ({ ...f, budget_start_date: e.target.value }))}
-                className="w-full rounded-lg border border-border-dark px-3 py-2 text-sm outline-none focus:border-primary-500"
+                className="w-full rounded-lg border border-border-dark bg-surface px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 appearance-none"
               />
             </div>
             <div>
@@ -530,7 +530,7 @@ export default function ProjectDetailPage() {
                 type="date"
                 value={budgetForm.budget_end_date}
                 onChange={e => setBudgetForm(f => ({ ...f, budget_end_date: e.target.value }))}
-                className="w-full rounded-lg border border-border-dark px-3 py-2 text-sm outline-none focus:border-primary-500"
+                className="w-full rounded-lg border border-border-dark bg-surface px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 appearance-none"
               />
             </div>
           </div>

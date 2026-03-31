@@ -8,10 +8,13 @@ import ProjectDetailPage from './pages/projects/detail';
 import ProjectFormPage from './pages/projects/form';
 import DivisionsPage from './pages/divisions/index';
 import DivisionDetailPage from './pages/divisions/detail';
+import BudgetsPage from './pages/budgets/index';
 import BudgetDetailPage from './pages/budgets/detail';
 import InitiativesPage from './pages/initiatives/index';
+import InitiativeDetailPage from './pages/initiatives/detail';
 import DeliveryPathsPage from './pages/deliveryPaths/index';
 import VendorsPage from './pages/vendors/index';
+import VendorDetailPage from './pages/vendors/detail';
 import UsersPage from './pages/users/index';
 import SettingsPage from './pages/settings/index';
 
@@ -34,10 +37,13 @@ export default function App() {
         <Route path="/projects/:id/edit" element={<ProjectFormPage />} />
         <Route path="/divisions" element={<DivisionsPage />} />
         <Route path="/divisions/:id" element={<DivisionDetailPage />} />
+        <Route path="/budgets" element={<BudgetsPage />} />
         <Route path="/budgets/:id" element={<BudgetDetailPage />} />
         <Route path="/initiatives" element={<InitiativesPage />} />
+        <Route path="/initiatives/:id" element={<InitiativeDetailPage />} />
         <Route path="/delivery-paths" element={<DeliveryPathsPage />} />
         <Route path="/vendors" element={<VendorsPage />} />
+        <Route path="/vendors/:id" element={<VendorDetailPage />} />
         <Route path="/users" element={<UsersPage />} />
         <Route path="/settings" element={<SettingsPage />} />
       </Route>

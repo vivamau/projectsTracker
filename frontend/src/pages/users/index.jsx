@@ -146,24 +146,24 @@ export default function UsersPage() {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="mb-1 block text-sm font-medium">First Name</label>
-              <input type="text" value={form.user_name} onChange={e => setForm(f => ({ ...f, user_name: e.target.value }))} className="w-full rounded-lg border border-border-dark px-3 py-2 text-sm outline-none focus:border-primary-500" />
+              <input type="text" value={form.user_name} onChange={e => setForm(f => ({ ...f, user_name: e.target.value }))} className="w-full rounded-lg border border-border-dark bg-surface px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 appearance-none" />
             </div>
             <div>
               <label className="mb-1 block text-sm font-medium">Last Name</label>
-              <input type="text" value={form.user_lastname} onChange={e => setForm(f => ({ ...f, user_lastname: e.target.value }))} className="w-full rounded-lg border border-border-dark px-3 py-2 text-sm outline-none focus:border-primary-500" />
+              <input type="text" value={form.user_lastname} onChange={e => setForm(f => ({ ...f, user_lastname: e.target.value }))} className="w-full rounded-lg border border-border-dark bg-surface px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 appearance-none" />
             </div>
           </div>
           <div>
             <label className="mb-1 block text-sm font-medium">Email</label>
-            <input type="email" value={form.user_email} onChange={e => setForm(f => ({ ...f, user_email: e.target.value }))} className="w-full rounded-lg border border-border-dark px-3 py-2 text-sm outline-none focus:border-primary-500" required />
+            <input type="email" value={form.user_email} onChange={e => setForm(f => ({ ...f, user_email: e.target.value }))} className="w-full rounded-lg border border-border-dark bg-surface px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 appearance-none" required />
           </div>
           <div>
             <label className="mb-1 block text-sm font-medium">Password {editItem && '(leave blank to keep)'}</label>
-            <input type="password" value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} className="w-full rounded-lg border border-border-dark px-3 py-2 text-sm outline-none focus:border-primary-500" {...(!editItem && { required: true })} />
+            <input type="password" value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} className="w-full rounded-lg border border-border-dark bg-surface px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 appearance-none" {...(!editItem && { required: true })} />
           </div>
           <div>
             <label className="mb-1 block text-sm font-medium">Role</label>
-            <select value={form.userrole_id} onChange={e => setForm(f => ({ ...f, userrole_id: parseInt(e.target.value) }))} className="w-full rounded-lg border border-border-dark px-3 py-2 text-sm outline-none focus:border-primary-500">
+            <select value={form.userrole_id} onChange={e => setForm(f => ({ ...f, userrole_id: parseInt(e.target.value) }))} className="w-full rounded-lg border border-border-dark bg-surface px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 appearance-none">
               {ROLES.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
             </select>
           </div>

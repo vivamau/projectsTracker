@@ -180,7 +180,7 @@ export default function ProjectFormPage() {
                 type="text"
                 value={form.project_name}
                 onChange={e => handleChange('project_name', e.target.value)}
-                className="w-full rounded-lg border border-border-dark px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+                className="w-full rounded-lg border border-border-dark bg-surface px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 appearance-none"
                 placeholder="Enter project name"
               />
             </FormField>
@@ -202,7 +202,7 @@ export default function ProjectFormPage() {
                 <select
                   value={form.division_id}
                   onChange={e => handleChange('division_id', e.target.value)}
-                  className="w-full rounded-lg border border-border-dark px-3 py-2 text-sm outline-none focus:border-primary-500"
+                  className="w-full rounded-lg border border-border-dark bg-surface px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 appearance-none"
                 >
                   <option value="">Select division</option>
                   {divisions.map(d => <option key={d.id} value={d.id}>{d.division_name}</option>)}
@@ -213,7 +213,7 @@ export default function ProjectFormPage() {
                 <select
                   value={form.initiative_id}
                   onChange={e => handleChange('initiative_id', e.target.value)}
-                  className="w-full rounded-lg border border-border-dark px-3 py-2 text-sm outline-none focus:border-primary-500"
+                  className="w-full rounded-lg border border-border-dark bg-surface px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 appearance-none"
                 >
                   <option value="">Select initiative</option>
                   {initiatives.map(i => <option key={i.id} value={i.id}>{i.initiative_name}</option>)}
@@ -224,7 +224,7 @@ export default function ProjectFormPage() {
                 <select
                   value={form.deliverypath_id}
                   onChange={e => handleChange('deliverypath_id', e.target.value)}
-                  className="w-full rounded-lg border border-border-dark px-3 py-2 text-sm outline-none focus:border-primary-500"
+                  className="w-full rounded-lg border border-border-dark bg-surface px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 appearance-none"
                 >
                   <option value="">Select delivery path</option>
                   {deliveryPaths.map(dp => <option key={dp.id} value={dp.id}>{dp.deliverypath_name}</option>)}
@@ -235,7 +235,7 @@ export default function ProjectFormPage() {
                 <select
                   value={form.user_id}
                   onChange={e => handleChange('user_id', e.target.value)}
-                  className="w-full rounded-lg border border-border-dark px-3 py-2 text-sm outline-none focus:border-primary-500"
+                  className="w-full rounded-lg border border-border-dark bg-surface px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 appearance-none"
                 >
                   <option value="">Select owner</option>
                   {users.map(u => (
@@ -292,15 +292,15 @@ export default function ProjectFormPage() {
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
               <FormField label="Plan Date">
                 <input type="date" value={form.project_plan_date} onChange={e => handleChange('project_plan_date', e.target.value)}
-                  className="w-full rounded-lg border border-border-dark px-3 py-2 text-sm outline-none focus:border-primary-500" />
+                  className="w-full rounded-lg border border-border-dark bg-surface px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 appearance-none" />
               </FormField>
               <FormField label="Start Date">
                 <input type="date" value={form.project_start_date} onChange={e => handleChange('project_start_date', e.target.value)}
-                  className="w-full rounded-lg border border-border-dark px-3 py-2 text-sm outline-none focus:border-primary-500" />
+                  className="w-full rounded-lg border border-border-dark bg-surface px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 appearance-none" />
               </FormField>
               <FormField label="End Date">
                 <input type="date" value={form.project_end_date} onChange={e => handleChange('project_end_date', e.target.value)}
-                  className="w-full rounded-lg border border-border-dark px-3 py-2 text-sm outline-none focus:border-primary-500" />
+                  className="w-full rounded-lg border border-border-dark bg-surface px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 appearance-none" />
               </FormField>
             </div>
 

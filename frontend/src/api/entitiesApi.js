@@ -19,6 +19,27 @@ export const createVendor = (data) => client.post('/vendors', data);
 export const updateVendor = (id, data) => client.put(`/vendors/${id}`, data);
 export const deleteVendor = (id) => client.delete(`/vendors/${id}`);
 
+export const getVendorContracts = (vendorId) => client.get(`/vendors/${vendorId}/contracts`);
+export const getVendorContract = (vendorId, contractId) => client.get(`/vendors/${vendorId}/contracts/${contractId}`);
+export const createVendorContract = (vendorId, data) => client.post(`/vendors/${vendorId}/contracts`, data);
+export const updateVendorContract = (vendorId, contractId, data) => client.put(`/vendors/${vendorId}/contracts/${contractId}`, data);
+export const deleteVendorContract = (vendorId, contractId) => client.delete(`/vendors/${vendorId}/contracts/${contractId}`);
+
+export const getVendorContractRoles = (vendorId, contractId) => client.get(`/vendors/${vendorId}/contracts/${contractId}/roles`);
+export const getVendorContractRole = (vendorId, contractId, roleId) => client.get(`/vendors/${vendorId}/contracts/${contractId}/roles/${roleId}`);
+export const createVendorContractRole = (vendorId, contractId, data) => client.post(`/vendors/${vendorId}/contracts/${contractId}/roles`, data);
+export const updateVendorContractRole = (vendorId, contractId, roleId, data) => client.put(`/vendors/${vendorId}/contracts/${contractId}/roles/${roleId}`, data);
+export const deleteVendorContractRole = (vendorId, contractId, roleId) => client.delete(`/vendors/${vendorId}/contracts/${contractId}/roles/${roleId}`);
+
+export const getVendorRoleRates = (vendorId, contractId, roleId) => client.get(`/vendors/${vendorId}/contracts/${contractId}/roles/${roleId}/rates`);
+export const getVendorRoleRate = (vendorId, contractId, roleId, rateId) => client.get(`/vendors/${vendorId}/contracts/${contractId}/roles/${roleId}/rates/${rateId}`);
+export const createVendorRoleRate = (vendorId, contractId, roleId, data) => client.post(`/vendors/${vendorId}/contracts/${contractId}/roles/${roleId}/rates`, data);
+export const updateVendorRoleRate = (vendorId, contractId, roleId, rateId, data) => client.put(`/vendors/${vendorId}/contracts/${contractId}/roles/${roleId}/rates/${rateId}`, data);
+export const deleteVendorRoleRate = (vendorId, contractId, roleId, rateId) => client.delete(`/vendors/${vendorId}/contracts/${contractId}/roles/${roleId}/rates/${rateId}`);
+
+// Helper functions for cascading dropdowns in PO items
+export const getVendorResources = (vendorId) => client.get(`/vendors/${vendorId}`).then(r => ({ data: { data: r.data.data.resources || [] } })).catch(() => ({ data: { data: [] } }));
+
 export const getInitiatives = () => client.get('/initiatives');
 export const createInitiative = (data) => client.post('/initiatives', data);
 export const updateInitiative = (id, data) => client.put(`/initiatives/${id}`, data);
@@ -32,6 +53,7 @@ export const deleteDeliveryPath = (id) => client.delete(`/deliverypaths/${id}`);
 export const getCountries = (search) => client.get('/countries', { params: { search } });
 
 export const getCurrencies = () => client.get('/currencies');
+export const getSeniorities = () => client.get('/seniorities');
 
 export const getUsers = (params) => client.get('/users', { params });
 export const createUser = (data) => client.post('/users', data);

@@ -1,8 +1,11 @@
+import { useState } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import Card from '../../commoncomponents/Card';
+import SeniorityManagementModal from './SeniorityManagementModal';
 
 export default function SettingsPage() {
   const { user } = useAuth();
+  const [seniorityModalOpen, setSeniorityModalOpen] = useState(false);
 
   return (
     <div className="max-w-2xl">
@@ -42,6 +45,28 @@ export default function SettingsPage() {
           </div>
         </div>
       </Card>
+
+      <Card title="Vendor Management" className="mt-6">
+        <div className="space-y-4">
+          <div className="flex items-center justify-between pb-4 border-b border-border">
+            <div>
+              <h3 className="font-medium text-text-primary">Seniority Levels</h3>
+              <p className="text-sm text-text-secondary">Manage vendor staff seniority classifications</p>
+            </div>
+            <button
+              onClick={() => setSeniorityModalOpen(true)}
+              className="rounded-lg bg-primary-500 px-4 py-2 text-sm font-medium text-white hover:bg-primary-600 transition-colors"
+            >
+              Manage
+            </button>
+          </div>
+        </div>
+      </Card>
+
+      <SeniorityManagementModal
+        open={seniorityModalOpen}
+        onClose={() => setSeniorityModalOpen(false)}
+      />
     </div>
   );
 }

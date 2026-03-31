@@ -50,3 +50,62 @@
   - [x] PoItemsModal.jsx component: nested items table + create/edit/delete <!-- id: 252 -->
   - [x] Budget detail page wired with Items button, currencies dropdown support <!-- id: 253 -->
 - [x] 442 tests, 32 suites, all passing <!-- id: 245 -->
+- [x] Vendor role support for Purchase Order Items <!-- id: 254 -->
+  - [x] Added vendor contract role, vendor role rate, and vendor resource fields to PO items
+  - [x] Updated purchaseOrderItemService.js to support three new vendor reference fields
+  - [x] Added 12 new tests covering vendor role CRUD operations (100% coverage on service)
+  - [x] Updated PoItemsModal.jsx to include vendor fields in form and display vendor role name in table
+  - [x] All 451 tests passing, 88.77% coverage maintained
+- [x] Vendor Contracts Management System <!-- id: 255 -->
+  - [x] Migration 011: soft delete columns for vendor contracts, roles, and rates
+  - [x] vendorContractService.js with TDD (19 tests, 100% coverage)
+  - [x] vendorContractRoutes.js with nested routing (20 tests, 88.63% coverage)
+  - [x] ContractsModal.jsx component for managing contracts per vendor
+  - [x] Updated vendors page with contracts button and modal integration
+  - [x] Added vendor contract API functions to entitiesApi.js
+  - [x] Comprehensive dummy data: 10 vendors with 1-3 contracts each, 2-4 roles per contract, 1-2 rates per role, 2-5 resources per vendor
+  - [x] All 490 tests passing, 89.08% coverage maintained
+- [x] Vendor Contract Roles Management System <!-- id: 256 -->
+  - [x] vendorContractRoleService.js with TDD (18 tests, 100% coverage)
+  - [x] vendorContractRoleRoutes.js with nested routing (18 tests, 88.09% coverage)
+  - [x] ContractRolesModal.jsx component for managing roles within a contract
+  - [x] Integrated roles modal into ContractsModal with Settings button
+  - [x] Added vendor contract role API functions to entitiesApi.js
+  - [x] All 526 tests passing, 89.29% coverage maintained
+- [x] Seniority Levels & Vendor Role Rates Management System <!-- id: 257 -->
+  - [x] Migration 012: seniorities table (id, seniority_description, _create_date, _update_date, _is_deleted)
+  - [x] Migration 013: added seniority_id FK + vendorrolerate_description to vendorrolerates
+  - [x] seniorityService.js with TDD (14 tests, 100% coverage): getAll, getById, create, update, softDelete
+  - [x] seniorityRoutes.js with GET /api/seniorities, POST, DELETE endpoints (7 tests)
+  - [x] vendorRoleRateService.js enhanced with JOINs to currencies & seniorities (18 tests, 100% coverage)
+  - [x] vendorRoleRateRoutes.js with full CRUD (15 tests, 88.63% coverage)
+  - [x] RatesModal.jsx component with currency/seniority dropdowns, rate field, description textarea
+  - [x] Integrated RatesModal into ContractRolesModal with Settings icon per role
+  - [x] Added 5 API functions for vendor role rates CRUD + getSeniorities
+  - [x] Enhanced seed_dummy_data.js: seed 11 seniority levels, 2-3 rates per role with varied currencies/seniorities/descriptions
+  - [x] Improved RatesModal error handling with better data validation & console logging
+  - [x] SeniorityManagementModal.jsx in Settings page for system-wide seniority management
+  - [x] All 580 tests passing, 89.24% coverage maintained
+  - [x] Task #4 completed
+- [x] Enhanced PO Items with Cascading Vendor Dropdowns <!-- id: 258 -->
+  - [x] Updated PoItemsModal.jsx with cascading dropdowns: vendor → contract → role → rate
+  - [x] Vendor dropdown shows all vendors
+  - [x] Contract dropdown populated based on selected vendor
+  - [x] Role dropdown populated based on selected contract
+  - [x] Rate dropdown populated based on selected role (displays rate + currency + seniority)
+  - [x] Replaced manual ID input fields with intelligent dropdown selection
+  - [x] Rate dropdown shows formatted: "$150.00 (USD) - Senior" for easy selection
+  - [x] All 580 tests passing, 89.24% coverage maintained
+- [x] Budget Detail Page - PO Total & Description Display <!-- id: 259 -->
+  - [x] Added PO total calculation (days × rate per item, summed across all items in PO)
+  - [x] Display PO total in new "Total" column (right-aligned, bold)
+  - [x] Render description with normal weight (not bold) for better visual hierarchy
+  - [x] Fetch items for each PO on page load to calculate totals
+  - [x] All 580 tests passing, 89.24% coverage maintained
+- [x] Auto-populate Rate Fields in PO Items <!-- id: 260 -->
+  - [x] Created handleRateChange function that auto-populates discounted_rate when rate is selected
+  - [x] When rate dropdown changes, automatically fills in: rate amount + currency
+  - [x] Rate dropdown now calls handleRateChange instead of plain onChange
+  - [x] Budget detail page refetches totals when items modal closes
+  - [x] Ensures rates are always saved with PO items
+  - [x] All 580 tests passing, 89.24% coverage maintained

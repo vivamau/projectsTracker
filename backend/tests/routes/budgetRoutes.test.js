@@ -214,3 +214,85 @@ describe('DELETE /api/projects/:id/budgets/:budgetId', () => {
     expect(res.status).toBe(403);
   });
 });
+
+describe('GET /api/budgets', () => {
+  it('should list all budgets', async () => {
+    const res = await request(app)
+      .get('/api/budgets')
+      .set('Cookie', ['token=' + adminToken()]);
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(Array.isArray(res.body.data)).toBe(true);
+  });
+
+  it('should return 401 when not authenticated', async () => {
+    const res = await request(app)
+      .get('/api/budgets');
+
+    expect(res.status).toBe(401);
+  });
+
+  it('should include project names', async () => {
+    const res = await request(app)
+      .get('/api/budgets')
+      .set('Cookie', ['token=' + adminToken()]);
+
+    expect(res.status).toBe(200);
+    if (res.body.data.length > 0) {
+      expect(res.body.data[0]).toHaveProperty('project_name');
+    }
+  });
+});
+
+describe('GET /api/budgets/recent', () => {
+  beforeAll(async () => {
+    // Create a few budgets to test the recent endpoint
+    for (let i = 0; i < 3; i++) {
+      await request(app)
+        .post(`/api/projects/${projectId}/budgets`)
+        .set('Cookie', ['token=' + adminToken()])
+        .send({
+          budget_amount: 1000 + i * 100,
+          currency_id: 1,
+          budget_start_date: Date.now(),
+          budget_end_date: Date.now() + 86400000
+        });
+    }
+  });
+
+  it('should list recent budgets', async () => {
+    const res = await request(app)
+      .get('/api/budgets/recent')
+      .set('Cookie', ['token=' + adminToken()]);
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(Array.isArray(res.body.data)).toBe(true);
+  });
+
+  it('should respect limit parameter', async () => {
+    const res = await request(app)
+      .get('/api/budgets/recent?limit=2')
+      .set('Cookie', ['token=' + adminToken()]);
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.length).toBeLessThanOrEqual(2);
+  });
+
+  it('should cap limit to 20', async () => {
+    const res = await request(app)
+      .get('/api/budgets/recent?limit=100')
+      .set('Cookie', ['token=' + adminToken()]);
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.length).toBeLessThanOrEqual(20);
+  });
+
+  it('should return 401 when not authenticated', async () => {
+    const res = await request(app)
+      .get('/api/budgets/recent');
+
+    expect(res.status).toBe(401);
+  });
+});

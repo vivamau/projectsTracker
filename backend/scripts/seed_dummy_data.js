@@ -95,6 +95,35 @@ const HEALTH_COMMENTS = {
   1: ['Critical blocker identified', 'Significant schedule risk', 'Budget overrun likely', 'Requires escalation']
 };
 
+const VENDOR_CONTRACT_ROLES = ['Consultant', 'Senior Consultant', 'Manager', 'Senior Manager', 'Architect', 'Solution Architect', 'Developer', 'Senior Developer', 'QA Lead', 'Project Manager', 'Business Analyst'];
+
+const VENDOR_RESOURCES = [
+  { name: 'John', lastname: 'Smith', position: 'Senior Consultant' },
+  { name: 'Sarah', lastname: 'Johnson', position: 'Solution Architect' },
+  { name: 'Michael', lastname: 'Williams', position: 'Project Manager' },
+  { name: 'Emily', lastname: 'Brown', position: 'Business Analyst' },
+  { name: 'David', lastname: 'Davis', position: 'Senior Developer' },
+  { name: 'Lisa', lastname: 'Miller', position: 'QA Lead' },
+  { name: 'James', lastname: 'Wilson', position: 'Consultant' },
+  { name: 'Jennifer', lastname: 'Moore', position: 'Manager' },
+  { name: 'Robert', lastname: 'Taylor', position: 'Architect' },
+  { name: 'Patricia', lastname: 'Anderson', position: 'Developer' }
+];
+
+const SENIORITIES = [
+  'Entry Level',
+  'Junior',
+  'Mid-Level',
+  'Senior',
+  'Lead',
+  'Principal',
+  'Architect',
+  'Director',
+  'Executive',
+  'Expert',
+  'Specialist'
+];
+
 function randomInt(min, max) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
@@ -313,14 +342,140 @@ async function seedDummyData(db) {
 
   // --- Vendors ---
   const existingVendors = await getOne(db, 'SELECT COUNT(*) as c FROM vendors WHERE vendor_is_deleted = 0 OR vendor_is_deleted IS NULL');
+  const vendorIds = [];
   if (existingVendors.c === 0) {
     for (const v of VENDORS) {
-      await runQuery(db,
+      const result = await runQuery(db,
         'INSERT INTO vendors (vendor_name, vendor_address, vendor_phone, vendor_email, vendor_website, vendor_create_date, vendor_update_date, user_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
         [v.name, v.address, v.phone, v.email, v.website, daysAgo(randomInt(30, 180)), now, ownerId]
       );
+      vendorIds.push(result.lastID);
     }
     console.log(`  Seeded ${VENDORS.length} vendors.`);
+  } else {
+    const allVendors = await getAll(db, 'SELECT id FROM vendors WHERE vendor_is_deleted = 0 OR vendor_is_deleted IS NULL');
+    for (const v of allVendors) {
+      vendorIds.push(v.id);
+    }
+  }
+
+  // --- Seniorities ---
+  const seniorityIds = [];
+  const existingSeniorities = await getOne(db, 'SELECT COUNT(*) as c FROM seniorities WHERE seniority_is_deleted = 0 OR seniority_is_deleted IS NULL');
+  if (existingSeniorities.c === 0) {
+    for (const desc of SENIORITIES) {
+      const result = await runQuery(db,
+        'INSERT INTO seniorities (seniority_description, seniority_create_date, seniority_update_date) VALUES (?, ?, ?)',
+        [desc, daysAgo(randomInt(30, 180)), now]
+      );
+      seniorityIds.push(result.lastID);
+    }
+    console.log(`  Seeded ${SENIORITIES.length} seniority levels.`);
+  } else {
+    const allSeniorities = await getAll(db, 'SELECT id FROM seniorities WHERE seniority_is_deleted = 0 OR seniority_is_deleted IS NULL');
+    for (const s of allSeniorities) {
+      seniorityIds.push(s.id);
+    }
+  }
+
+  // --- Vendor Contracts, Roles, and Rates ---
+  const existingContracts = await getOne(db, 'SELECT COUNT(*) as c FROM vendorcontracts WHERE vendorcontract_is_deleted = 0 OR vendorcontract_is_deleted IS NULL');
+  if (existingContracts.c === 0 && vendorIds.length > 0) {
+    let totalContracts = 0;
+    let totalRoles = 0;
+    let totalRates = 0;
+    let totalResources = 0;
+
+    for (const vendorId of vendorIds) {
+      // 1-3 contracts per vendor
+      const numContracts = randomInt(1, 3);
+      for (let c = 0; c < numContracts; c++) {
+        const cStartDate = daysAgo(randomInt(30, 365));
+        const cEndDate = cStartDate + randomInt(180, 730) * 24 * 60 * 60 * 1000;
+        const contractResult = await runQuery(db,
+          'INSERT INTO vendorcontracts (contract_name, contract_document_path, contract_start_date, contract_end_date, vendor_id, contract_create_date, contract_update_date) VALUES (?, ?, ?, ?, ?, ?, ?)',
+          [
+            `Contract ${c + 1}`,
+            `/documents/vendor_contracts/contract_${vendorId}_${c}.pdf`,
+            cStartDate,
+            cEndDate,
+            vendorId,
+            cStartDate,
+            now
+          ]
+        );
+        totalContracts++;
+        const contractId = contractResult.lastID;
+
+        // 2-4 roles per contract
+        const numRoles = randomInt(2, 4);
+        const selectedRoles = new Set();
+        for (let r = 0; r < numRoles; r++) {
+          const roleName = pick(VENDOR_CONTRACT_ROLES);
+          if (selectedRoles.has(roleName)) continue;
+          selectedRoles.add(roleName);
+
+          const roleResult = await runQuery(db,
+            'INSERT INTO vendorcontractroles (vendorcontractrole_name, vendorcontract_id, vendorcontractrole_create_date, vendorcontractrole_update_date) VALUES (?, ?, ?, ?)',
+            [roleName, contractId, daysAgo(randomInt(0, 60)), now]
+          );
+          totalRoles++;
+          const roleId = roleResult.lastID;
+
+          // 2-3 rates per role (different combinations of currency, seniority, and description)
+          const numRates = randomInt(2, 3);
+          const usedCombinations = new Set();
+          for (let rt = 0; rt < numRates; rt++) {
+            const currencyId = pick(currencyIds);
+            const seniorityId = pick(seniorityIds);
+            const combinationKey = `${currencyId}-${seniorityId}`;
+            if (usedCombinations.has(combinationKey)) continue;
+            usedCombinations.add(combinationKey);
+
+            const hourlyRate = randomInt(50, 300);
+            const descriptions = [
+              `Standard ${roleName} rate`,
+              `Contract rate for ${roleName}`,
+              `${roleName} on retainer`,
+              `Fixed-price ${roleName} engagement`,
+              `Time-and-materials for ${roleName}`,
+              undefined // No description for some rates
+            ];
+            const description = pick(descriptions);
+
+            await runQuery(db,
+              'INSERT INTO vendorrolerates (vendorrolerate_rate, vendorcontractrole_id, currency_id, seniority_id, vendorrolerate_description, vendorrolerate_create_date, vendorrolerate_update_date) VALUES (?, ?, ?, ?, ?, ?, ?)',
+              [hourlyRate, roleId, currencyId, seniorityId, description || null, daysAgo(randomInt(0, 60)), now]
+            );
+            totalRates++;
+          }
+        }
+
+        // 2-5 vendor resources assigned to this contract's vendor
+        const numResources = randomInt(2, 5);
+        const usedResourceNames = new Set();
+        for (let res = 0; res < numResources; res++) {
+          const resource = pick(VENDOR_RESOURCES);
+          const uniqueKey = `${resource.name}-${resource.lastname}`;
+          if (usedResourceNames.has(uniqueKey)) continue;
+          usedResourceNames.add(uniqueKey);
+
+          const existing = await getOne(db,
+            'SELECT id FROM vendorresources WHERE vendor_id = ? AND vendorresource_name = ? AND vendorresource_lastname = ?',
+            [vendorId, resource.name, resource.lastname]
+          );
+
+          if (!existing) {
+            await runQuery(db,
+              'INSERT INTO vendorresources (vendorresource_name, vendorresource_lastname, vendor_id, vendorresource_create_date, vendorresource_update_date) VALUES (?, ?, ?, ?, ?)',
+              [resource.name, resource.lastname, vendorId, daysAgo(randomInt(0, 30)), now]
+            );
+            totalResources++;
+          }
+        }
+      }
+    }
+    console.log(`  Seeded ${totalContracts} vendor contracts with ${totalRoles} roles, ${totalRates} rates, and ${totalResources} resources.`);
   }
 }
 

@@ -5,9 +5,10 @@ const NOT_DELETED = '(purchaseorderitem_is_deleted = 0 OR purchaseorderitem_is_d
 
 async function getByPoId(db, poId) {
   return getAll(db,
-    `SELECT poi.*, c.currency_name
+    `SELECT poi.*, c.currency_name, vcr.vendorcontractrole_name
      FROM purchaseorderitems poi
      LEFT JOIN currencies c ON poi.currency_id = c.id
+     LEFT JOIN vendorcontractroles vcr ON poi.vendorcontractrole_id = vcr.id
      WHERE poi.purchaseorder_id = ? AND ${NOT_DELETED_ALIAS}
      ORDER BY poi.purchaseorderitem_start_date DESC`,
     [poId]
@@ -16,22 +17,23 @@ async function getByPoId(db, poId) {
 
 async function getById(db, id) {
   const result = await getOne(db,
-    `SELECT poi.*, c.currency_name
+    `SELECT poi.*, c.currency_name, vcr.vendorcontractrole_name
      FROM purchaseorderitems poi
      LEFT JOIN currencies c ON poi.currency_id = c.id
+     LEFT JOIN vendorcontractroles vcr ON poi.vendorcontractrole_id = vcr.id
      WHERE poi.id = ? AND ${NOT_DELETED_ALIAS}`,
     [id]
   );
   return result || null;
 }
 
-async function create(db, { purchaseorderitem_description, purchaseorderitem_start_date, purchaseorderitem_end_date, purchaseorderitems_days, purchaseorderitems_discounted_rate, purchaseorder_id, currency_id }) {
+async function create(db, { purchaseorderitem_description, purchaseorderitem_start_date, purchaseorderitem_end_date, purchaseorderitems_days, purchaseorderitems_discounted_rate, purchaseorder_id, currency_id, vendorcontractrole_id, vendorrolerate_id, vendorresource_id }) {
   const now = Date.now();
   return runQuery(db,
     `INSERT INTO purchaseorderitems (purchaseorderitem_description, purchaseorderitem_start_date, purchaseorderitem_end_date,
      purchaseorderitems_days, purchaseorderitems_discounted_rate, purchaseorderitem_create_date, purchaseorderitem_update_date,
-     purchaseorder_id, currency_id)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+     purchaseorder_id, currency_id, vendorcontractrole_id, vendorrolerate_id, vendorresource_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       purchaseorderitem_description || null,
       purchaseorderitem_start_date,
@@ -40,7 +42,10 @@ async function create(db, { purchaseorderitem_description, purchaseorderitem_sta
       purchaseorderitems_discounted_rate || null,
       now, now,
       purchaseorder_id,
-      currency_id || null
+      currency_id || null,
+      vendorcontractrole_id || null,
+      vendorrolerate_id || null,
+      vendorresource_id || null
     ]
   );
 }
@@ -55,6 +60,9 @@ async function update(db, id, data) {
   if (data.purchaseorderitems_days !== undefined) { fields.push('purchaseorderitems_days = ?'); values.push(data.purchaseorderitems_days); }
   if (data.purchaseorderitems_discounted_rate !== undefined) { fields.push('purchaseorderitems_discounted_rate = ?'); values.push(data.purchaseorderitems_discounted_rate); }
   if (data.currency_id !== undefined) { fields.push('currency_id = ?'); values.push(data.currency_id); }
+  if (data.vendorcontractrole_id !== undefined) { fields.push('vendorcontractrole_id = ?'); values.push(data.vendorcontractrole_id); }
+  if (data.vendorrolerate_id !== undefined) { fields.push('vendorrolerate_id = ?'); values.push(data.vendorrolerate_id); }
+  if (data.vendorresource_id !== undefined) { fields.push('vendorresource_id = ?'); values.push(data.vendorresource_id); }
 
   if (fields.length === 0) return { changes: 0 };
 

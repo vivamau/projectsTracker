@@ -157,6 +157,60 @@ describe('POST /api/budgets/:id/purchase-orders/:poId/items', () => {
     expect(res.body.data.id).toBeGreaterThan(0);
   });
 
+  it('creates an item with vendor contract role', async () => {
+    // Setup vendor and contract role
+    const vendorRes = await new Promise((resolve, reject) => {
+      db.run(
+        `INSERT INTO vendors (vendor_name, vendor_create_date) VALUES (?, ?)`,
+        ['Test Vendor', Date.now()],
+        function(err) {
+          if (err) reject(err);
+          else resolve({ lastID: this.lastID });
+        }
+      );
+    });
+    const vendorId = vendorRes.lastID;
+
+    const contractRes = await new Promise((resolve, reject) => {
+      db.run(
+        `INSERT INTO vendorcontracts (contract_name, contract_start_date, vendor_id, contract_create_date)
+         VALUES (?, ?, ?, ?)`,
+        ['Test Contract', Date.now(), vendorId, Date.now()],
+        function(err) {
+          if (err) reject(err);
+          else resolve({ lastID: this.lastID });
+        }
+      );
+    });
+    const vendorContractId = contractRes.lastID;
+
+    const roleRes = await new Promise((resolve, reject) => {
+      db.run(
+        `INSERT INTO vendorcontractroles (vendorcontractrole_name, vendorcontract_id, vendorcontractrole_create_date)
+         VALUES (?, ?, ?)`,
+        ['Consultant', vendorContractId, Date.now()],
+        function(err) {
+          if (err) reject(err);
+          else resolve({ lastID: this.lastID });
+        }
+      );
+    });
+    const vendorRoleId = roleRes.lastID;
+
+    const startDate = Date.now();
+    const res = await request
+      .post(`/api/budgets/${budgetId}/purchase-orders/${testPoId}/items`)
+      .set('Cookie', [`token=${adminToken()}`])
+      .send({
+        purchaseorderitem_description: 'Item with vendor role',
+        purchaseorderitem_start_date: startDate,
+        vendorcontractrole_id: vendorRoleId
+      });
+
+    expect(res.statusCode).toBe(201);
+    expect(res.body.data.id).toBeGreaterThan(0);
+  });
+
   it('returns 400 when purchaseorderitem_start_date is missing', async () => {
     const res = await request
       .post(`/api/budgets/${budgetId}/purchase-orders/${testPoId}/items`)
@@ -235,6 +289,53 @@ describe('PUT /api/budgets/:id/purchase-orders/:poId/items/:itemId', () => {
       .set('Cookie', [`token=${adminToken()}`])
       .send({
         currency_id: currencyId
+      });
+
+    expect(res.statusCode).toBe(200);
+  });
+
+  it('updates vendorcontractrole_id (200)', async () => {
+    // Create vendor contract role
+    const vendorRes = await new Promise((resolve, reject) => {
+      db.run(
+        `INSERT INTO vendors (vendor_name, vendor_create_date) VALUES (?, ?)`,
+        ['Test Vendor', Date.now()],
+        function(err) {
+          if (err) reject(err);
+          else resolve({ lastID: this.lastID });
+        }
+      );
+    });
+
+    const contractRes = await new Promise((resolve, reject) => {
+      db.run(
+        `INSERT INTO vendorcontracts (contract_name, contract_start_date, vendor_id, contract_create_date)
+         VALUES (?, ?, ?, ?)`,
+        ['Test Contract', Date.now(), vendorRes.lastID, Date.now()],
+        function(err) {
+          if (err) reject(err);
+          else resolve({ lastID: this.lastID });
+        }
+      );
+    });
+
+    const roleRes = await new Promise((resolve, reject) => {
+      db.run(
+        `INSERT INTO vendorcontractroles (vendorcontractrole_name, vendorcontract_id, vendorcontractrole_create_date)
+         VALUES (?, ?, ?)`,
+        ['Consultant', contractRes.lastID, Date.now()],
+        function(err) {
+          if (err) reject(err);
+          else resolve({ lastID: this.lastID });
+        }
+      );
+    });
+
+    const res = await request
+      .put(`/api/budgets/${budgetId}/purchase-orders/${testPoId}/items/${testItemId}`)
+      .set('Cookie', [`token=${adminToken()}`])
+      .send({
+        vendorcontractrole_id: roleRes.lastID
       });
 
     expect(res.statusCode).toBe(200);

@@ -8,6 +8,27 @@ const { success, error } = require('../utilities/responseHelper');
 function createBudgetRoutes(db) {
   const router = express.Router();
 
+  // Get all budgets
+  router.get('/', authenticate, async (req, res) => {
+    try {
+      const budgets = await budgetService.getAllBudgets(db);
+      return success(res, budgets);
+    } catch (err) {
+      return error(res, 'Failed to get budgets');
+    }
+  });
+
+  // Get recent budgets
+  router.get('/recent', authenticate, async (req, res) => {
+    try {
+      const limit = Math.min(parseInt(req.query.limit) || 5, 20);
+      const budgets = await budgetService.getRecent(db, limit);
+      return success(res, budgets);
+    } catch (err) {
+      return error(res, 'Failed to get recent budgets');
+    }
+  });
+
   // Get budget detail
   router.get('/:id', authenticate, async (req, res) => {
     try {

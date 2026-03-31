@@ -64,3 +64,29 @@
 **Date:** 2026-03-31
 **Decision:** Implement PO items management in a separate PoItemsModal.jsx component (not inline expand rows). This keeps the parent detail.jsx under 1000 lines, matches existing modal-based patterns (vendors, POs, budgets all use modals), and provides cleaner component separation. The modal is nested (outer: items list, inner: item create/edit form).
 **Status:** Implemented.
+
+## Vendor Rates Support Complex Pricing via Seniority & Currency
+**Date:** 2026-03-31
+**Decision:** Vendor role rates table now supports multiple rates per role via:
+  1. Different currencies (USD, EUR, GBP, CHF, JPY)
+  2. Different seniority levels (11 levels: Entry to Expert)
+  3. Optional description for business context (e.g., "Senior staff on retainer")
+  
+This enables complex vendor pricing models where the same role has different hourly rates depending on worker seniority and currency. `vendorrolerates` has: rate, currency_id (FK), seniority_id (FK, nullable), description (nullable).
+**Status:** Implemented (migrations 012, 013).
+
+## Nested Modal Hierarchy for Vendor Management
+**Date:** 2026-03-31
+**Decision:** Implement 3-level nested modal structure: Vendor → Contract (ContractsModal) → Role (ContractRolesModal) → Rate (RatesModal). Each level has its own CRUD with Settings icon to drill down. This allows managing the full vendor-contract-role-rate hierarchy from the vendors page without separate pages.
+**Status:** Implemented (all three modals).
+
+## Seed Enhanced with Rate Complexity
+**Date:** 2026-03-31
+**Decision:** `seed_dummy_data.js` now generates diverse rate data:
+  - 11 seniority levels (from Entry Level to Expert)
+  - Per vendor: 1-3 contracts, 2-4 roles per contract, 2-3 rates per role
+  - Per rate: varied seniority (random), 1-2 currencies, optional description
+  - Per vendor: 2-5 resources assigned
+  
+This creates realistic complexity for testing vendor pricing scenarios.
+**Status:** Implemented.

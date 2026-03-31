@@ -85,4 +85,30 @@ async function unlinkFromProject(db, projectId, budgetId) {
   );
 }
 
-module.exports = { getById, getByProjectId, getTotalByProjectId, create, update, softDelete, linkToProject, unlinkFromProject };
+async function getRecent(db, limit = 5) {
+  return getAll(db,
+    `SELECT b.*, c.currency_name, p.project_name
+     FROM budgets b
+     LEFT JOIN currencies c ON b.currency_id = c.id
+     INNER JOIN projects_to_budgets pb ON b.id = pb.budget_id
+     INNER JOIN projects p ON pb.project_id = p.id
+     WHERE (b.budget_is_deleted = 0 OR b.budget_is_deleted IS NULL)
+     ORDER BY b.budget_create_date DESC
+     LIMIT ?`,
+    [limit]
+  );
+}
+
+async function getAllBudgets(db) {
+  return getAll(db,
+    `SELECT b.*, c.currency_name, p.project_name
+     FROM budgets b
+     LEFT JOIN currencies c ON b.currency_id = c.id
+     INNER JOIN projects_to_budgets pb ON b.id = pb.budget_id
+     INNER JOIN projects p ON pb.project_id = p.id
+     WHERE (b.budget_is_deleted = 0 OR b.budget_is_deleted IS NULL)
+     ORDER BY b.budget_create_date DESC`
+  );
+}
+
+module.exports = { getById, getByProjectId, getTotalByProjectId, create, update, softDelete, linkToProject, unlinkFromProject, getRecent, getAllBudgets };
