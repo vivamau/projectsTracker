@@ -161,3 +161,19 @@ Free tier rejected because: SQLite requires persistent disk (Starter only), and 
 
 Why 1GB: Sufficient for small-to-medium project tracking dataset. Can be increased later via Render Dashboard.
 **Status:** Implemented (render.yaml disk config with 1GB sizeGB).
+
+## Render Blueprint vs Manual Service Setup - Critical Deployment Process
+**Date:** 2026-04-01
+**Decision:** `render.yaml` is a **Blueprint manifest** (YAML format), not a Dockerfile. When deploying to Render:
+  - ❌ DO NOT use: Dashboard → New Service → Set Dockerfile Path to render.yaml
+  - ✅ DO use: Blueprints → New Blueprint → Connect Repo → Render auto-detects render.yaml
+
+Why: Render auto-detects `render.yaml` in the repo root and uses it to create multiple services automatically. Each service in render.yaml specifies its own Dockerfile path:
+  - Backend service points to: ./backend/Dockerfile
+  - Frontend service points to: ./frontend/Dockerfile
+
+If you try to use render.yaml as a Dockerfile path, Render parses it as Docker instructions and fails on `services:` (not a valid Docker keyword).
+
+Common mistake: Confusing "New Service" (manual, single service) with "New Blueprint" (automatic, multi-service).
+
+**Status:** Identified and documented (RENDER_QUICK_FIX.md, RENDER_BLUEPRINT_VS_MANUAL.md, RENDER_CLICK_BY_CLICK.md).

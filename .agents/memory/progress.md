@@ -177,3 +177,9 @@
   - [x] Modified docker-compose.yml: Added BACKEND_URL=http://backend:5000 to frontend environment (maintains local Docker Compose compatibility)
   - [x] RENDER_DEPLOYMENT.md: Complete Render deployment guide (step-by-step, troubleshooting, monitoring, scaling, security)
   - [x] RENDER_SETUP_SUMMARY.md: Quick reference for Render setup
+- [x] Render.com Blueprint Deployment Clarification <!-- id: 269 -->
+  - [x] Identified critical error: User was trying to set render.yaml as Dockerfile Path in UI
+  - [x] Created RENDER_QUICK_FIX.md: Explains the problem and correct Blueprint process
+  - [x] Created RENDER_BLUEPRINT_VS_MANUAL.md: Side-by-side comparison of wrong vs. right approach
+  - [x] Created RENDER_CLICK_BY_CLICK.md: Step-by-step UI navigation for Blueprints deployment
+  - [x] Key insight: render.yaml is a Blueprint manifest, not a Dockerfile—use Blueprints menu, not "New Service"
