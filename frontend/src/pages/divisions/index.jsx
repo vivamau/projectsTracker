@@ -7,24 +7,46 @@ import Card from '../../commoncomponents/Card';
 import Modal from '../../commoncomponents/Modal';
 import ConfirmDialog from '../../commoncomponents/ConfirmDialog';
 import LoadingSpinner from '../../commoncomponents/LoadingSpinner';
+import SearchInput from '../../commoncomponents/SearchInput';
 
 export default function DivisionsPage() {
   const { isAdmin } = useAuth();
   const [divisions, setDivisions] = useState([]);
+  const [allDivisions, setAllDivisions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(false);
   const [editItem, setEditItem] = useState(null);
   const [name, setName] = useState('');
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [search, setSearch] = useState('');
+
+  const filterDivisions = (divisionsList, searchTerm) => {
+    if (!searchTerm.trim()) {
+      setDivisions(divisionsList);
+      return;
+    }
+
+    const filtered = divisionsList.filter(d =>
+      d.division_name?.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+    setDivisions(filtered);
+  };
 
   const fetch = () => {
     setLoading(true);
     getDivisions()
-      .then(r => setDivisions(r.data.data))
+      .then(r => {
+        setAllDivisions(r.data.data);
+        filterDivisions(r.data.data, search);
+      })
       .finally(() => setLoading(false));
   };
 
   useEffect(() => { fetch(); }, []);
+
+  useEffect(() => {
+    filterDivisions(allDivisions, search);
+  }, [search, allDivisions]);
 
   const openCreate = () => { setEditItem(null); setName(''); setModal(true); };
   const openEdit = (d) => { setEditItem(d); setName(d.division_name); setModal(true); };
@@ -62,6 +84,13 @@ export default function DivisionsPage() {
       </div>
 
       <Card noPadding>
+        {/* Search Filter */}
+        <div className="border-b border-border px-6 py-4">
+          <div className="w-64">
+            <SearchInput value={search} onChange={setSearch} placeholder="Search divisions..." />
+          </div>
+        </div>
+
         {loading ? <LoadingSpinner className="py-12" /> : (
           <table className="w-full text-sm">
             <thead>

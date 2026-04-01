@@ -14,6 +14,7 @@ import StatusBadge from '../../commoncomponents/StatusBadge';
 import ConfirmDialog from '../../commoncomponents/ConfirmDialog';
 import Modal from '../../commoncomponents/Modal';
 import LoadingSpinner from '../../commoncomponents/LoadingSpinner';
+import MilestoneTimeline from './components/MilestoneTimeline';
 
 export default function ProjectDetailPage() {
   const { id } = useParams();
@@ -30,7 +31,7 @@ export default function ProjectDetailPage() {
   const [completionModal, setCompletionModal] = useState(false);
   const [budgetModal, setBudgetModal] = useState(false);
   const [healthForm, setHealthForm] = useState({ healthstatus_value: 3, healthstatus_comment: '' });
-  const [completionForm, setCompletionForm] = useState({ completion_value: '', completion_comment: '' });
+  const [completionForm, setCompletionForm] = useState({ completion_value: '', completion_comment: '', completion_start_date: '', completion_end_date: '' });
   const [budgetForm, setBudgetForm] = useState({ budget_amount: '', currency_id: '', budget_start_date: '', budget_end_date: '' });
 
   useEffect(() => {
@@ -65,14 +66,17 @@ export default function ProjectDetailPage() {
 
   const handleAddCompletion = async (e) => {
     e.preventDefault();
-    await createCompletion(id, {
+    const data = {
       completion_value: parseInt(completionForm.completion_value),
       completion_comment: completionForm.completion_comment
-    });
+    };
+    if (completionForm.completion_start_date) data.completion_start_date = new Date(completionForm.completion_start_date).getTime();
+    if (completionForm.completion_end_date) data.completion_end_date = new Date(completionForm.completion_end_date).getTime();
+    await createCompletion(id, data);
     const res = await getCompletions(id);
     setCompletions(res.data.data);
     setCompletionModal(false);
-    setCompletionForm({ completion_value: '', completion_comment: '' });
+    setCompletionForm({ completion_value: '', completion_comment: '', completion_start_date: '', completion_end_date: '' });
   };
 
   const handleDeleteCompletion = async (completionId) => {
@@ -130,7 +134,12 @@ export default function ProjectDetailPage() {
           <div className="mt-1 flex items-center gap-3">
             <StatusBadge value={project.latest_health_status} />
             {project.division_name && (
-              <span className="text-sm text-text-secondary">{project.division_name}</span>
+              <Link
+                to={`/divisions/${project.division_id}`}
+                className="text-sm text-primary-500 hover:text-primary-600 transition-colors underline"
+              >
+                {project.division_name}
+              </Link>
             )}
           </div>
         </div>
@@ -170,10 +179,30 @@ export default function ProjectDetailPage() {
                 <InfoItem icon={User} label="Owner" value={project.owner_name ? `${project.owner_name} ${project.owner_lastname || ''}`.trim() : '-'} />
               </div>
               {project.initiative_name && (
-                <InfoItem label="Initiative" value={project.initiative_name} />
+                <InfoItem
+                  label="Initiative"
+                  value={
+                    <Link
+                      to={`/initiatives/${project.initiative_id}`}
+                      className="text-primary-500 hover:text-primary-600 transition-colors underline"
+                    >
+                      {project.initiative_name}
+                    </Link>
+                  }
+                />
               )}
               {project.deliverypath_name && (
-                <InfoItem label="Delivery Path" value={project.deliverypath_name} />
+                <InfoItem
+                  label="Delivery Path"
+                  value={
+                    <Link
+                      to={`/delivery-paths/${project.deliverypath_id}`}
+                      className="text-primary-500 hover:text-primary-600 transition-colors underline"
+                    >
+                      {project.deliverypath_name}
+                    </Link>
+                  }
+                />
               )}
             </div>
           </Card>
@@ -211,41 +240,12 @@ export default function ProjectDetailPage() {
               </div>
             </div>
 
-            {completions.length === 0 ? (
-              <p className="text-sm text-text-secondary py-2 text-center">No milestones recorded</p>
-            ) : (
-              <div className="space-y-2">
-                {completions.map(c => (
-                  <div key={c.id} className="flex items-center justify-between rounded-lg border border-border px-4 py-2.5">
-                    <div className="flex items-center gap-3">
-                      <span className={`inline-flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold ${
-                        c.completion_value === 100
-                          ? 'bg-success-50 text-success-600'
-                          : 'bg-primary-50 text-primary-600'
-                      }`}>
-                        {c.completion_value}%
-                      </span>
-                      <div>
-                        <p className="text-sm font-medium text-text-primary">{c.completion_comment || 'Milestone update'}</p>
-                        <p className="text-xs text-text-secondary">
-                          {formatDate(c.completion_create_date)}
-                          {c.user_name && ` · ${c.user_name} ${c.user_lastname || ''}`}
-                        </p>
-                      </div>
-                    </div>
-                    {isAdmin && (
-                      <button
-                        onClick={() => handleDeleteCompletion(c.id)}
-                        className="text-text-secondary hover:text-error-500 transition-colors p-1"
-                        title="Remove milestone"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
+            <MilestoneTimeline
+              completions={completions}
+              isAdmin={isAdmin}
+              onDelete={handleDeleteCompletion}
+              formatDate={formatDate}
+            />
           </Card>
 
           {/* Health Status Timeline */}
@@ -383,6 +383,25 @@ export default function ProjectDetailPage() {
             )}
           </Card>
 
+          {/* Supporting Divisions */}
+          <Card title="Supporting Divisions">
+            {(!project.supporting_divisions || project.supporting_divisions.length === 0) ? (
+              <p className="text-sm text-text-secondary">No supporting divisions</p>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {project.supporting_divisions.map(d => (
+                  <Link
+                    key={d.id}
+                    to={`/divisions/${d.id}`}
+                    className="inline-flex items-center rounded-full bg-primary-50 px-2.5 py-1 text-xs font-medium text-primary-700 hover:bg-primary-100 transition-colors"
+                  >
+                    {d.division_name}
+                  </Link>
+                ))}
+              </div>
+            )}
+          </Card>
+
           {/* Metadata */}
           <Card title="Metadata">
             <div className="space-y-3 text-sm">
@@ -473,6 +492,26 @@ export default function ProjectDetailPage() {
               className="w-full rounded-lg border border-border-dark px-3 py-2 text-sm outline-none focus:border-primary-500 resize-none"
               placeholder="Milestone description..."
             />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="mb-1.5 block text-sm font-medium">Start Date</label>
+              <input
+                type="date"
+                value={completionForm.completion_start_date}
+                onChange={e => setCompletionForm(f => ({ ...f, completion_start_date: e.target.value }))}
+                className="w-full rounded-lg border border-border-dark bg-surface px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+              />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-sm font-medium">End Date</label>
+              <input
+                type="date"
+                value={completionForm.completion_end_date}
+                onChange={e => setCompletionForm(f => ({ ...f, completion_end_date: e.target.value }))}
+                className="w-full rounded-lg border border-border-dark bg-surface px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+              />
+            </div>
           </div>
           <div className="flex justify-end gap-3">
             <button type="button" onClick={() => setCompletionModal(false)} className="rounded-lg border border-border-dark px-4 py-2 text-sm font-medium hover:bg-surface transition-colors">

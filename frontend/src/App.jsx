@@ -13,6 +13,7 @@ import BudgetDetailPage from './pages/budgets/detail';
 import InitiativesPage from './pages/initiatives/index';
 import InitiativeDetailPage from './pages/initiatives/detail';
 import DeliveryPathsPage from './pages/deliveryPaths/index';
+import DeliveryPathDetailPage from './pages/deliveryPaths/detail';
 import VendorsPage from './pages/vendors/index';
 import VendorDetailPage from './pages/vendors/detail';
 import UsersPage from './pages/users/index';
@@ -42,6 +43,7 @@ export default function App() {
         <Route path="/initiatives" element={<InitiativesPage />} />
         <Route path="/initiatives/:id" element={<InitiativeDetailPage />} />
         <Route path="/delivery-paths" element={<DeliveryPathsPage />} />
+        <Route path="/delivery-paths/:id" element={<DeliveryPathDetailPage />} />
         <Route path="/vendors" element={<VendorsPage />} />
         <Route path="/vendors/:id" element={<VendorDetailPage />} />
         <Route path="/users" element={<UsersPage />} />

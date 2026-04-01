@@ -21,6 +21,7 @@ export default function ProjectFormPage() {
     project_start_date: '',
     project_end_date: '',
     country_codes: [],
+    supporting_division_ids: [],
     project_managers: []
   });
   const [divisions, setDivisions] = useState([]);
@@ -57,6 +58,7 @@ export default function ProjectFormPage() {
             project_start_date: tsToInput(p.project_start_date),
             project_end_date: tsToInput(p.project_end_date),
             country_codes: p.countries ? p.countries.map(c => c.UN_country_code) : [],
+            supporting_division_ids: p.supporting_divisions ? p.supporting_divisions.map(d => d.id) : [],
             project_managers: p.project_managers ? p.project_managers.map(pm => ({ user_id: pm.user_id, division_id: pm.division_id || '' })) : []
           });
         })
@@ -86,6 +88,15 @@ export default function ProjectFormPage() {
       country_codes: f.country_codes.includes(code)
         ? f.country_codes.filter(c => c !== code)
         : [...f.country_codes, code]
+    }));
+  };
+
+  const toggleSupportingDivision = (divId) => {
+    setForm(f => ({
+      ...f,
+      supporting_division_ids: f.supporting_division_ids.includes(divId)
+        ? f.supporting_division_ids.filter(d => d !== divId)
+        : [...f.supporting_division_ids, divId]
     }));
   };
 
@@ -131,6 +142,7 @@ export default function ProjectFormPage() {
         project_start_date: inputToTs(form.project_start_date),
         project_end_date: inputToTs(form.project_end_date),
         country_codes: form.country_codes,
+        supporting_division_ids: form.supporting_division_ids,
         project_managers: form.project_managers.map(pm => ({
           user_id: pm.user_id,
           division_id: pm.division_id || null
@@ -339,6 +351,38 @@ export default function ProjectFormPage() {
                     <span>{c.short_name}</span>
                   </label>
                 ))}
+              </div>
+            </FormField>
+
+            {/* Supporting Divisions multi-select */}
+            <FormField label="Supporting Divisions">
+              {form.supporting_division_ids.length > 0 && (
+                <div className="mb-2 flex flex-wrap gap-1.5">
+                  {form.supporting_division_ids.map(divId => {
+                    const d = divisions.find(div => div.id === divId);
+                    return (
+                      <span key={divId} className="inline-flex items-center gap-1 rounded-full bg-primary-50 px-2.5 py-0.5 text-xs font-medium text-primary-700">
+                        {d?.division_name || divId}
+                        <button type="button" onClick={() => toggleSupportingDivision(divId)} className="hover:text-error-500">&times;</button>
+                      </span>
+                    );
+                  })}
+                </div>
+              )}
+              <div className="max-h-40 overflow-y-auto rounded-lg border border-border">
+                {divisions
+                  .filter(d => !form.division_id || d.id !== parseInt(form.division_id))
+                  .map(d => (
+                    <label key={d.id} className="flex items-center gap-2 px-3 py-1.5 hover:bg-surface cursor-pointer text-sm">
+                      <input
+                        type="checkbox"
+                        checked={form.supporting_division_ids.includes(d.id)}
+                        onChange={() => toggleSupportingDivision(d.id)}
+                        className="rounded border-border-dark text-primary-500 focus:ring-primary-500"
+                      />
+                      <span>{d.division_name}</span>
+                    </label>
+                  ))}
               </div>
             </FormField>
           </div>

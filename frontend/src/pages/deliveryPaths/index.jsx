@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { Plus, Pencil, Trash2 } from 'lucide-react';
 import { getDeliveryPaths, createDeliveryPath, updateDeliveryPath, deleteDeliveryPath } from '../../api/entitiesApi';
 import { useAuth } from '../../hooks/useAuth';
@@ -73,7 +74,11 @@ export default function DeliveryPathsPage() {
                 <tr><td colSpan={3} className="px-6 py-12 text-center text-text-secondary">No delivery paths</td></tr>
               ) : items.map(item => (
                 <tr key={item.id} className="border-b border-border last:border-0 hover:bg-surface/30 transition-colors">
-                  <td className="px-6 py-3 font-medium">{item.deliverypath_name}</td>
+                  <td className="px-6 py-3 font-medium">
+                    <Link to={`/delivery-paths/${item.id}`} className="text-primary-600 hover:text-primary-700 hover:underline">
+                      {item.deliverypath_name}
+                    </Link>
+                  </td>
                   <td className="px-6 py-3 text-text-secondary">{item.deilverypath_description || '-'}</td>
                   {isAdmin && (
                     <td className="px-6 py-3">

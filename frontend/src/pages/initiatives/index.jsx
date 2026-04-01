@@ -7,22 +7,47 @@ import Card from '../../commoncomponents/Card';
 import Modal from '../../commoncomponents/Modal';
 import ConfirmDialog from '../../commoncomponents/ConfirmDialog';
 import LoadingSpinner from '../../commoncomponents/LoadingSpinner';
+import SearchInput from '../../commoncomponents/SearchInput';
 
 export default function InitiativesPage() {
   const { isAdmin } = useAuth();
   const [items, setItems] = useState([]);
+  const [allItems, setAllItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(false);
   const [editItem, setEditItem] = useState(null);
   const [form, setForm] = useState({ initiative_name: '', initiative_description: '' });
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [search, setSearch] = useState('');
+
+  const filterInitiatives = (initiativesList, searchTerm) => {
+    if (!searchTerm.trim()) {
+      setItems(initiativesList);
+      return;
+    }
+
+    const filtered = initiativesList.filter(i =>
+      i.initiative_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      i.initiative_description?.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+    setItems(filtered);
+  };
 
   const fetchData = () => {
     setLoading(true);
-    getInitiatives().then(r => setItems(r.data.data)).finally(() => setLoading(false));
+    getInitiatives()
+      .then(r => {
+        setAllItems(r.data.data);
+        filterInitiatives(r.data.data, search);
+      })
+      .finally(() => setLoading(false));
   };
 
   useEffect(() => { fetchData(); }, []);
+
+  useEffect(() => {
+    filterInitiatives(allItems, search);
+  }, [search, allItems]);
 
   const openCreate = () => { setEditItem(null); setForm({ initiative_name: '', initiative_description: '' }); setModal(true); };
   const openEdit = (item) => { setEditItem(item); setForm({ initiative_name: item.initiative_name || '', initiative_description: item.initiative_description || '' }); setModal(true); };
@@ -60,6 +85,13 @@ export default function InitiativesPage() {
       </div>
 
       <Card noPadding>
+        {/* Search Filter */}
+        <div className="border-b border-border px-6 py-4">
+          <div className="w-64">
+            <SearchInput value={search} onChange={setSearch} placeholder="Search initiatives..." />
+          </div>
+        </div>
+
         {loading ? <LoadingSpinner className="py-12" /> : (
           <table className="w-full text-sm">
             <thead>

@@ -3,10 +3,11 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { Pencil, Trash2, Plus, Users, FolderOpen, DollarSign } from 'lucide-react';
 import {
   getDivision, deleteDivision,
-  getDivisionProjects, getDivisionFocalPoints,
+  getDivisionProjects, getDivisionSupportingProjects, getDivisionFocalPoints,
   addDivisionFocalPoint, removeDivisionFocalPoint,
   getDivisionProjectManagers, getUsers
 } from '../../api/entitiesApi';
+import { getBudgets, getPurchaseOrders, getPurchaseOrderItems } from '../../api/projectsApi';
 import { useAuth } from '../../hooks/useAuth';
 import Card from '../../commoncomponents/Card';
 import StatusBadge from '../../commoncomponents/StatusBadge';
@@ -20,6 +21,8 @@ export default function DivisionDetailPage() {
   const { isAdmin } = useAuth();
   const [division, setDivision] = useState(null);
   const [projects, setProjects] = useState([]);
+  const [supportingProjects, setSupportingProjects] = useState([]);
+  const [projectBudgets, setProjectBudgets] = useState({});
   const [focalPoints, setFocalPoints] = useState([]);
   const [projectManagers, setProjectManagers] = useState([]);
   const [users, setUsers] = useState([]);
@@ -29,16 +32,87 @@ export default function DivisionDetailPage() {
   const [fpUserId, setFpUserId] = useState('');
   const [removeFpTarget, setRemoveFpTarget] = useState(null);
 
-  const fetchData = () => {
-    Promise.all([
-      getDivision(id).then(r => setDivision(r.data.data)),
-      getDivisionProjects(id).then(r => setProjects(r.data.data)),
-      getDivisionFocalPoints(id).then(r => setFocalPoints(r.data.data)),
-      getDivisionProjectManagers(id).then(r => setProjectManagers(r.data.data)),
-      getUsers({ limit: 100 }).then(r => setUsers(r.data.data)).catch(() => {})
-    ])
-      .catch(() => navigate('/divisions'))
-      .finally(() => setLoading(false));
+  const fetchData = async () => {
+    try {
+      const [divRes, projRes, suppProjRes, fpRes, pmRes, usersRes] = await Promise.all([
+        getDivision(id),
+        getDivisionProjects(id),
+        getDivisionSupportingProjects(id),
+        getDivisionFocalPoints(id),
+        getDivisionProjectManagers(id),
+        getUsers({ limit: 100 }).catch(() => ({ data: { data: [] } }))
+      ]);
+
+      setDivision(divRes.data.data);
+      const projectsList = projRes.data.data || [];
+      setProjects(projectsList);
+      setSupportingProjects(suppProjRes.data.data || []);
+      setFocalPoints(fpRes.data.data);
+      setProjectManagers(pmRes.data.data);
+      setUsers(usersRes.data.data);
+
+      // Fetch budget data for each project
+      const budgetsData = {};
+      for (const project of projectsList) {
+        try {
+          const budgetsRes = await getBudgets(project.id);
+          const budgets = budgetsRes.data.data || [];
+
+          let totalInitialBudget = 0;
+          let totalSpent = 0;
+          const currencies = new Set();
+
+          for (const budget of budgets) {
+            totalInitialBudget += budget.budget_amount || 0;
+            if (budget.currency_name) {
+              currencies.add(budget.currency_name);
+            }
+
+            try {
+              const posRes = await getPurchaseOrders(budget.id);
+              const pos = posRes.data.data || [];
+
+              for (const po of pos) {
+                try {
+                  const itemsRes = await getPurchaseOrderItems(budget.id, po.id);
+                  const items = itemsRes.data.data || [];
+                  const poTotal = items.reduce((sum, item) => {
+                    const days = item.purchaseorderitems_days || 0;
+                    const rate = item.purchaseorderitems_discounted_rate || 0;
+                    return sum + (days * rate);
+                  }, 0);
+                  totalSpent += poTotal;
+                } catch {
+                  // Continue if items fail
+                }
+              }
+            } catch {
+              // Continue if POs fail
+            }
+          }
+
+          budgetsData[project.id] = {
+            initialBudget: totalInitialBudget,
+            spent: totalSpent,
+            currentBudget: totalInitialBudget - totalSpent,
+            currencies: Array.from(currencies).sort()
+          };
+        } catch {
+          budgetsData[project.id] = {
+            initialBudget: 0,
+            spent: 0,
+            currentBudget: 0,
+            currencies: []
+          };
+        }
+      }
+
+      setProjectBudgets(budgetsData);
+    } catch (err) {
+      navigate('/divisions');
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => { fetchData(); }, [id]);
@@ -78,6 +152,11 @@ export default function DivisionDetailPage() {
     return new Date(ts).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
   };
 
+  const formatCurrency = (amount) => {
+    if (amount === null || amount === undefined) return '-';
+    return Number(amount).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+  };
+
   // Filter out users already assigned as focal points
   const availableUsers = users.filter(
     u => !focalPoints.find(fp => fp.user_id === u.id)
@@ -111,6 +190,33 @@ export default function DivisionDetailPage() {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         {/* Projects list */}
         <div className="lg:col-span-2">
+          {/* Budget Summary */}
+          {projects.length > 0 && (() => {
+            const allCurrencies = Array.from(new Set(Object.values(projectBudgets).flatMap(b => b.currencies || []))).sort().join('/');
+            return (
+              <div className="grid grid-cols-3 gap-4 mb-6">
+                <div className="bg-surface rounded-lg border border-border p-4">
+                  <p className="text-xs text-text-secondary uppercase tracking-wide mb-2">Total Initial Budget</p>
+                  <p className="text-xl font-bold text-text-primary">
+                    {formatCurrency(Object.values(projectBudgets).reduce((sum, b) => sum + (b.initialBudget || 0), 0))} {allCurrencies}
+                  </p>
+                </div>
+                <div className="bg-surface rounded-lg border border-border p-4">
+                  <p className="text-xs text-text-secondary uppercase tracking-wide mb-2">Total Spent</p>
+                  <p className="text-xl font-bold text-text-primary">
+                    {formatCurrency(Object.values(projectBudgets).reduce((sum, b) => sum + (b.spent || 0), 0))} {allCurrencies}
+                  </p>
+                </div>
+                <div className="bg-surface rounded-lg border border-border p-4">
+                  <p className="text-xs text-text-secondary uppercase tracking-wide mb-2">Total Current Budget</p>
+                  <p className={`text-xl font-bold ${Object.values(projectBudgets).reduce((sum, b) => sum + (b.currentBudget || 0), 0) < 0 ? 'text-error-500' : 'text-success-600'}`}>
+                    {formatCurrency(Object.values(projectBudgets).reduce((sum, b) => sum + (b.currentBudget || 0), 0))} {allCurrencies}
+                  </p>
+                </div>
+              </div>
+            );
+          })()}
+
           <Card title="Projects" noPadding>
             {projects.length === 0 ? (
               <p className="px-6 py-8 text-sm text-text-secondary text-center">No projects in this division</p>
@@ -222,6 +328,24 @@ export default function DivisionDetailPage() {
                         ))}
                       </div>
                     </div>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          )}
+
+          {/* Supporting Projects */}
+          {supportingProjects.length > 0 && (
+            <Card title="Supporting Projects">
+              <div className="space-y-2">
+                {supportingProjects.map(p => (
+                  <div key={p.id} className="flex flex-col gap-1">
+                    <Link to={`/projects/${p.id}`} className="font-medium text-primary-500 hover:text-primary-600 hover:underline text-sm">
+                      {p.project_name}
+                    </Link>
+                    {p.project_description && (
+                      <p className="text-xs text-text-secondary line-clamp-1">{p.project_description}</p>
+                    )}
                   </div>
                 ))}
               </div>

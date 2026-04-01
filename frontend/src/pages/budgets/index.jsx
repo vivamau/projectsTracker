@@ -4,11 +4,26 @@ import { DollarSign, TrendingUp, TrendingDown } from 'lucide-react';
 import { getAllBudgets, getPurchaseOrders, getPurchaseOrderItems } from '../../api/projectsApi';
 import Card from '../../commoncomponents/Card';
 import LoadingSpinner from '../../commoncomponents/LoadingSpinner';
+import SearchInput from '../../commoncomponents/SearchInput';
 
 export default function BudgetsPage() {
   const navigate = useNavigate();
   const [budgets, setBudgets] = useState([]);
+  const [allBudgets, setAllBudgets] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+
+  const filterBudgets = (budgetsList, searchTerm) => {
+    if (!searchTerm.trim()) {
+      setBudgets(budgetsList);
+      return;
+    }
+
+    const filtered = budgetsList.filter(b =>
+      b.project_name?.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+    setBudgets(filtered);
+  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -40,7 +55,8 @@ export default function BudgetsPage() {
           })
         );
 
-        setBudgets(budgetsWithItems);
+        setAllBudgets(budgetsWithItems);
+        filterBudgets(budgetsWithItems, search);
       } catch (err) {
         console.error('Failed to fetch budgets:', err);
         setBudgets([]);
@@ -51,6 +67,10 @@ export default function BudgetsPage() {
 
     fetchData();
   }, []);
+
+  useEffect(() => {
+    filterBudgets(allBudgets, search);
+  }, [search, allBudgets]);
 
   const formatDate = (ts) => {
     if (!ts) return '-';
@@ -103,6 +123,13 @@ export default function BudgetsPage() {
       </div>
 
       <Card noPadding>
+        {/* Search Filter */}
+        <div className="border-b border-border px-6 py-4">
+          <div className="w-64">
+            <SearchInput value={search} onChange={setSearch} placeholder="Search by project..." />
+          </div>
+        </div>
+
         {budgets.length === 0 ? (
           <p className="px-6 py-12 text-center text-text-secondary">No budgets found</p>
         ) : (

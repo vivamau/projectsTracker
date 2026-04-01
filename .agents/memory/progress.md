@@ -109,3 +109,52 @@
   - [x] Budget detail page refetches totals when items modal closes
   - [x] Ensures rates are always saved with PO items
   - [x] All 580 tests passing, 89.24% coverage maintained
+- [x] Backend Test Coverage Improvements <!-- id: 261 -->
+  - [x] Enhanced projectService.test.js: added 11 tests for individual field updates (82.41% → 100%)
+  - [x] Enhanced purchaseOrderService.test.js: added 8 tests for various update scenarios (81.81% → 100%)
+  - [x] Created currencyRoutes.test.js: 13 tests for GET/POST/DELETE endpoints (55.55% → 88.88%)
+  - [x] Overall coverage improved: 89.87% → 92.22% statements, 93.01% → 96.09% branches
+  - [x] Added test_coverage_improvements.md to memory system
+  - [x] All 623 tests passing, 41 suites
+- [x] Milestone Dates Feature <!-- id: 262 -->
+  - [x] Migration 014: added completion_start_date and completion_end_date to completions table
+  - [x] Updated completionService.js: create() and update() support start/end dates
+  - [x] Updated projectRoutes.js POST /completions to accept and pass date fields
+  - [x] Updated completion form in project detail page with date inputs
+  - [x] Enhanced dummy data seeding: milestones now have realistic date ranges (7-28 day durations)
+  - [x] Fresh database created with 147 completions across 20 projects with proper dates
+  - [x] All 628 tests passing with 92.33% coverage
+- [x] Milestone Timeline Component <!-- id: 263 -->
+  - [x] Created MilestoneTimeline.jsx: vertical timeline visualization
+  - [x] Sorts milestones chronologically (oldest → newest, top → bottom)
+  - [x] Visual states: completed (green dot), in-progress (blue dot + ring), future (hollow gray dot)
+  - [x] Date display logic: shows ranges, single dates, or creation date as fallback
+  - [x] Empty state with Target icon
+  - [x] Replaced flat list in project detail with new timeline component
+  - [x] Uses connector lines between nodes, TailwindCSS only (no new dependencies)
+  - [x] Frontend builds successfully, all tests passing
+- [x] Clickable Entity Links in Project Detail <!-- id: 264 -->
+  - [x] Made division name clickable → /divisions/:id (header, next to health status)
+  - [x] Made initiative name clickable → /initiatives/:id (project details card)
+  - [x] Made delivery path name clickable → /delivery-paths/:id (project details card)
+  - [x] All links styled with blue text, underline, and hover effect
+  - [x] Updated memory system documentation
+  - [x] All tests passing, frontend builds successfully
+- [x] Supporting Divisions Feature <!-- id: 265 -->
+  - [x] Migration 015: projects_to_divisions junction table (id, project_id FK, division_id FK)
+  - [x] projectService.js updated: getById() fetches + spreads, create() inserts junction rows, update() delete-then-reinsert
+  - [x] projectService.test.js: 5 new tests for supporting divisions CRUD and sync (create, sync replace, clear, update-only, exclude main)
+  - [x] form.jsx: supporting_division_ids state, toggle function, checkbox list UI filtering main division, badge pills
+  - [x] detail.jsx: Supporting Divisions card with clickable division links (inline pills with hover state)
+  - [x] seed_dummy_data.js: 0-2 random supporting divisions per project, results in 19 links across 20 projects
+  - [x] All 633 tests passing, 92.35% statement coverage, 95.72% branch coverage
+  - [x] Frontend builds successfully with zero errors
+  - [x] Database initialized with supporting divisions seeded (verified 19 links in projects_to_divisions table)
+- [x] Division Detail Page - Supporting Projects <!-- id: 266 -->
+  - [x] divisionRoutes.js: New endpoint GET /api/divisions/:id/supporting-projects (queries projects_to_divisions junction table)
+  - [x] divisionRoutes.test.js: 2 new tests for supporting-projects endpoint (empty list, with supporting projects)
+  - [x] entitiesApi.js: Added getDivisionSupportingProjects(id) function
+  - [x] detail.jsx (divisions): Fetch supporting projects in fetchData, add state, display new Supporting Projects card in sidebar
+  - [x] Supporting Projects card shows project name (linked), description (line-clamped), only if division participates
+  - [x] All 635 tests passing (2 new tests added), 92.3% statement coverage
+  - [x] Frontend builds successfully with zero errors

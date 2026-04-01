@@ -7,6 +7,7 @@ export const updateDivision = (id, data) => client.put(`/divisions/${id}`, data)
 export const deleteDivision = (id) => client.delete(`/divisions/${id}`);
 
 export const getDivisionProjects = (id) => client.get(`/divisions/${id}/projects`);
+export const getDivisionSupportingProjects = (id) => client.get(`/divisions/${id}/supporting-projects`);
 export const getDivisionFocalPoints = (id) => client.get(`/divisions/${id}/focal-points`);
 export const addDivisionFocalPoint = (id, data) => client.post(`/divisions/${id}/focal-points`, data);
 export const removeDivisionFocalPoint = (divisionId, fpId) => client.delete(`/divisions/${divisionId}/focal-points/${fpId}`);
