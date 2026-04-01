@@ -1,18 +1,18 @@
 FROM node:20-alpine
 
-WORKDIR /app
+WORKDIR /
 
 # Copy package files
-COPY package*.json ./app
+COPY package*.json .
 
 # Install production dependencies only
-RUN npm install --omit=dev
+RUN npm install
 
 # Copy application code
-COPY . ./app
+COPY . .
 
 # Create data directory for SQLite
-RUN mkdir -p /app/data
+RUN mkdir -p ./data
 
 # Use non-root user for security
 USER node
