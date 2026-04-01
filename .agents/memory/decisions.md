@@ -120,3 +120,44 @@ Named volumes are portable, backed up with standard Docker tools, and work ident
 **Date:** 2026-04-01
 **Decision:** Frontend container depends on backend's healthcheck endpoint (`GET /health`), preventing Nginx from serving a broken app while the backend is still initializing. The healthcheck waits 40 seconds before considering the backend ready (to allow migrations to complete), retries 3 times, and checks every 30 seconds.
 **Status:** Implemented (docker-compose.yml healthcheck + depends_on condition).
+
+## Render.com Deployment - Preserve Nginx Proxy Architecture
+**Date:** 2026-04-01
+**Decision:** Render.com is a managed platform where each service gets its own public URL. The cookie-based JWT auth (SameSite=Lax) breaks on cross-domain API calls. Solution: preserve the Nginx proxy architecture — frontend proxies `/api/*` to backend via `${BACKEND_URL}` environment variable. Frontend and backend are separate Render web services, but frontend's Nginx makes them appear as one origin to the browser.
+
+Alternative rejected: Direct VITE_API_URL would require cross-domain API calls → SameSite=Lax cookies not sent → auth fails.
+
+**Why**: Cookie-based auth requires same-origin requests. Nginx proxy preserves this while allowing separate service deployment.
+**Status:** Implemented (render.yaml with fromService references, frontend/docker-entrypoint.sh for runtime substitution).
+
+## Runtime Environment Substitution for Render
+**Date:** 2026-04-01
+**Decision:** Nginx config cannot be templated at build time (frontend/Dockerfile is built before service URLs exist). Instead: copy nginx.conf as `/etc/nginx/templates/default.conf.template`, then use `docker-entrypoint.sh` to run `envsubst '${BACKEND_URL}'` at container startup. This substitutes only BACKEND_URL (preserving nginx variables like $uri) and writes to `/etc/nginx/conf.d/default.conf` before starting Nginx.
+
+Alternative rejected: Building Nginx config at build time would require hardcoding URLs (not possible).
+**Status:** Implemented (frontend/docker-entrypoint.sh + updated Dockerfile Stage 2 with gettext).
+
+## Render Service Auto-Discovery via fromService
+**Date:** 2026-04-01
+**Decision:** In render.yaml, use `fromService` references to automatically set environment variables based on dependent services:
+  - Backend's `CORS_ORIGIN` references frontend's `hostWithScheme` (e.g., https://projectstracker-frontend.onrender.com)
+  - Frontend's `BACKEND_URL` references backend's `hostWithScheme` (e.g., https://projectstracker-api.onrender.com)
+
+Render resolves these at deploy time, eliminating manual URL configuration. This works even with circular references (each service references the other).
+**Status:** Implemented (render.yaml with fromService blocks).
+
+## Render Plan Choice - Starter for Both Services
+**Date:** 2026-04-01
+**Decision:** Both backend and frontend services use Starter plan ($7/month each, $14 total):
+  - Backend: Starter required for persistent disk (SQLite needs storage)
+  - Frontend: Starter chosen for consistency (Free tier has 15-min inactivity sleep, unsuitable for SPA)
+  
+Free tier rejected because: SQLite requires persistent disk (Starter only), and Free tier services sleep after inactivity (frontend would lag on cold starts).
+**Status:** Configured in render.yaml (plan: starter for both services).
+
+## Render Persistent Disk - 1GB SQLite Storage
+**Date:** 2026-04-01
+**Decision:** Backend service uses a 1GB persistent disk mounted at `/app/data` to store SQLite database. Disk survives container restarts and redeployments. No backup mechanism in render.yaml (manual export needed if data must be preserved long-term).
+
+Why 1GB: Sufficient for small-to-medium project tracking dataset. Can be increased later via Render Dashboard.
+**Status:** Implemented (render.yaml disk config with 1GB sizeGB).

@@ -1,0 +1,48 @@
+services:
+  # Backend API Service
+  - type: web
+    name: projectstracker-api
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    region: oregon
+    plan: starter
+    disk:
+      name: sqlite-data
+      mountPath: /app/data
+      sizeGB: 1
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 5000
+      - key: DB_PATH
+        value: /app/data/database.sqlite
+      - key: JWT_SECRET
+        generateValue: true
+        description: "Automatically generated secure JWT secret"
+      - key: JWT_EXPIRES_IN
+        value: 2h
+      - key: CORS_ORIGIN
+        fromService:
+          type: web
+          name: projectstracker-frontend
+          property: hostWithScheme
+        description: "Automatically set to frontend service URL"
+    healthCheckPath: /health
+
+  # Frontend Service (React SPA + Nginx Proxy)
+  - type: web
+    name: projectstracker-frontend
+    runtime: docker
+    dockerfilePath: ./frontend/Dockerfile
+    dockerContext: ./frontend
+    region: oregon
+    plan: starter
+    envVars:
+      - key: BACKEND_URL
+        fromService:
+          type: web
+          name: projectstracker-api
+          property: hostWithScheme
+        description: "Automatically set to backend service URL for Nginx proxy"

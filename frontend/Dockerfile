@@ -21,8 +21,15 @@ RUN VITE_API_URL=${VITE_API_URL} npm run build
 # Stage 2: Serve with Nginx
 FROM nginx:alpine
 
-# Copy Nginx configuration
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+# Install gettext for envsubst (used to substitute BACKEND_URL at runtime)
+RUN apk add --no-cache gettext
+
+# Copy Nginx configuration as template (for environment variable substitution)
+COPY nginx.conf /etc/nginx/templates/default.conf.template
+
+# Copy entrypoint script that handles variable substitution
+COPY docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
 
 # Copy built app from builder stage
 COPY --from=builder /app/dist /usr/share/nginx/html
@@ -35,4 +42,4 @@ RUN mkdir -p /var/cache/nginx && \
 
 EXPOSE 80
 
-CMD ["nginx", "-g", "daemon off;"]
+ENTRYPOINT ["/docker-entrypoint.sh"]

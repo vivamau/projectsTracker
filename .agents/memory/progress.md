@@ -169,3 +169,11 @@
   - [x] DEPLOYMENT.md: Production deployment (systemd, PM2, reverse proxy, SSL, security checklist)
   - [x] DOCKER_SETUP_SUMMARY.md: Quick reference for Docker setup
   - [x] Updated README.md: Added Docker quick start and documentation links
+- [x] Render.com Deployment Setup <!-- id: 268 -->
+  - [x] render.yaml: Manifest with two web services (backend + frontend), persistent SQLite disk, auto-generated JWT_SECRET, service auto-discovery
+  - [x] frontend/docker-entrypoint.sh: Entrypoint script for runtime envsubst substitution of BACKEND_URL
+  - [x] Modified frontend/nginx.conf: Changed proxy_pass to use ${BACKEND_URL} template variable
+  - [x] Modified frontend/Dockerfile: Added gettext package, template-based nginx config, entrypoint support
+  - [x] Modified docker-compose.yml: Added BACKEND_URL=http://backend:5000 to frontend environment (maintains local Docker Compose compatibility)
+  - [x] RENDER_DEPLOYMENT.md: Complete Render deployment guide (step-by-step, troubleshooting, monitoring, scaling, security)
+  - [x] RENDER_SETUP_SUMMARY.md: Quick reference for Render setup
