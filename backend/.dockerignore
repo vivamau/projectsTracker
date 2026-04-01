@@ -1,0 +1,13 @@
+node_modules
+npm-debug.log
+.git
+.gitignore
+data
+.env
+.env.local
+.env.*.local
+tests
+*.test.js
+*.spec.js
+jest.config.js
+.DS_Store

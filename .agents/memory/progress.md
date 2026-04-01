@@ -158,3 +158,14 @@
   - [x] Supporting Projects card shows project name (linked), description (line-clamped), only if division participates
   - [x] All 635 tests passing (2 new tests added), 92.3% statement coverage
   - [x] Frontend builds successfully with zero errors
+- [x] Docker Setup & Containerization <!-- id: 267 -->
+  - [x] backend/Dockerfile: Node.js 20 Alpine, production deps only, non-root user
+  - [x] frontend/Dockerfile: Multi-stage build (Vite builder → Nginx Alpine runner)
+  - [x] frontend/nginx.conf: SPA routing + /api proxy to backend:5000, Gzip compression, cache headers
+  - [x] docker-compose.yml: Backend + Frontend services, health checks, db_data volume persistence
+  - [x] .dockerignore files for both backend and frontend
+  - [x] .env.docker.sample: Environment template with all required variables documented
+  - [x] DOCKER.md: Local Docker usage guide (build, run, logs, troubleshooting)
+  - [x] DEPLOYMENT.md: Production deployment (systemd, PM2, reverse proxy, SSL, security checklist)
+  - [x] DOCKER_SETUP_SUMMARY.md: Quick reference for Docker setup
+  - [x] Updated README.md: Added Docker quick start and documentation links

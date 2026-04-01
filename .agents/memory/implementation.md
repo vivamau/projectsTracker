@@ -50,3 +50,19 @@
 | `/api/countries` | GET | any |
 | `/api/initiatives` | CRUD | admin+ |
 | `/api/deliverypaths` | CRUD | admin+ |
+
+## Docker & Deployment
+- **backend/Dockerfile**: Node.js 20 Alpine, production-only deps, non-root `node` user, exposes 5000 (internal)
+- **frontend/Dockerfile**: Multi-stage build — Stage 1: Vite build with Node 20; Stage 2: Nginx Alpine runner, exposes 80
+- **frontend/nginx.conf**: SPA routing (`try_files $uri $uri/ /index.html`), proxies `/api/*` to `http://backend:5000`, Gzip compression, cache headers for static assets, headers forwarding (Host, X-Real-IP, X-Forwarded-For)
+- **docker-compose.yml**: 
+  - Backend service: builds from `./backend`, environment vars (NODE_ENV, PORT, DB_PATH, JWT_SECRET, JWT_EXPIRES_IN, CORS_ORIGIN), volume `db_data:/app/data`, healthcheck on `/health` (40s start_period, 30s interval, 3 retries)
+  - Frontend service: builds from `./frontend` with build arg `VITE_API_URL`, ports `${FRONTEND_PORT:-80}:80`, depends_on backend with healthcheck condition
+  - Named volume `db_data` for SQLite persistence
+- **.env.docker.sample**: Template with all env vars documented (JWT_SECRET, JWT_EXPIRES_IN, CORS_ORIGIN, FRONTEND_PORT, VITE_API_URL)
+- **.dockerignore files**: Both backend and frontend exclude node_modules, build artifacts, env files, test files, .git
+- **Documentation**:
+  - DOCKER.md: Local Docker usage (build, run, logs, commands, troubleshooting)
+  - DEPLOYMENT.md: Production deployment guide (systemd, PM2, reverse proxy, HTTPS, backups, monitoring)
+  - DOCKER_SETUP_SUMMARY.md: Quick reference and next steps
+  - Updated README.md: Added Docker quick start and doc links

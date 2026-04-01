@@ -90,3 +90,33 @@ This enables complex vendor pricing models where the same role has different hou
   
 This creates realistic complexity for testing vendor pricing scenarios.
 **Status:** Implemented.
+
+## Docker Architecture - Single Entry Point via Nginx Proxy
+**Date:** 2026-04-01
+**Decision:** All browser traffic goes through a single Nginx container on port 80:
+  1. Nginx serves the React SPA static build (dist/)
+  2. Nginx proxies all `/api/*` requests to the Express backend service on port 5000 (internal only)
+  3. Backend port 5000 is NOT exposed to the host, only accessible within the Docker network
+  4. Frontend axios client uses relative paths `/api/*` (no absolute URLs, no CORS needed)
+
+This eliminates CORS complexity, provides a single entry point for deployment, and ensures clean network isolation. Alternative considered (frontend with absolute API URLs) was rejected because it requires CORS configuration and exposes the backend port.
+**Status:** Implemented (docker-compose.yml, frontend/Dockerfile, frontend/nginx.conf).
+
+## Vite API URL - Build Time vs Runtime
+**Date:** 2026-04-01
+**Decision:** Vite bakes environment variables at build time. The frontend uses hardcoded relative paths `/api/*` in axios client (baseURL), so `VITE_API_URL` is accepted in docker-compose.yml but left empty by default. This allows future flexibility (e.g., pointing to a different backend domain) without requiring frontend rebuild, but currently the relative path approach is preferred.
+**Status:** Implemented (VITE_API_URL build arg in docker-compose.yml, frontend axios uses baseURL: '/api').
+
+## SQLite Persistence via Named Docker Volume
+**Date:** 2026-04-01
+**Decision:** The SQLite database at `/app/data/database.sqlite` is mounted to a named Docker volume (`db_data`) so that data persists across container restarts. Alternative approaches rejected:
+  1. Host bind mount (breaks on different machines/servers)
+  2. Docker volume driver other than local (unnecessarily complex)
+  
+Named volumes are portable, backed up with standard Docker tools, and work identically across dev/production.
+**Status:** Implemented (docker-compose.yml volumes section).
+
+## Healthcheck Before Frontend Start
+**Date:** 2026-04-01
+**Decision:** Frontend container depends on backend's healthcheck endpoint (`GET /health`), preventing Nginx from serving a broken app while the backend is still initializing. The healthcheck waits 40 seconds before considering the backend ready (to allow migrations to complete), retries 3 times, and checks every 30 seconds.
+**Status:** Implemented (docker-compose.yml healthcheck + depends_on condition).
