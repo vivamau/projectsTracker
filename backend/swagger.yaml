@@ -1,0 +1,2404 @@
+openapi: 3.0.3
+info:
+  title: Projects Tracker API
+  description: |
+    RESTful API for the Projects Tracker application. This API provides endpoints for managing
+    projects, vendors, budgets, divisions, and related entities.
+  version: 1.0.0
+  contact:
+    name: API Support
+    email: support@example.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:3000/api
+    description: Development server
+  - url: https://api.example.com/api
+    description: Production server
+
+tags:
+  - name: Authentication
+    description: User authentication and authorization endpoints
+  - name: Users
+    description: User management endpoints (admin only)
+  - name: Projects
+    description: Project management endpoints
+  - name: Divisions
+    description: Division management endpoints
+  - name: Countries
+    description: Country management endpoints
+  - name: Currencies
+    description: Currency management endpoints (admin only)
+  - name: Budgets
+    description: Budget management endpoints
+  - name: Vendors
+    description: Vendor management endpoints
+  - name: Initiatives
+    description: Initiative management endpoints
+  - name: Delivery Paths
+    description: Delivery path management endpoints
+  - name: Seniorities
+    description: Seniority management endpoints (admin only)
+  - name: Vendor Contracts
+    description: Vendor contract management endpoints
+  - name: Vendor Contract Roles
+    description: Vendor contract role management endpoints
+  - name: Vendor Role Rates
+    description: Vendor role rate management endpoints
+
+security:
+  - bearerAuth: []
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        JWT token obtained from the login endpoint. Add it to the Authorization header
+        as "Bearer <token>".
+
+  schemas:
+    # Common Response Schemas
+    Error:
+      type: object
+      properties:
+        message:
+          type: string
+          description: Error message
+        code:
+          type: integer
+          description: HTTP status code
+      required:
+        - message
+        - code
+
+    Success:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+
+    PaginatedResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items: {}
+        total:
+          type: integer
+          description: Total number of records
+        page:
+          type: integer
+          description: Current page number
+        limit:
+          type: integer
+          description: Number of items per page
+
+    # Auth Schemas
+    LoginRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          example: user@example.com
+        password:
+          type: string
+          format: password
+          example: password123
+
+    LoginResponse:
+      type: object
+      properties:
+        user:
+          type: object
+          properties:
+            id:
+              type: integer
+            user_email:
+              type: string
+            userrole_id:
+              type: integer
+
+    UserResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+        user_email:
+          type: string
+        userrole_id:
+          type: integer
+        user_name:
+          type: string
+        user_is_deleted:
+          type: boolean
+          nullable: true
+
+    # Project Schemas
+    Project:
+      type: object
+      properties:
+        id:
+          type: integer
+        project_name:
+          type: string
+        project_description:
+          type: string
+          nullable: true
+        project_start_date:
+          type: string
+          format: date
+          nullable: true
+        project_end_date:
+          type: string
+          format: date
+          nullable: true
+        project_status:
+          type: string
+          nullable: true
+        project_is_deleted:
+          type: boolean
+          nullable: true
+        user_id:
+          type: integer
+        division_id:
+          type: integer
+          nullable: true
+        project_manager_id:
+          type: integer
+          nullable: true
+        initiative_id:
+          type: integer
+          nullable: true
+        deliverypath_id:
+          type: integer
+          nullable: true
+        completion_id:
+          type: integer
+          nullable: true
+
+    ProjectStats:
+      type: object
+      properties:
+        total_projects:
+          type: integer
+        active_projects:
+          type: integer
+        completed_projects:
+          type: integer
+        pending_projects:
+          type: integer
+
+    HealthStatus:
+      type: object
+      properties:
+        id:
+          type: integer
+        project_id:
+          type: integer
+        health_status:
+          type: string
+        health_date:
+          type: string
+          format: date
+
+    # Division Schemas
+    Division:
+      type: object
+      properties:
+        id:
+          type: integer
+        division_name:
+          type: string
+        division_is_deleted:
+          type: boolean
+          nullable: true
+        focal_points_count:
+          type: integer
+        projects_count:
+          type: integer
+        total_budget:
+          type: number
+          format: float
+
+    FocalPoint:
+      type: object
+      properties:
+        id:
+          type: integer
+        user_id:
+          type: integer
+        division_id:
+          type: integer
+        focalpoint_is_deleted:
+          type: boolean
+          nullable: true
+
+    # Country Schemas
+    Country:
+      type: object
+      properties:
+        id:
+          type: integer
+        country_code:
+          type: string
+        country_name:
+          type: string
+        country_is_deleted:
+          type: boolean
+          nullable: true
+
+    # Currency Schemas
+    Currency:
+      type: object
+      properties:
+        id:
+          type: integer
+        currency_name:
+          type: string
+        currency_is_deleted:
+          type: boolean
+          nullable: true
+
+    # Budget Schemas
+    Budget:
+      type: object
+      properties:
+        id:
+          type: integer
+        budget_name:
+          type: string
+        budget_amount:
+          type: number
+          format: float
+        budget_is_deleted:
+          type: boolean
+          nullable: true
+
+    PurchaseOrder:
+      type: object
+      properties:
+        id:
+          type: integer
+        budget_id:
+          type: integer
+        purchaseorder_number:
+          type: string
+        purchaseorder_start_date:
+          type: string
+          format: date
+        purchaseorder_end_date:
+          type: string
+          format: date
+          nullable: true
+        purchaseorder_status:
+          type: string
+          nullable: true
+        purchaseorder_is_deleted:
+          type: boolean
+          nullable: true
+
+    PurchaseOrderItem:
+      type: object
+      properties:
+        id:
+          type: integer
+        purchaseorder_id:
+          type: integer
+        purchaseorderitem_description:
+          type: string
+        purchaseorderitem_quantity:
+          type: number
+          format: float
+        purchaseorderitem_unit_price:
+          type: number
+          format: float
+        purchaseorderitem_start_date:
+          type: string
+          format: date
+        purchaseorderitem_end_date:
+          type: string
+          format: date
+          nullable: true
+        purchaseorderitem_is_deleted:
+          type: boolean
+          nullable: true
+
+    # Vendor Schemas
+    Vendor:
+      type: object
+      properties:
+        id:
+          type: integer
+        vendor_name:
+          type: string
+        vendor_is_deleted:
+          type: boolean
+          nullable: true
+
+    VendorContract:
+      type: object
+      properties:
+        id:
+          type: integer
+        vendor_id:
+          type: integer
+        contract_name:
+          type: string
+        contract_start_date:
+          type: string
+          format: date
+        contract_end_date:
+          type: string
+          format: date
+          nullable: true
+        contract_is_deleted:
+          type: boolean
+          nullable: true
+
+    VendorContractRole:
+      type: object
+      properties:
+        id:
+          type: integer
+        vendorcontract_id:
+          type: integer
+        vendorcontractrole_name:
+          type: string
+        vendorcontractrole_is_deleted:
+          type: boolean
+          nullable: true
+
+    VendorRoleRate:
+      type: object
+      properties:
+        id:
+          type: integer
+        vendorcontractrole_id:
+          type: integer
+        vendorrolerate_rate:
+          type: number
+          format: float
+        currency_id:
+          type: integer
+        vendorrolerate_is_deleted:
+          type: boolean
+          nullable: true
+
+    # Initiative Schemas
+    Initiative:
+      type: object
+      properties:
+        id:
+          type: integer
+        initiative_name:
+          type: string
+        initiative_is_deleted:
+          type: boolean
+          nullable: true
+
+    # Delivery Path Schemas
+    DeliveryPath:
+      type: object
+      properties:
+        id:
+          type: integer
+        deliverypath_name:
+          type: string
+        deliverypath_is_deleted:
+          type: boolean
+          nullable: true
+
+    # Seniority Schemas
+    Seniority:
+      type: object
+      properties:
+        id:
+          type: integer
+        seniority_description:
+          type: string
+        seniority_is_deleted:
+          type: boolean
+          nullable: true
+
+paths:
+  # ==================== Authentication ====================
+  /auth/login:
+    post:
+      tags:
+        - Authentication
+      summary: User login
+      description: Authenticate with email and password to receive a JWT token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '400':
+          description: Bad request - missing credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized - invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/logout:
+    post:
+      tags:
+        - Authentication
+      summary: User logout
+      description: Invalidate the current JWT token (requires authentication)
+      responses:
+        '200':
+          description: Logout successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+
+  /auth/me:
+    get:
+      tags:
+        - Authentication
+      summary: Get current user info
+      description: Get information about the currently authenticated user
+      responses:
+        '200':
+          description: User information retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '401':
+          description: Unauthorized - invalid or missing token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ==================== Users ====================
+  /users:
+    get:
+      tags:
+        - Users
+      summary: List all users
+      description: Get paginated list of users (superadmin and admin only)
+      parameters:
+        - name: page
+          in: query
+          description: Page number for pagination
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          description: Number of items per page
+          schema:
+            type: integer
+            default: 20
+        - name: search
+          in: query
+          description: Search term for filtering users
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Users list retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden - insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /users/{id}:
+    get:
+      tags:
+        - Users
+      summary: Get user by ID
+      description: Get details of a specific user (superadmin and admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: User ID
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: User retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    post:
+      tags:
+        - Users
+      summary: Create a new user
+      description: Create a new user account (superadmin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - user_email
+                - password
+                - userrole_id
+              properties:
+                user_email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  format: password
+                userrole_id:
+                  type: integer
+                user_name:
+                  type: string
+      responses:
+        '201':
+          description: User created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: integer
+        '400':
+          description: Bad request - missing required fields
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden - insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Conflict - email already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    put:
+      tags:
+        - Users
+      summary: Update user
+      description: Update an existing user (superadmin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: User ID
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                user_email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  format: password
+                userrole_id:
+                  type: integer
+                user_name:
+                  type: string
+      responses:
+        '200':
+          description: User updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    delete:
+      tags:
+        - Users
+      summary: Delete user
+      description: Soft delete a user (superadmin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: User ID
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: User deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ==================== Projects ====================
+  /projects/stats:
+    get:
+      tags:
+        - Projects
+      summary: Get project statistics
+      description: Get aggregated statistics for all projects
+      responses:
+        '200':
+          description: Statistics retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectStats'
+
+  /projects:
+    get:
+      tags:
+        - Projects
+      summary: List all projects
+      description: Get paginated list of projects
+      parameters:
+        - name: page
+          in: query
+          description: Page number for pagination
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          description: Number of items per page
+          schema:
+            type: integer
+            default: 20
+        - name: search
+          in: query
+          description: Search term for filtering projects
+          schema:
+            type: string
+        - name: division_id
+          in: query
+          description: Filter by division ID
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Projects list retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedResponse'
+
+  /projects/{id}:
+    get:
+      tags:
+        - Projects
+      summary: Get project by ID
+      description: Get details of a specific project
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Project ID
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Project retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+        '404':
+          description: Project not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    put:
+      tags:
+        - Projects
+      summary: Update project
+      description: Update an existing project (admin and above)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Project ID
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                project_name:
+                  type: string
+                project_description:
+                  type: string
+                project_start_date:
+                  type: string
+                  format: date
+                project_end_date:
+                  type: string
+                  format: date
+                project_status:
+                  type: string
+                division_id:
+                  type: integer
+                project_manager_id:
+                  type: integer
+                initiative_id:
+                  type: integer
+                deliverypath_id:
+                  type: integer
+                completion_id:
+                  type: integer
+      responses:
+        '200':
+          description: Project updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Project not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    delete:
+      tags:
+        - Projects
+      summary: Delete project
+      description: Soft delete a project (admin and above)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Project ID
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Project deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+        '404':
+          description: Project not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /projects/{id}/health-statuses:
+    get:
+      tags:
+        - Projects
+      summary: Get health statuses for a project
+      description: Get all health status records for a specific project
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Project ID
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Health statuses retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/HealthStatus'
+
+  # ==================== Divisions ====================
+  /divisions:
+    get:
+      tags:
+        - Divisions
+      summary: List all divisions
+      description: Get list of all divisions
+      responses:
+        '200':
+          description: Divisions list retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Division'
+
+  /divisions/{id}:
+    get:
+      tags:
+        - Divisions
+      summary: Get division by ID
+      description: Get details of a specific division including counts and budget info
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Division ID
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Division retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Division'
+        '404':
+          description: Division not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    put:
+      tags:
+        - Divisions
+      summary: Update division
+      description: Update an existing division (admin and above)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Division ID
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                division_name:
+                  type: string
+      responses:
+        '200':
+          description: Division updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+        '404':
+          description: Division not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    delete:
+      tags:
+        - Divisions
+      summary: Delete division
+      description: Soft delete a division (admin and above)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Division ID
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Division deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+        '404':
+          description: Division not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /divisions/{id}/focal-points:
+    get:
+      tags:
+        - Divisions
+      summary: Get focal points for a division
+      description: Get all focal points assigned to a division
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Division ID
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Focal points retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/FocalPoint'
+    post:
+      tags:
+        - Divisions
+      summary: Add focal point to division
+      description: Add a focal point to a division (admin and above)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Division ID
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - user_id
+              properties:
+                user_id:
+                  type: integer
+      responses:
+        '201':
+          description: Focal point added successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+
+  # ==================== Countries ====================
+  /countries:
+    get:
+      tags:
+        - Countries
+      summary: List all countries
+      description: Get list of all countries (supports search)
+      parameters:
+        - name: search
+          in: query
+          description: Search term for filtering countries
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Countries list retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Country'
+
+  /countries/{code}:
+    get:
+      tags:
+        - Countries
+      summary: Get country by code
+      description: Get details of a specific country
+      parameters:
+        - name: code
+          in: path
+          required: true
+          description: Country code
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Country retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Country'
+        '404':
+          description: Country not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ==================== Currencies ====================
+  /currencies:
+    get:
+      tags:
+        - Currencies
+      summary: List all currencies
+      description: Get list of all currencies
+      responses:
+        '200':
+          description: Currencies list retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Currency'
+    post:
+      tags:
+        - Currencies
+      summary: Create a new currency
+      description: Create a new currency (admin and above)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - currency_name
+              properties:
+                currency_name:
+                  type: string
+      responses:
+        '201':
+          description: Currency created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: integer
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /currencies/{id}:
+    delete:
+      tags:
+        - Currencies
+      summary: Delete currency
+      description: Soft delete a currency (admin and above)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Currency ID
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Currency deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+        '404':
+          description: Currency not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ==================== Budgets ====================
+  /budgets:
+    get:
+      tags:
+        - Budgets
+      summary: List all budgets
+      description: Get list of all budgets
+      responses:
+        '200':
+          description: Budgets list retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Budget'
+
+  /budgets/recent:
+    get:
+      tags:
+        - Budgets
+      summary: Get recent budgets
+      description: Get the most recently created budgets
+      parameters:
+        - name: limit
+          in: query
+          description: Maximum number of budgets to return
+          schema:
+            type: integer
+            default: 5
+            maximum: 20
+      responses:
+        '200':
+          description: Recent budgets retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Budget'
+
+  /budgets/{id}:
+    get:
+      tags:
+        - Budgets
+      summary: Get budget by ID
+      description: Get details of a specific budget
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Budget ID
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Budget retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Budget'
+        '404':
+          description: Budget not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /budgets/{id}/purchase-orders:
+    get:
+      tags:
+        - Budgets
+      summary: Get purchase orders for a budget
+      description: Get all purchase orders associated with a budget
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Budget ID
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Purchase orders retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PurchaseOrder'
+    post:
+      tags:
+        - Budgets
+      summary: Create purchase order for budget
+      description: Create a new purchase order for a budget (admin and above)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Budget ID
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - purchaseorder_start_date
+              properties:
+                purchaseorder_number:
+                  type: string
+                purchaseorder_start_date:
+                  type: string
+                  format: date
+                purchaseorder_end_date:
+                  type: string
+                  format: date
+                purchaseorder_status:
+                  type: string
+      responses:
+        '201':
+          description: Purchase order created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: integer
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /budgets/{id}/purchase-orders/{poId}:
+    put:
+      tags:
+        - Budgets
+      summary: Update purchase order
+      description: Update an existing purchase order (admin and above)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Budget ID
+          schema:
+            type: integer
+        - name: poId
+          in: path
+          required: true
+          description: Purchase Order ID
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                purchaseorder_number:
+                  type: string
+                purchaseorder_start_date:
+                  type: string
+                  format: date
+                purchaseorder_end_date:
+                  type: string
+                  format: date
+                purchaseorder_status:
+                  type: string
+      responses:
+        '200':
+          description: Purchase order updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+        '404':
+          description: Purchase order not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      tags:
+        - Budgets
+      summary: Delete purchase order
+      description: Soft delete a purchase order (admin and above)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Budget ID
+          schema:
+            type: integer
+        - name: poId
+          in: path
+          required: true
+          description: Purchase Order ID
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Purchase order deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+        '404':
+          description: Purchase order not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /budgets/{id}/purchase-orders/{poId}/items:
+    get:
+      tags:
+        - Budgets
+      summary: Get purchase order items
+      description: Get all items for a specific purchase order
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Budget ID
+          schema:
+            type: integer
+        - name: poId
+          in: path
+          required: true
+          description: Purchase Order ID
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Purchase order items retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PurchaseOrderItem'
+    post:
+      tags:
+        - Budgets
+      summary: Add item to purchase order
+      description: Add a new item to a purchase order (admin and above)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Budget ID
+          schema:
+            type: integer
+        - name: poId
+          in: path
+          required: true
+          description: Purchase Order ID
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - purchaseorderitem_start_date
+              properties:
+                purchaseorderitem_description:
+                  type: string
+                purchaseorderitem_quantity:
+                  type: number
+                  format: float
+                purchaseorderitem_unit_price:
+                  type: number
+                  format: float
+                purchaseorderitem_start_date:
+                  type: string
+                  format: date
+                purchaseorderitem_end_date:
+                  type: string
+                  format: date
+      responses:
+        '201':
+          description: Item added successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: integer
+
+  # ==================== Vendors ====================
+  /vendors:
+    get:
+      tags:
+        - Vendors
+      summary: List all vendors
+      description: Get list of all vendors
+      responses:
+        '200':
+          description: Vendors list retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Vendor'
+
+  /vendors/{id}:
+    get:
+      tags:
+        - Vendors
+      summary: Get vendor by ID
+      description: Get details of a specific vendor
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Vendor ID
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Vendor retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Vendor'
+        '404':
+          description: Vendor not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    put:
+      tags:
+        - Vendors
+      summary: Update vendor
+      description: Update an existing vendor (admin and above)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Vendor ID
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                vendor_name:
+                  type: string
+      responses:
+        '200':
+          description: Vendor updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+        '404':
+          description: Vendor not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    delete:
+      tags:
+        - Vendors
+      summary: Delete vendor
+      description: Soft delete a vendor (admin and above)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Vendor ID
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Vendor deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+        '404':
+          description: Vendor not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /vendors/{vendorId}/contracts:
+    get:
+      tags:
+        - Vendor Contracts
+      summary: Get contracts for a vendor
+      description: Get all contracts associated with a vendor
+      parameters:
+        - name: vendorId
+          in: path
+          required: true
+          description: Vendor ID
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Contracts retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/VendorContract'
+
+  /vendors/{vendorId}/contracts/{contractId}:
+    get:
+      tags:
+        - Vendor Contracts
+      summary: Get contract by ID
+      description: Get details of a specific contract
+      parameters:
+        - name: vendorId
+          in: path
+          required: true
+          description: Vendor ID
+          schema:
+            type: integer
+        - name: contractId
+          in: path
+          required: true
+          description: Contract ID
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Contract retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VendorContract'
+        '404':
+          description: Contract not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    put:
+      tags:
+        - Vendor Contracts
+      summary: Update contract
+      description: Update an existing contract (admin and above)
+      parameters:
+        - name: vendorId
+          in: path
+          required: true
+          description: Vendor ID
+          schema:
+            type: integer
+        - name: contractId
+          in: path
+          required: true
+          description: Contract ID
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                contract_name:
+                  type: string
+                contract_start_date:
+                  type: string
+                  format: date
+                contract_end_date:
+                  type: string
+                  format: date
+      responses:
+        '200':
+          description: Contract updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+        '404':
+          description: Contract not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    delete:
+      tags:
+        - Vendor Contracts
+      summary: Delete contract
+      description: Soft delete a contract (admin and above)
+      parameters:
+        - name: vendorId
+          in: path
+          required: true
+          description: Vendor ID
+          schema:
+            type: integer
+        - name: contractId
+          in: path
+          required: true
+          description: Contract ID
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Contract deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+        '404':
+          description: Contract not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /vendors/{vendorId}/contracts/{contractId}/roles:
+    get:
+      tags:
+        - Vendor Contract Roles
+      summary: Get roles for a contract
+      description: Get all roles associated with a contract
+      parameters:
+        - name: vendorId
+          in: path
+          required: true
+          description: Vendor ID
+          schema:
+            type: integer
+        - name: contractId
+          in: path
+          required: true
+          description: Contract ID
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Roles retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/VendorContractRole'
+
+  /vendors/{vendorId}/contracts/{contractId}/roles/{roleId}:
+    get:
+      tags:
+        - Vendor Contract Roles
+      summary: Get role by ID
+      description: Get details of a specific role
+      parameters:
+        - name: vendorId
+          in: path
+          required: true
+          description: Vendor ID
+          schema:
+            type: integer
+        - name: contractId
+          in: path
+          required: true
+          description: Contract ID
+          schema:
+            type: integer
+        - name: roleId
+          in: path
+          required: true
+          description: Role ID
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Role retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VendorContractRole'
+        '404':
+          description: Role not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    put:
+      tags:
+        - Vendor Contract Roles
+      summary: Update role
+      description: Update an existing role (admin and above)
+      parameters:
+        - name: vendorId
+          in: path
+          required: true
+          description: Vendor ID
+          schema:
+            type: integer
+        - name: contractId
+          in: path
+          required: true
+          description: Contract ID
+          schema:
+            type: integer
+        - name: roleId
+          in: path
+          required: true
+          description: Role ID
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                vendorcontractrole_name:
+                  type: string
+      responses:
+        '200':
+          description: Role updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+        '404':
+          description: Role not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    delete:
+      tags:
+        - Vendor Contract Roles
+      summary: Delete role
+      description: Soft delete a role (admin and above)
+      parameters:
+        - name: vendorId
+          in: path
+          required: true
+          description: Vendor ID
+          schema:
+            type: integer
+        - name: contractId
+          in: path
+          required: true
+          description: Contract ID
+          schema:
+            type: integer
+        - name: roleId
+          in: path
+          required: true
+          description: Role ID
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Role deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+        '404':
+          description: Role not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /vendors/{vendorId}/contracts/{contractId}/roles/{roleId}/rates:
+    get:
+      tags:
+        - Vendor Role Rates
+      summary: Get rates for a role
+      description: Get all rates associated with a role
+      parameters:
+        - name: vendorId
+          in: path
+          required: true
+          description: Vendor ID
+          schema:
+            type: integer
+        - name: contractId
+          in: path
+          required: true
+          description: Contract ID
+          schema:
+            type: integer
+        - name: roleId
+          in: path
+          required: true
+          description: Role ID
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Rates retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/VendorRoleRate'
+
+  /vendors/{vendorId}/contracts/{contractId}/roles/{roleId}/rates/{rateId}:
+    get:
+      tags:
+        - Vendor Role Rates
+      summary: Get rate by ID
+      description: Get details of a specific rate
+      parameters:
+        - name: vendorId
+          in: path
+          required: true
+          description: Vendor ID
+          schema:
+            type: integer
+        - name: contractId
+          in: path
+          required: true
+          description: Contract ID
+          schema:
+            type: integer
+        - name: roleId
+          in: path
+          required: true
+          description: Role ID
+          schema:
+            type: integer
+        - name: rateId
+          in: path
+          required: true
+          description: Rate ID
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Rate retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VendorRoleRate'
+        '404':
+          description: Rate not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    put:
+      tags:
+        - Vendor Role Rates
+      summary: Update rate
+      description: Update an existing rate (admin and above)
+      parameters:
+        - name: vendorId
+          in: path
+          required: true
+          description: Vendor ID
+          schema:
+            type: integer
+        - name: contractId
+          in: path
+          required: true
+          description: Contract ID
+          schema:
+            type: integer
+        - name: roleId
+          in: path
+          required: true
+          description: Role ID
+          schema:
+            type: integer
+        - name: rateId
+          in: path
+          required: true
+          description: Rate ID
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                vendorrolerate_rate:
+                  type: number
+                  format: float
+                currency_id:
+                  type: integer
+      responses:
+        '200':
+          description: Rate updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+        '404':
+          description: Rate not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    delete:
+      tags:
+        - Vendor Role Rates
+      summary: Delete rate
+      description: Soft delete a rate (admin and above)
+      parameters:
+        - name: vendorId
+          in: path
+          required: true
+          description: Vendor ID
+          schema:
+            type: integer
+        - name: contractId
+          in: path
+          required: true
+          description: Contract ID
+          schema:
+            type: integer
+        - name: roleId
+          in: path
+          required: true
+          description: Role ID
+          schema:
+            type: integer
+        - name: rateId
+          in: path
+          required: true
+          description: Rate ID
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Rate deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+        '404':
+          description: Rate not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ==================== Initiatives ====================
+  /initiatives:
+    get:
+      tags:
+        - Initiatives
+      summary: List all initiatives
+      description: Get list of all initiatives
+      responses:
+        '200':
+          description: Initiatives list retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Initiative'
+
+  /initiatives/{id}:
+    get:
+      tags:
+        - Initiatives
+      summary: Get initiative by ID
+      description: Get details of a specific initiative
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Initiative ID
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Initiative retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Initiative'
+        '404':
+          description: Initiative not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    put:
+      tags:
+        - Initiatives
+      summary: Update initiative
+      description: Update an existing initiative (admin and above)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Initiative ID
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                initiative_name:
+                  type: string
+      responses:
+        '200':
+          description: Initiative updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+        '404':
+          description: Initiative not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    delete:
+      tags:
+        - Initiatives
+      summary: Delete initiative
+      description: Soft delete an initiative (admin and above)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Initiative ID
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Initiative deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+        '404':
+          description: Initiative not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ==================== Delivery Paths ====================
+  /deliverypaths:
+    get:
+      tags:
+        - Delivery Paths
+      summary: List all delivery paths
+      description: Get list of all delivery paths
+      responses:
+        '200':
+          description: Delivery paths list retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DeliveryPath'
+
+  /deliverypaths/{id}:
+    get:
+      tags:
+        - Delivery Paths
+      summary: Get delivery path by ID
+      description: Get details of a specific delivery path
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Delivery Path ID
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Delivery path retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeliveryPath'
+        '404':
+          description: Delivery path not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    put:
+      tags:
+        - Delivery Paths
+      summary: Update delivery path
+      description: Update an existing delivery path (admin and above)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Delivery Path ID
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                deliverypath_name:
+                  type: string
+      responses:
+        '200':
+          description: Delivery path updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+        '404':
+          description: Delivery path not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    delete:
+      tags:
+        - Delivery Paths
+      summary: Delete delivery path
+      description: Soft delete a delivery path (admin and above)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Delivery Path ID
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Delivery path deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+        '404':
+          description: Delivery path not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ==================== Seniorities ====================
+  /seniorities:
+    get:
+      tags:
+        - Seniorities
+      summary: List all seniorities
+      description: Get list of all seniorities
+      responses:
+        '200':
+          description: Seniorities list retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Seniority'
+    post:
+      tags:
+        - Seniorities
+      summary: Create a new seniority
+      description: Create a new seniority (admin and above)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - seniority_description
+              properties:
+                seniority_description:
+                  type: string
+      responses:
+        '201':
+          description: Seniority created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: integer
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /seniorities/{id}:
+    delete:
+      tags:
+        - Seniorities
+      summary: Delete seniority
+      description: Soft delete a seniority (admin and above)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Seniority ID
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Seniority deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+        '404':
+          description: Seniority not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
