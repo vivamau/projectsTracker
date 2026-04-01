@@ -177,3 +177,36 @@ If you try to use render.yaml as a Dockerfile path, Render parses it as Docker i
 Common mistake: Confusing "New Service" (manual, single service) with "New Blueprint" (automatic, multi-service).
 
 **Status:** Identified and documented (RENDER_QUICK_FIX.md, RENDER_BLUEPRINT_VS_MANUAL.md, RENDER_CLICK_BY_CLICK.md).
+
+## Render Free Tier with Manual Docker Services (vs Blueprint Paid Feature)
+**Date:** 2026-04-01
+**Decision:** User prefers free tier over paid Blueprint feature. Approach:
+  1. Use Render's free tier ($0/month for both services)
+  2. Create services manually via UI (not Blueprint)
+  3. Each service: Dashboard → New Service → configure Docker
+  4. Backend gets hardcoded `CORS_ORIGIN=https://projectstracker-frontend.onrender.com`
+  5. Frontend gets hardcoded `BACKEND_URL=https://projectstracker-api.onrender.com`
+
+Trade-offs (Free Tier):
+  - ✅ No cost ($0/month)
+  - ✅ Full functionality (can deploy and test)
+  - ✅ Easy to upgrade later (just click to Starter)
+  - ❌ Data lost on restart (SQLite in /tmp)
+  - ❌ Service sleeps after 15 min idle
+  - ❌ First request after sleep is slow (~20-30s)
+
+When to upgrade: When you need persistent data or 24/7 uptime → Starter tier ($7/service/month).
+
+**Status:** Implemented (created render_com/ folder with 7 comprehensive guides for manual free tier deployment).
+
+## Hardcoded Service URLs in render.yaml (not fromService)
+**Date:** 2026-04-01
+**Decision:** Render doesn't support `hostWithScheme` in fromService property. Error: "invalid service property: hostWithScheme. Valid properties are: host, hostport, port, connectionString."
+
+Solution: Hardcode full HTTPS URLs since Render service URLs are deterministic:
+  - Service name: `projectstracker-api` → URL: `https://projectstracker-api.onrender.com`
+  - Service name: `projectstracker-frontend` → URL: `https://projectstracker-frontend.onrender.com`
+
+If service name changes, update URLs in render.yaml accordingly.
+
+**Status:** Implemented (render.yaml fixed with hardcoded URLs).

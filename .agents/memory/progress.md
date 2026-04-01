@@ -183,3 +183,14 @@
   - [x] Created RENDER_BLUEPRINT_VS_MANUAL.md: Side-by-side comparison of wrong vs. right approach
   - [x] Created RENDER_CLICK_BY_CLICK.md: Step-by-step UI navigation for Blueprints deployment
   - [x] Key insight: render.yaml is a Blueprint manifest, not a Dockerfile—use Blueprints menu, not "New Service"
+- [x] Render.com Free Tier Manual Docker Deployment <!-- id: 270 -->
+  - [x] Created render_com/ folder with organized documentation
+  - [x] Created render_com/README.md: Overview and navigation guide
+  - [x] Created render_com/FREE_TIER_OVERVIEW.md: Limitations, architecture, free vs starter comparison
+  - [x] Created render_com/DOCKER_SERVICE_SETUP_BACKEND.md: Step-by-step backend service creation
+  - [x] Created render_com/DOCKER_SERVICE_SETUP_FRONTEND.md: Step-by-step frontend service creation
+  - [x] Created render_com/QUICK_REFERENCE.md: One-page deployment checklist
+  - [x] Created render_com/TROUBLESHOOTING.md: 9 common issues with solutions
+  - [x] Created render_com/UPGRADE_TO_STARTER.md: How to upgrade from free to paid tier
+  - [x] Fixed render.yaml: Changed fromService (invalid) to hardcoded HTTPS URLs
+  - [x] Key decision: Using free tier with manual Docker services instead of Blueprint (which is paid)
