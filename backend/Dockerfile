@@ -3,13 +3,13 @@ FROM node:20-alpine
 WORKDIR /app
 
 # Copy package files
-COPY package*.json ./
+COPY package*.json ./app
 
 # Install production dependencies only
 RUN npm install --omit=dev
 
 # Copy application code
-COPY . .
+COPY . ./app
 
 # Create data directory for SQLite
 RUN mkdir -p /app/data
