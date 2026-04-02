@@ -2,8 +2,9 @@ const express = require('express');
 const { authenticate, authorize } = require('../middleware/auth');
 const vendorRoleRateService = require('../services/vendorRoleRateService');
 const { success, error } = require('../utilities/responseHelper');
+const { auditLog } = require('../utilities/auditHelper');
 
-function createVendorRoleRateRoutes(db) {
+function createVendorRoleRateRoutes(db, auditDb) {
   const router = express.Router({ mergeParams: true });
 
   // Get rates for a role
@@ -28,7 +29,6 @@ function createVendorRoleRateRoutes(db) {
     }
   });
 
-  // Create rate
   router.post('/', authenticate, authorize('superadmin', 'admin'), async (req, res) => {
     try {
       const { vendorrolerate_rate, currency_id } = req.body;
@@ -39,28 +39,55 @@ function createVendorRoleRateRoutes(db) {
         ...req.body,
         vendorcontractrole_id: parseInt(req.params.roleId)
       });
+      await auditLog(auditDb, {
+        userId: req.user.id,
+        userEmail: req.user.email,
+        action: 'vendor_role_rate.create',
+        entityType: 'vendor_role_rate',
+        entityId: result.lastID,
+        details: { data: req.body },
+        ip: req.ip
+      });
       return success(res, { id: result.lastID }, 201);
     } catch (err) {
       return error(res, 'Failed to create rate');
     }
   });
 
-  // Update rate
   router.put('/:rateId', authenticate, authorize('superadmin', 'admin'), async (req, res) => {
     try {
-      const result = await vendorRoleRateService.update(db, parseInt(req.params.rateId), req.body);
+      const rateId = parseInt(req.params.rateId);
+      const result = await vendorRoleRateService.update(db, rateId, req.body);
       if (result.changes === 0) return error(res, 'Rate not found', 404);
+      await auditLog(auditDb, {
+        userId: req.user.id,
+        userEmail: req.user.email,
+        action: 'vendor_role_rate.update',
+        entityType: 'vendor_role_rate',
+        entityId: rateId,
+        details: { data: req.body },
+        ip: req.ip
+      });
       return success(res, { message: 'Rate updated' });
     } catch (err) {
       return error(res, 'Failed to update rate');
     }
   });
 
-  // Delete rate
   router.delete('/:rateId', authenticate, authorize('superadmin', 'admin'), async (req, res) => {
     try {
-      const result = await vendorRoleRateService.softDelete(db, parseInt(req.params.rateId));
+      const rateId = parseInt(req.params.rateId);
+      const result = await vendorRoleRateService.softDelete(db, rateId);
       if (result.changes === 0) return error(res, 'Rate not found', 404);
+      await auditLog(auditDb, {
+        userId: req.user.id,
+        userEmail: req.user.email,
+        action: 'vendor_role_rate.delete',
+        entityType: 'vendor_role_rate',
+        entityId: rateId,
+        details: {},
+        ip: req.ip
+      });
       return success(res, { message: 'Rate deleted' });
     } catch (err) {
       return error(res, 'Failed to delete rate');

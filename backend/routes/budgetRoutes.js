@@ -3,12 +3,13 @@ const { authenticate, authorize } = require('../middleware/auth');
 const budgetService = require('../services/budgetService');
 const purchaseOrderService = require('../services/purchaseOrderService');
 const purchaseOrderItemService = require('../services/purchaseOrderItemService');
+const poitemConsumptionService = require('../services/poitemConsumptionService');
 const { success, error } = require('../utilities/responseHelper');
+const { auditLog } = require('../utilities/auditHelper');
 
-function createBudgetRoutes(db) {
+function createBudgetRoutes(db, auditDb) {
   const router = express.Router();
 
-  // Get all budgets
   router.get('/', authenticate, async (req, res) => {
     try {
       const budgets = await budgetService.getAllBudgets(db);
@@ -18,7 +19,6 @@ function createBudgetRoutes(db) {
     }
   });
 
-  // Get recent budgets
   router.get('/recent', authenticate, async (req, res) => {
     try {
       const limit = Math.min(parseInt(req.query.limit) || 5, 20);
@@ -29,7 +29,6 @@ function createBudgetRoutes(db) {
     }
   });
 
-  // Get budget detail
   router.get('/:id', authenticate, async (req, res) => {
     try {
       const budget = await budgetService.getById(db, parseInt(req.params.id));
@@ -40,7 +39,6 @@ function createBudgetRoutes(db) {
     }
   });
 
-  // Purchase orders for a budget
   router.get('/:id/purchase-orders', authenticate, async (req, res) => {
     try {
       const pos = await purchaseOrderService.getByBudgetId(db, parseInt(req.params.id));
@@ -59,6 +57,15 @@ function createBudgetRoutes(db) {
         ...req.body,
         budget_id: parseInt(req.params.id)
       });
+      await auditLog(auditDb, {
+        userId: req.user.id,
+        userEmail: req.user.email,
+        action: 'purchase_order.create',
+        entityType: 'purchase_order',
+        entityId: result.lastID,
+        details: { data: req.body },
+        ip: req.ip
+      });
       return success(res, { id: result.lastID }, 201);
     } catch (err) {
       return error(res, 'Failed to create purchase order');
@@ -69,6 +76,15 @@ function createBudgetRoutes(db) {
     try {
       const result = await purchaseOrderService.update(db, parseInt(req.params.poId), req.body);
       if (result.changes === 0) return error(res, 'Purchase order not found', 404);
+      await auditLog(auditDb, {
+        userId: req.user.id,
+        userEmail: req.user.email,
+        action: 'purchase_order.update',
+        entityType: 'purchase_order',
+        entityId: parseInt(req.params.poId),
+        details: { data: req.body },
+        ip: req.ip
+      });
       return success(res, { message: 'Purchase order updated' });
     } catch (err) {
       return error(res, 'Failed to update purchase order');
@@ -77,15 +93,24 @@ function createBudgetRoutes(db) {
 
   router.delete('/:id/purchase-orders/:poId', authenticate, authorize('superadmin', 'admin'), async (req, res) => {
     try {
-      const result = await purchaseOrderService.softDelete(db, parseInt(req.params.poId));
+      const poId = parseInt(req.params.poId);
+      const result = await purchaseOrderService.softDelete(db, poId);
       if (result.changes === 0) return error(res, 'Purchase order not found', 404);
+      await auditLog(auditDb, {
+        userId: req.user.id,
+        userEmail: req.user.email,
+        action: 'purchase_order.delete',
+        entityType: 'purchase_order',
+        entityId: poId,
+        details: {},
+        ip: req.ip
+      });
       return success(res, { message: 'Purchase order deleted' });
     } catch (err) {
       return error(res, 'Failed to delete purchase order');
     }
   });
 
-  // Purchase order items
   router.get('/:id/purchase-orders/:poId/items', authenticate, async (req, res) => {
     try {
       const items = await purchaseOrderItemService.getByPoId(db, parseInt(req.params.poId));
@@ -104,6 +129,15 @@ function createBudgetRoutes(db) {
         ...req.body,
         purchaseorder_id: parseInt(req.params.poId)
       });
+      await auditLog(auditDb, {
+        userId: req.user.id,
+        userEmail: req.user.email,
+        action: 'purchase_order_item.create',
+        entityType: 'purchase_order_item',
+        entityId: result.lastID,
+        details: { data: req.body },
+        ip: req.ip
+      });
       return success(res, { id: result.lastID }, 201);
     } catch (err) {
       return error(res, 'Failed to create purchase order item');
@@ -114,6 +148,15 @@ function createBudgetRoutes(db) {
     try {
       const result = await purchaseOrderItemService.update(db, parseInt(req.params.itemId), req.body);
       if (result.changes === 0) return error(res, 'Item not found', 404);
+      await auditLog(auditDb, {
+        userId: req.user.id,
+        userEmail: req.user.email,
+        action: 'purchase_order_item.update',
+        entityType: 'purchase_order_item',
+        entityId: parseInt(req.params.itemId),
+        details: { data: req.body },
+        ip: req.ip
+      });
       return success(res, { message: 'Purchase order item updated' });
     } catch (err) {
       return error(res, 'Failed to update purchase order item');
@@ -122,11 +165,101 @@ function createBudgetRoutes(db) {
 
   router.delete('/:id/purchase-orders/:poId/items/:itemId', authenticate, authorize('superadmin', 'admin'), async (req, res) => {
     try {
-      const result = await purchaseOrderItemService.softDelete(db, parseInt(req.params.itemId));
+      const itemId = parseInt(req.params.itemId);
+      const result = await purchaseOrderItemService.softDelete(db, itemId);
       if (result.changes === 0) return error(res, 'Item not found', 404);
+      await auditLog(auditDb, {
+        userId: req.user.id,
+        userEmail: req.user.email,
+        action: 'purchase_order_item.delete',
+        entityType: 'purchase_order_item',
+        entityId: itemId,
+        details: {},
+        ip: req.ip
+      });
       return success(res, { message: 'Purchase order item deleted' });
     } catch (err) {
       return error(res, 'Failed to delete purchase order item');
+    }
+  });
+
+  router.get('/:id/purchase-orders/:poId/items/:itemId/consumptions', authenticate, async (req, res) => {
+    try {
+      const summary = await poitemConsumptionService.getByItemIdWithSummary(db, parseInt(req.params.itemId));
+      return success(res, summary);
+    } catch (err) {
+      return error(res, 'Failed to get consumptions');
+    }
+  });
+
+  router.post('/:id/purchase-orders/:poId/items/:itemId/consumptions', authenticate, authorize('superadmin', 'admin'), async (req, res) => {
+    try {
+      const { consumption_month, consumption_days } = req.body;
+      if (!consumption_month) return error(res, 'consumption_month is required', 400);
+      if (consumption_days === undefined || consumption_days === null) return error(res, 'consumption_days is required', 400);
+      if (consumption_days < 0) return error(res, 'consumption_days must be non-negative', 400);
+
+      const result = await poitemConsumptionService.create(db, {
+        purchaseorderitem_id: parseInt(req.params.itemId),
+        consumption_month,
+        consumption_days,
+        consumption_comment: req.body.consumption_comment,
+        user_id: req.user.id
+      });
+      await auditLog(auditDb, {
+        userId: req.user.id,
+        userEmail: req.user.email,
+        action: 'consumption.create',
+        entityType: 'consumption',
+        entityId: result.lastID,
+        details: { data: req.body },
+        ip: req.ip
+      });
+      return success(res, { id: result.lastID }, 201);
+    } catch (err) {
+      if (err.message && err.message.includes('UNIQUE constraint failed')) {
+        return error(res, 'A consumption entry already exists for this month', 409);
+      }
+      return error(res, 'Failed to create consumption entry');
+    }
+  });
+
+  router.put('/:id/purchase-orders/:poId/items/:itemId/consumptions/:consumptionId', authenticate, authorize('superadmin', 'admin'), async (req, res) => {
+    try {
+      const result = await poitemConsumptionService.update(db, parseInt(req.params.consumptionId), req.body);
+      if (result.changes === 0) return error(res, 'Consumption entry not found', 404);
+      await auditLog(auditDb, {
+        userId: req.user.id,
+        userEmail: req.user.email,
+        action: 'consumption.update',
+        entityType: 'consumption',
+        entityId: parseInt(req.params.consumptionId),
+        details: { data: req.body },
+        ip: req.ip
+      });
+      return success(res, { message: 'Consumption entry updated' });
+    } catch (err) {
+      return error(res, 'Failed to update consumption entry');
+    }
+  });
+
+  router.delete('/:id/purchase-orders/:poId/items/:itemId/consumptions/:consumptionId', authenticate, authorize('superadmin', 'admin'), async (req, res) => {
+    try {
+      const consumptionId = parseInt(req.params.consumptionId);
+      const result = await poitemConsumptionService.softDelete(db, consumptionId);
+      if (result.changes === 0) return error(res, 'Consumption entry not found', 404);
+      await auditLog(auditDb, {
+        userId: req.user.id,
+        userEmail: req.user.email,
+        action: 'consumption.delete',
+        entityType: 'consumption',
+        entityId: consumptionId,
+        details: {},
+        ip: req.ip
+      });
+      return success(res, { message: 'Consumption entry deleted' });
+    } catch (err) {
+      return error(res, 'Failed to delete consumption entry');
     }
   });
 

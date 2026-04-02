@@ -1,10 +1,10 @@
 # Implementation Status
 
 ## Backend
-- **40 test suites, 580 tests, all passing; 89.24% coverage**
-- 18 services: auth, user, project, division, country, currency, healthStatus, initiative, deliveryPath, completion, budget, purchaseOrder, purchaseOrderItem, focalPoint, vendor, vendorContract, vendorContractRole, vendorRoleRate, seniority
-- 14 route files: auth, projects (includes health-statuses + completions + budgets + project-managers), divisions (includes focal-points + projects + project-managers), budgets (includes purchase-orders + purchase-order items), users, countries, currencies, initiatives, deliveryPaths, vendors (includes contracts > roles > rates), seniorities
-- 13 migrations: initial schema, auth+soft-delete, completions FK, projectmanagers FK, PM division FK, vendors, PO+items, PO soft delete, vendor soft delete, PO items soft delete, vendor contracts soft delete, seniorities, vendor rates update
+- **43 test suites, 671 tests, all passing**
+- 19 services: auth, user, project, division, country, currency, healthStatus, initiative, deliveryPath, completion, budget, purchaseOrder, purchaseOrderItem, focalPoint, vendor, vendorContract, vendorContractRole, vendorRoleRate, seniority, poitemConsumption
+- 14 route files: auth, projects (includes health-statuses + completions + budgets + project-managers), divisions (includes focal-points + projects + project-managers), budgets (includes purchase-orders + purchase-order items + item consumptions), users, countries, currencies, initiatives, deliveryPaths, vendors (includes contracts > roles > rates), seniorities
+- 16 migrations: initial schema, auth+soft-delete, completions FK, projectmanagers FK, PM division FK, vendors, PO+items, PO soft delete, vendor soft delete, PO items soft delete, vendor contracts soft delete, seniorities, vendor rates update, milestones dates, supporting divisions, poitem_consumptions
 - 3 seed scripts: userroles, users, dummy_data (divisions, initiatives, delivery paths, projects, health statuses, completions, budgets, country links, PM assignments, focal points, vendors with 10 vendors × 1-3 contracts × 2-4 roles × 2-3 rates, 11 seniorities, 2-5 resources per vendor)
 
 ## Frontend
@@ -12,7 +12,8 @@
 - Projects: list, detail (milestones, budgets, PMs with division, health timeline, countries), create/edit form (PM with division dropdown per user)
 - Divisions: list (links to detail), detail (projects table, focal points with add/remove, PMs grouped by user, total budget, metadata)
 - Budgets: detail page with purchase orders table, create/edit PO modals with vendor dropdown
-- Purchase Orders: inline items management via PoItemsModal — nested modal for item CRUD (description, dates, days, discounted_rate, currency, vendorcontractrole_id, vendorrolerate_id, vendorresource_id)
+- Purchase Orders: inline items management via PoItemsModal (max-w-4xl) — nested modal for item CRUD (description, dates, days, discounted_rate, currency, vendorcontractrole_id, vendorrolerate_id, vendorresource_id). Days column shows balance (allocated) e.g. "1.5 (2)". BarChart3 button per item opens ConsumptionModal.
+  - ConsumptionModal.jsx: PO item day consumption tracking — utilization bar (green <80%, yellow >=80%, red >100%), monthly consumption table, create/edit form (month locked on edit), delete confirm, days support half-days (step=0.5)
 - Vendors: list page with CRUD, vendor information (name, email, phone, address, website)
   - ContractsModal.jsx: manage contracts per vendor (create/edit/delete, nested roles management)
   - ContractRolesModal.jsx: manage roles per contract (create/edit/delete, nested rates management)
@@ -36,6 +37,7 @@
 | `/api/budgets/:id` | GET | reader+ |
 | `/api/budgets/:id/purchase-orders` | GET,POST,PUT,DELETE | reader+/admin+ |
 | `/api/budgets/:id/purchase-orders/:poId/items` | GET,POST,PUT,DELETE | reader+/admin+ |
+| `/api/budgets/:id/purchase-orders/:poId/items/:itemId/consumptions` | GET,POST,PUT,DELETE | reader+/admin+ |
 | `/api/currencies` | GET,POST,DELETE | any/admin+ |
 | `/api/divisions` | CRUD | reader+/admin+ |
 | `/api/divisions/:id/focal-points` | GET,POST,PUT,DELETE | reader+/admin+ |

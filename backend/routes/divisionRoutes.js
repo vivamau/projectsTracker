@@ -4,8 +4,9 @@ const divisionService = require('../services/divisionService');
 const focalPointService = require('../services/focalPointService');
 const { success, error } = require('../utilities/responseHelper');
 const { getAll, getOne } = require('../config/database');
+const { auditLog } = require('../utilities/auditHelper');
 
-function createDivisionRoutes(db) {
+function createDivisionRoutes(db, auditDb) {
   const router = express.Router();
 
   router.get('/', authenticate, async (req, res) => {
@@ -56,6 +57,15 @@ function createDivisionRoutes(db) {
       const { division_name } = req.body;
       if (!division_name) return error(res, 'division_name is required', 400);
       const result = await divisionService.create(db, { division_name });
+      await auditLog(auditDb, {
+        userId: req.user.id,
+        userEmail: req.user.email,
+        action: 'division.create',
+        entityType: 'division',
+        entityId: result.lastID,
+        details: { data: req.body },
+        ip: req.ip
+      });
       return success(res, { id: result.lastID }, 201);
     } catch (err) {
       return error(res, 'Failed to create division');
@@ -68,6 +78,15 @@ function createDivisionRoutes(db) {
       const existing = await divisionService.getById(db, id);
       if (!existing) return error(res, 'Division not found', 404);
       await divisionService.update(db, id, req.body);
+      await auditLog(auditDb, {
+        userId: req.user.id,
+        userEmail: req.user.email,
+        action: 'division.update',
+        entityType: 'division',
+        entityId: id,
+        details: { before: existing, after: req.body },
+        ip: req.ip
+      });
       return success(res, { message: 'Division updated' });
     } catch (err) {
       return error(res, 'Failed to update division');
@@ -76,15 +95,24 @@ function createDivisionRoutes(db) {
 
   router.delete('/:id', authenticate, authorize('superadmin', 'admin'), async (req, res) => {
     try {
-      const result = await divisionService.softDelete(db, parseInt(req.params.id));
+      const id = parseInt(req.params.id);
+      const result = await divisionService.softDelete(db, id);
       if (result.changes === 0) return error(res, 'Division not found', 404);
+      await auditLog(auditDb, {
+        userId: req.user.id,
+        userEmail: req.user.email,
+        action: 'division.delete',
+        entityType: 'division',
+        entityId: id,
+        details: {},
+        ip: req.ip
+      });
       return success(res, { message: 'Division deleted' });
     } catch (err) {
       return error(res, 'Failed to delete division');
     }
   });
 
-  // Focal points for a division
   router.get('/:id/focal-points', authenticate, async (req, res) => {
     try {
       const fps = await focalPointService.getByDivisionId(db, parseInt(req.params.id));
@@ -102,6 +130,15 @@ function createDivisionRoutes(db) {
         division_id: parseInt(req.params.id),
         user_id
       });
+      await auditLog(auditDb, {
+        userId: req.user.id,
+        userEmail: req.user.email,
+        action: 'division.focal_point.create',
+        entityType: 'focal_point',
+        entityId: result.lastID,
+        details: { data: req.body },
+        ip: req.ip
+      });
       return success(res, { id: result.lastID }, 201);
     } catch (err) {
       return error(res, 'Failed to add focal point');
@@ -113,6 +150,15 @@ function createDivisionRoutes(db) {
       const { user_ids } = req.body;
       if (!Array.isArray(user_ids)) return error(res, 'user_ids array is required', 400);
       await focalPointService.syncFocalPoints(db, parseInt(req.params.id), user_ids);
+      await auditLog(auditDb, {
+        userId: req.user.id,
+        userEmail: req.user.email,
+        action: 'division.focal_points.sync',
+        entityType: 'focal_point',
+        entityId: parseInt(req.params.id),
+        details: { data: req.body },
+        ip: req.ip
+      });
       return success(res, { message: 'Focal points updated' });
     } catch (err) {
       return error(res, 'Failed to update focal points');
@@ -121,15 +167,24 @@ function createDivisionRoutes(db) {
 
   router.delete('/:id/focal-points/:fpId', authenticate, authorize('superadmin', 'admin'), async (req, res) => {
     try {
-      const result = await focalPointService.remove(db, parseInt(req.params.fpId));
+      const fpId = parseInt(req.params.fpId);
+      const result = await focalPointService.remove(db, fpId);
       if (result.changes === 0) return error(res, 'Focal point not found', 404);
+      await auditLog(auditDb, {
+        userId: req.user.id,
+        userEmail: req.user.email,
+        action: 'division.focal_point.delete',
+        entityType: 'focal_point',
+        entityId: fpId,
+        details: {},
+        ip: req.ip
+      });
       return success(res, { message: 'Focal point removed' });
     } catch (err) {
       return error(res, 'Failed to remove focal point');
     }
   });
 
-  // Project managers for a division
   router.get('/:id/project-managers', authenticate, async (req, res) => {
     try {
       const pms = await getAll(db,
@@ -149,7 +204,6 @@ function createDivisionRoutes(db) {
     }
   });
 
-  // Projects for a division
   router.get('/:id/projects', authenticate, async (req, res) => {
     try {
       const projects = await getAll(db,
@@ -171,7 +225,6 @@ function createDivisionRoutes(db) {
     }
   });
 
-  // Projects where division is supporting
   router.get('/:id/supporting-projects', authenticate, async (req, res) => {
     try {
       const projects = await getAll(db,

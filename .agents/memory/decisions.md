@@ -210,3 +210,19 @@ Solution: Hardcode full HTTPS URLs since Render service URLs are deterministic:
 If service name changes, update URLs in render.yaml accordingly.
 
 **Status:** Implemented (render.yaml fixed with hardcoded URLs).
+
+## PO Item Days Column: Balance (Allocated) Display Format
+**Date:** 2026-04-01
+**Decision:** The Days column in the PO items list shows `balance (allocated)` format, e.g. `1.5 (2)` where:
+- `1.5` = allocated days minus total consumed days (current balance)
+- `2` = original `purchaseorderitems_days` (allocated days)
+
+The backend `getByPoId` query LEFT JOINs a subquery that sums `consumption_days` from `poitem_consumptions` to compute `total_days_consumed` per item. The frontend calculates `allocated - total_days_consumed` to show the balance.
+
+**Status:** Implemented (purchaseOrderItemService.getByPoId updated, PoItemsModal.jsx updated).
+
+## Consumption Tracking as Separate Table (Not Modifying PO Items)
+**Date:** 2026-04-01
+**Decision:** Monthly consumption entries are stored in a separate `poitem_consumptions` table (not by updating the PO item's `purchaseorderitems_days` field). This preserves the original allocation as an immutable reference while allowing granular monthly tracking. UNIQUE constraint on (purchaseorderitem_id, consumption_month) prevents duplicate entries.
+
+**Status:** Implemented (migration 016, poitemConsumptionService.js, consumption routes).

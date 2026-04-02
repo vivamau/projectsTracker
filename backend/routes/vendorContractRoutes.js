@@ -3,12 +3,12 @@ const { authenticate, authorize } = require('../middleware/auth');
 const vendorContractService = require('../services/vendorContractService');
 const vendorContractRoleRoutes = require('./vendorContractRoleRoutes');
 const { success, error } = require('../utilities/responseHelper');
+const { auditLog } = require('../utilities/auditHelper');
 
-function createVendorContractRoutes(db) {
+function createVendorContractRoutes(db, auditDb) {
   const router = express.Router({ mergeParams: true });
 
-  // Nested vendor contract roles routes
-  router.use('/:contractId/roles', vendorContractRoleRoutes(db));
+  router.use('/:contractId/roles', vendorContractRoleRoutes(db, auditDb));
 
   // Get contracts for a vendor
   router.get('/', authenticate, async (req, res) => {
@@ -32,7 +32,6 @@ function createVendorContractRoutes(db) {
     }
   });
 
-  // Create contract
   router.post('/', authenticate, authorize('superadmin', 'admin'), async (req, res) => {
     try {
       const { contract_name, contract_start_date } = req.body;
@@ -43,28 +42,55 @@ function createVendorContractRoutes(db) {
         ...req.body,
         vendor_id: parseInt(req.params.vendorId)
       });
+      await auditLog(auditDb, {
+        userId: req.user.id,
+        userEmail: req.user.email,
+        action: 'vendor_contract.create',
+        entityType: 'vendor_contract',
+        entityId: result.lastID,
+        details: { data: req.body },
+        ip: req.ip
+      });
       return success(res, { id: result.lastID }, 201);
     } catch (err) {
       return error(res, 'Failed to create contract');
     }
   });
 
-  // Update contract
   router.put('/:contractId', authenticate, authorize('superadmin', 'admin'), async (req, res) => {
     try {
-      const result = await vendorContractService.update(db, parseInt(req.params.contractId), req.body);
+      const contractId = parseInt(req.params.contractId);
+      const result = await vendorContractService.update(db, contractId, req.body);
       if (result.changes === 0) return error(res, 'Contract not found', 404);
+      await auditLog(auditDb, {
+        userId: req.user.id,
+        userEmail: req.user.email,
+        action: 'vendor_contract.update',
+        entityType: 'vendor_contract',
+        entityId: contractId,
+        details: { data: req.body },
+        ip: req.ip
+      });
       return success(res, { message: 'Contract updated' });
     } catch (err) {
       return error(res, 'Failed to update contract');
     }
   });
 
-  // Delete contract
   router.delete('/:contractId', authenticate, authorize('superadmin', 'admin'), async (req, res) => {
     try {
-      const result = await vendorContractService.softDelete(db, parseInt(req.params.contractId));
+      const contractId = parseInt(req.params.contractId);
+      const result = await vendorContractService.softDelete(db, contractId);
       if (result.changes === 0) return error(res, 'Contract not found', 404);
+      await auditLog(auditDb, {
+        userId: req.user.id,
+        userEmail: req.user.email,
+        action: 'vendor_contract.delete',
+        entityType: 'vendor_contract',
+        entityId: contractId,
+        details: {},
+        ip: req.ip
+      });
       return success(res, { message: 'Contract deleted' });
     } catch (err) {
       return error(res, 'Failed to delete contract');

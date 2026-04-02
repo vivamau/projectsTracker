@@ -194,3 +194,15 @@
   - [x] Created render_com/UPGRADE_TO_STARTER.md: How to upgrade from free to paid tier
   - [x] Fixed render.yaml: Changed fromService (invalid) to hardcoded HTTPS URLs
   - [x] Key decision: Using free tier with manual Docker services instead of Blueprint (which is paid)
+- [x] PO Item Consumption Tracking Feature <!-- id: 271 -->
+  - [x] Migration 016: poitem_consumptions table (item_id FK, month, days, comment, user_id, UNIQUE(item_id, month))
+  - [x] poitemConsumptionService.js with TDD (16 tests): getByItemId, getByItemIdWithSummary, getById, create, update, softDelete
+  - [x] consumptionRoutes.test.js with TDD (18 integration tests): GET/POST/PUT/DELETE nested under budget PO item routes
+  - [x] budgetRoutes.js extended with 4 consumption endpoints
+  - [x] projectsApi.js: 4 consumption API functions (getConsumptions, createConsumption, updateConsumption, deleteConsumption)
+  - [x] ConsumptionModal.jsx: utilization bar (green/yellow/red), consumption table, create/edit form, delete confirm
+  - [x] PoItemsModal.jsx: BarChart3 button per item row to open consumption modal, widened to max-w-4xl
+  - [x] purchaseOrderItemService.getByPoId: LEFT JOIN consumption summary returning total_days_consumed per item
+  - [x] PoItemsModal.jsx Days column: displays balance (allocated) format, e.g. "1.5 (2)"
+  - [x] 671 tests passing, 43 test suites
+  - [x] Frontend builds successfully

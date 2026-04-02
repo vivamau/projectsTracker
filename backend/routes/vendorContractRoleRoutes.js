@@ -3,12 +3,12 @@ const { authenticate, authorize } = require('../middleware/auth');
 const vendorContractRoleService = require('../services/vendorContractRoleService');
 const vendorRoleRateRoutes = require('./vendorRoleRateRoutes');
 const { success, error } = require('../utilities/responseHelper');
+const { auditLog } = require('../utilities/auditHelper');
 
-function createVendorContractRoleRoutes(db) {
+function createVendorContractRoleRoutes(db, auditDb) {
   const router = express.Router({ mergeParams: true });
 
-  // Nested vendor role rates routes
-  router.use('/:roleId/rates', vendorRoleRateRoutes(db));
+  router.use('/:roleId/rates', vendorRoleRateRoutes(db, auditDb));
 
   // Get roles for a contract
   router.get('/', authenticate, async (req, res) => {
@@ -32,7 +32,6 @@ function createVendorContractRoleRoutes(db) {
     }
   });
 
-  // Create role
   router.post('/', authenticate, authorize('superadmin', 'admin'), async (req, res) => {
     try {
       const { vendorcontractrole_name } = req.body;
@@ -42,28 +41,55 @@ function createVendorContractRoleRoutes(db) {
         ...req.body,
         vendorcontract_id: parseInt(req.params.contractId)
       });
+      await auditLog(auditDb, {
+        userId: req.user.id,
+        userEmail: req.user.email,
+        action: 'vendor_contract_role.create',
+        entityType: 'vendor_contract_role',
+        entityId: result.lastID,
+        details: { data: req.body },
+        ip: req.ip
+      });
       return success(res, { id: result.lastID }, 201);
     } catch (err) {
       return error(res, 'Failed to create role');
     }
   });
 
-  // Update role
   router.put('/:roleId', authenticate, authorize('superadmin', 'admin'), async (req, res) => {
     try {
-      const result = await vendorContractRoleService.update(db, parseInt(req.params.roleId), req.body);
+      const roleId = parseInt(req.params.roleId);
+      const result = await vendorContractRoleService.update(db, roleId, req.body);
       if (result.changes === 0) return error(res, 'Role not found', 404);
+      await auditLog(auditDb, {
+        userId: req.user.id,
+        userEmail: req.user.email,
+        action: 'vendor_contract_role.update',
+        entityType: 'vendor_contract_role',
+        entityId: roleId,
+        details: { data: req.body },
+        ip: req.ip
+      });
       return success(res, { message: 'Role updated' });
     } catch (err) {
       return error(res, 'Failed to update role');
     }
   });
 
-  // Delete role
   router.delete('/:roleId', authenticate, authorize('superadmin', 'admin'), async (req, res) => {
     try {
-      const result = await vendorContractRoleService.softDelete(db, parseInt(req.params.roleId));
+      const roleId = parseInt(req.params.roleId);
+      const result = await vendorContractRoleService.softDelete(db, roleId);
       if (result.changes === 0) return error(res, 'Role not found', 404);
+      await auditLog(auditDb, {
+        userId: req.user.id,
+        userEmail: req.user.email,
+        action: 'vendor_contract_role.delete',
+        entityType: 'vendor_contract_role',
+        entityId: roleId,
+        details: {},
+        ip: req.ip
+      });
       return success(res, { message: 'Role deleted' });
     } catch (err) {
       return error(res, 'Failed to delete role');

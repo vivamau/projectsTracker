@@ -2,8 +2,9 @@ const express = require('express');
 const { authenticate, authorize } = require('../middleware/auth');
 const userService = require('../services/userService');
 const { success, error, paginated } = require('../utilities/responseHelper');
+const { auditLog } = require('../utilities/auditHelper');
 
-function createUserRoutes(db) {
+function createUserRoutes(db, auditDb) {
   const router = express.Router();
 
   router.get('/', authenticate, authorize('superadmin', 'admin'), async (req, res) => {
@@ -35,6 +36,15 @@ function createUserRoutes(db) {
         return error(res, 'user_email, password, and userrole_id are required', 400);
       }
       const result = await userService.create(db, req.body);
+      await auditLog(auditDb, {
+        userId: req.user.id,
+        userEmail: req.user.email,
+        action: 'user.create',
+        entityType: 'user',
+        entityId: result.lastID,
+        details: { data: { user_email, userrole_id } },
+        ip: req.ip
+      });
       return success(res, { id: result.lastID }, 201);
     } catch (err) {
       if (err.message && err.message.includes('UNIQUE')) {
@@ -50,6 +60,15 @@ function createUserRoutes(db) {
       const existing = await userService.getById(db, id);
       if (!existing) return error(res, 'User not found', 404);
       await userService.update(db, id, req.body);
+      await auditLog(auditDb, {
+        userId: req.user.id,
+        userEmail: req.user.email,
+        action: 'user.update',
+        entityType: 'user',
+        entityId: id,
+        details: { before: existing, after: req.body },
+        ip: req.ip
+      });
       return success(res, { message: 'User updated' });
     } catch (err) {
       return error(res, 'Failed to update user');
@@ -58,8 +77,18 @@ function createUserRoutes(db) {
 
   router.delete('/:id', authenticate, authorize('superadmin'), async (req, res) => {
     try {
-      const result = await userService.softDelete(db, parseInt(req.params.id));
+      const id = parseInt(req.params.id);
+      const result = await userService.softDelete(db, id);
       if (result.changes === 0) return error(res, 'User not found', 404);
+      await auditLog(auditDb, {
+        userId: req.user.id,
+        userEmail: req.user.email,
+        action: 'user.delete',
+        entityType: 'user',
+        entityId: id,
+        details: {},
+        ip: req.ip
+      });
       return success(res, { message: 'User deleted' });
     } catch (err) {
       return error(res, 'Failed to delete user');

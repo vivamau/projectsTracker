@@ -10,21 +10,25 @@ const createCurrencyRoutes = require('./currencyRoutes');
 const createBudgetRoutes = require('./budgetRoutes');
 const createVendorRoutes = require('./vendorRoutes');
 const createSeniorityRoutes = require('./seniorityRoutes');
+const createSettingsRoutes = require('./settingsRoutes');
+const createAuditLogRoutes = require('./auditLogRoutes');
 
-function createRoutes(db) {
+function createRoutes(db, auditDb) {
   const router = express.Router();
 
-  router.use('/auth', createAuthRoutes(db));
-  router.use('/projects', createProjectRoutes(db));
-  router.use('/divisions', createDivisionRoutes(db));
-  router.use('/users', createUserRoutes(db));
+  router.use('/auth', createAuthRoutes(db, auditDb));
+  router.use('/projects', createProjectRoutes(db, auditDb));
+  router.use('/divisions', createDivisionRoutes(db, auditDb));
+  router.use('/users', createUserRoutes(db, auditDb));
   router.use('/countries', createCountryRoutes(db));
-  router.use('/currencies', createCurrencyRoutes(db));
-  router.use('/budgets', createBudgetRoutes(db));
-  router.use('/vendors', createVendorRoutes(db));
-  router.use('/initiatives', createInitiativeRoutes(db));
-  router.use('/deliverypaths', createDeliveryPathRoutes(db));
-  router.use('/seniorities', createSeniorityRoutes(db));
+  router.use('/currencies', createCurrencyRoutes(db, auditDb));
+  router.use('/budgets', createBudgetRoutes(db, auditDb));
+  router.use('/vendors', createVendorRoutes(db, auditDb));
+  router.use('/initiatives', createInitiativeRoutes(db, auditDb));
+  router.use('/deliverypaths', createDeliveryPathRoutes(db, auditDb));
+  router.use('/seniorities', createSeniorityRoutes(db, auditDb));
+  router.use('/settings', createSettingsRoutes(db));
+  router.use('/audit-logs', createAuditLogRoutes(db, auditDb));
 
   return router;
 }

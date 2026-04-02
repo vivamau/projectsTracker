@@ -5,6 +5,7 @@ const helmet = require('helmet');
 const morgan = require('morgan');
 const cookieParser = require('cookie-parser');
 const { getDb } = require('./config/database');
+const { getAuditDb } = require('./config/auditDatabase');
 const { runMigrations } = require('./scripts/run_migrations');
 const { seedUserRoles } = require('./scripts/seed_userroles');
 const { seedUsers } = require('./scripts/seed_users');
@@ -13,7 +14,6 @@ const createRoutes = require('./routes');
 
 const app = express();
 
-// Middleware
 app.use(helmet());
 app.use(cors({
   origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
@@ -29,6 +29,7 @@ async function startServer() {
   try {
     console.log('Initializing database...');
     const db = getDb();
+    const auditDb = getAuditDb();
 
     console.log('Running migrations...');
     await runMigrations(db);
@@ -38,10 +39,8 @@ async function startServer() {
     await seedUsers(db);
     await seedDummyData(db);
 
-    // Mount API routes
-    app.use('/api', createRoutes(db));
+    app.use('/api', createRoutes(db, auditDb));
 
-    // Health check
     app.get('/health', (req, res) => {
       res.json({ status: 'ok', timestamp: new Date().toISOString() });
     });
@@ -56,7 +55,6 @@ async function startServer() {
   }
 }
 
-// Export app for testing, start server when run directly
 module.exports = app;
 
 if (require.main === module) {

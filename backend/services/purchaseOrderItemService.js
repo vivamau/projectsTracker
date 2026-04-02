@@ -5,10 +5,17 @@ const NOT_DELETED = '(purchaseorderitem_is_deleted = 0 OR purchaseorderitem_is_d
 
 async function getByPoId(db, poId) {
   return getAll(db,
-    `SELECT poi.*, c.currency_name, vcr.vendorcontractrole_name
+    `SELECT poi.*, c.currency_name, vcr.vendorcontractrole_name,
+     COALESCE(cons.total_days_consumed, 0) as total_days_consumed
      FROM purchaseorderitems poi
      LEFT JOIN currencies c ON poi.currency_id = c.id
      LEFT JOIN vendorcontractroles vcr ON poi.vendorcontractrole_id = vcr.id
+     LEFT JOIN (
+       SELECT purchaseorderitem_id, SUM(consumption_days) as total_days_consumed
+       FROM poitem_consumptions
+       WHERE (consumption_is_deleted = 0 OR consumption_is_deleted IS NULL)
+       GROUP BY purchaseorderitem_id
+     ) cons ON poi.id = cons.purchaseorderitem_id
      WHERE poi.purchaseorder_id = ? AND ${NOT_DELETED_ALIAS}
      ORDER BY poi.purchaseorderitem_start_date DESC`,
     [poId]

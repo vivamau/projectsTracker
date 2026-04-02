@@ -6,11 +6,11 @@ const completionService = require('../services/completionService');
 const budgetService = require('../services/budgetService');
 const projectManagerService = require('../services/projectManagerService');
 const { success, error, paginated } = require('../utilities/responseHelper');
+const { auditLog } = require('../utilities/auditHelper');
 
-function createProjectRoutes(db) {
+function createProjectRoutes(db, auditDb) {
   const router = express.Router();
 
-  // Get project stats (must be before /:id to avoid matching 'stats')
   router.get('/stats', authenticate, async (req, res) => {
     try {
       const stats = await projectService.getStats(db);
@@ -20,7 +20,6 @@ function createProjectRoutes(db) {
     }
   });
 
-  // List projects (paginated)
   router.get('/', authenticate, async (req, res) => {
     try {
       const page = parseInt(req.query.page) || 1;
@@ -35,7 +34,6 @@ function createProjectRoutes(db) {
     }
   });
 
-  // Get single project
   router.get('/:id', authenticate, async (req, res) => {
     try {
       const project = await projectService.getById(db, parseInt(req.params.id));
@@ -48,7 +46,6 @@ function createProjectRoutes(db) {
     }
   });
 
-  // Create project (admin+)
   router.post('/', authenticate, authorize('superadmin', 'admin'), async (req, res) => {
     try {
       const { project_name } = req.body;
@@ -57,13 +54,21 @@ function createProjectRoutes(db) {
       }
 
       const result = await projectService.create(db, { ...req.body, user_id: req.body.user_id || req.user.id });
+      await auditLog(auditDb, {
+        userId: req.user.id,
+        userEmail: req.user.email,
+        action: 'project.create',
+        entityType: 'project',
+        entityId: result.lastID,
+        details: { data: req.body },
+        ip: req.ip
+      });
       return success(res, { id: result.lastID }, 201);
     } catch (err) {
       return error(res, 'Failed to create project');
     }
   });
 
-  // Update project (admin+)
   router.put('/:id', authenticate, authorize('superadmin', 'admin'), async (req, res) => {
     try {
       const id = parseInt(req.params.id);
@@ -73,13 +78,21 @@ function createProjectRoutes(db) {
       }
 
       await projectService.update(db, id, req.body);
+      await auditLog(auditDb, {
+        userId: req.user.id,
+        userEmail: req.user.email,
+        action: 'project.update',
+        entityType: 'project',
+        entityId: id,
+        details: { before: existing, after: req.body },
+        ip: req.ip
+      });
       return success(res, { message: 'Project updated' });
     } catch (err) {
       return error(res, 'Failed to update project');
     }
   });
 
-  // Delete project (admin+)
   router.delete('/:id', authenticate, authorize('superadmin', 'admin'), async (req, res) => {
     try {
       const id = parseInt(req.params.id);
@@ -87,13 +100,21 @@ function createProjectRoutes(db) {
       if (result.changes === 0) {
         return error(res, 'Project not found', 404);
       }
+      await auditLog(auditDb, {
+        userId: req.user.id,
+        userEmail: req.user.email,
+        action: 'project.delete',
+        entityType: 'project',
+        entityId: id,
+        details: {},
+        ip: req.ip
+      });
       return success(res, { message: 'Project deleted' });
     } catch (err) {
       return error(res, 'Failed to delete project');
     }
   });
 
-  // Health statuses for a project
   router.get('/:id/health-statuses', authenticate, async (req, res) => {
     try {
       const statuses = await healthStatusService.getByProjectId(db, parseInt(req.params.id));
@@ -115,13 +136,21 @@ function createProjectRoutes(db) {
         healthstatus_value,
         healthstatus_comment
       });
+      await auditLog(auditDb, {
+        userId: req.user.id,
+        userEmail: req.user.email,
+        action: 'project.health_status.create',
+        entityType: 'health_status',
+        entityId: result.lastID,
+        details: { data: req.body },
+        ip: req.ip
+      });
       return success(res, { id: result.lastID }, 201);
     } catch (err) {
       return error(res, 'Failed to create health status');
     }
   });
 
-  // Completions (milestones) for a project
   router.get('/:id/completions', authenticate, async (req, res) => {
     try {
       const completions = await completionService.getByProjectId(db, parseInt(req.params.id));
@@ -149,6 +178,15 @@ function createProjectRoutes(db) {
         completion_end_date,
         user_id: req.user.id
       });
+      await auditLog(auditDb, {
+        userId: req.user.id,
+        userEmail: req.user.email,
+        action: 'project.completion.create',
+        entityType: 'completion',
+        entityId: result.lastID,
+        details: { data: req.body },
+        ip: req.ip
+      });
       return success(res, { id: result.lastID }, 201);
     } catch (err) {
       return error(res, 'Failed to create completion');
@@ -161,6 +199,15 @@ function createProjectRoutes(db) {
       if (result.changes === 0) {
         return error(res, 'Completion not found', 404);
       }
+      await auditLog(auditDb, {
+        userId: req.user.id,
+        userEmail: req.user.email,
+        action: 'project.completion.update',
+        entityType: 'completion',
+        entityId: parseInt(req.params.completionId),
+        details: { data: req.body },
+        ip: req.ip
+      });
       return success(res, { message: 'Completion updated' });
     } catch (err) {
       return error(res, 'Failed to update completion');
@@ -173,13 +220,21 @@ function createProjectRoutes(db) {
       if (result.changes === 0) {
         return error(res, 'Completion not found', 404);
       }
+      await auditLog(auditDb, {
+        userId: req.user.id,
+        userEmail: req.user.email,
+        action: 'project.completion.delete',
+        entityType: 'completion',
+        entityId: parseInt(req.params.completionId),
+        details: {},
+        ip: req.ip
+      });
       return success(res, { message: 'Completion deleted' });
     } catch (err) {
       return error(res, 'Failed to delete completion');
     }
   });
 
-  // Budgets for a project
   router.get('/:id/budgets/total', authenticate, async (req, res) => {
     try {
       const total = await budgetService.getTotalByProjectId(db, parseInt(req.params.id));
@@ -210,6 +265,15 @@ function createProjectRoutes(db) {
 
       const result = await budgetService.create(db, req.body);
       await budgetService.linkToProject(db, parseInt(req.params.id), result.lastID);
+      await auditLog(auditDb, {
+        userId: req.user.id,
+        userEmail: req.user.email,
+        action: 'project.budget.create',
+        entityType: 'budget',
+        entityId: result.lastID,
+        details: { data: req.body },
+        ip: req.ip
+      });
       return success(res, { id: result.lastID }, 201);
     } catch (err) {
       return error(res, 'Failed to create budget');
@@ -222,6 +286,15 @@ function createProjectRoutes(db) {
       if (result.changes === 0) {
         return error(res, 'Budget not found', 404);
       }
+      await auditLog(auditDb, {
+        userId: req.user.id,
+        userEmail: req.user.email,
+        action: 'project.budget.update',
+        entityType: 'budget',
+        entityId: parseInt(req.params.budgetId),
+        details: { data: req.body },
+        ip: req.ip
+      });
       return success(res, { message: 'Budget updated' });
     } catch (err) {
       return error(res, 'Failed to update budget');
@@ -236,13 +309,21 @@ function createProjectRoutes(db) {
         return error(res, 'Budget not found', 404);
       }
       await budgetService.unlinkFromProject(db, parseInt(req.params.id), budgetId);
+      await auditLog(auditDb, {
+        userId: req.user.id,
+        userEmail: req.user.email,
+        action: 'project.budget.delete',
+        entityType: 'budget',
+        entityId: budgetId,
+        details: {},
+        ip: req.ip
+      });
       return success(res, { message: 'Budget deleted' });
     } catch (err) {
       return error(res, 'Failed to delete budget');
     }
   });
 
-  // Project Managers
   router.get('/:id/project-managers', authenticate, async (req, res) => {
     try {
       const pms = await projectManagerService.getByProjectId(db, parseInt(req.params.id));
@@ -259,6 +340,15 @@ function createProjectRoutes(db) {
         return error(res, 'project_managers array is required', 400);
       }
       await projectManagerService.syncProjectManagers(db, parseInt(req.params.id), project_managers);
+      await auditLog(auditDb, {
+        userId: req.user.id,
+        userEmail: req.user.email,
+        action: 'project.project_managers.update',
+        entityType: 'project_manager',
+        entityId: parseInt(req.params.id),
+        details: { data: req.body },
+        ip: req.ip
+      });
       return success(res, { message: 'Project managers updated' });
     } catch (err) {
       return error(res, 'Failed to update project managers');

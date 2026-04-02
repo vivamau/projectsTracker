@@ -38,14 +38,18 @@ export default function BudgetDetailPage() {
       try {
         const itemsRes = await getPurchaseOrderItems(id, po.id);
         const items = itemsRes.data.data || [];
-        const total = items.reduce((sum, item) => {
+        let total = 0;
+        let spent = 0;
+        for (const item of items) {
           const days = item.purchaseorderitems_days || 0;
           const rate = item.purchaseorderitems_discounted_rate || 0;
-          return sum + (days * rate);
-        }, 0);
-        totals[po.id] = total;
+          const consumed = item.total_days_consumed || 0;
+          total += days * rate;
+          spent += consumed * rate;
+        }
+        totals[po.id] = { total, spent, balance: total - spent };
       } catch (err) {
-        totals[po.id] = 0;
+        totals[po.id] = { total: 0, spent: 0, balance: 0 };
       }
     }
     setPoTotals(totals);
@@ -135,7 +139,8 @@ export default function BudgetDetailPage() {
   if (loading) return <LoadingSpinner size="lg" className="mt-20" />;
   if (!budget) return null;
 
-  const totalPoAmount = Object.values(poTotals).reduce((sum, total) => sum + total, 0);
+  const totalPoAmount = Object.values(poTotals).reduce((sum, t) => sum + (t.total || 0), 0);
+  const totalSpent = Object.values(poTotals).reduce((sum, t) => sum + (t.spent || 0), 0);
   const currentBalance = budget.budget_amount - totalPoAmount;
 
   return (
@@ -196,6 +201,8 @@ export default function BudgetDetailPage() {
                     <th className="px-6 py-3 text-left font-medium text-text-secondary">End Date</th>
                     <th className="px-6 py-3 text-left font-medium text-text-secondary">Vendor</th>
                     <th className="px-6 py-3 text-right font-medium text-text-secondary">Total</th>
+                    <th className="px-6 py-3 text-right font-medium text-text-secondary">Spent</th>
+                    <th className="px-6 py-3 text-right font-medium text-text-secondary">Balance</th>
                     {isAdmin && <th className="px-6 py-3 text-right font-medium text-text-secondary">Actions</th>}
                   </tr>
                 </thead>
@@ -216,7 +223,9 @@ export default function BudgetDetailPage() {
                           <span className="text-text-secondary">-</span>
                         )}
                       </td>
-                      <td className="px-6 py-3 text-right font-semibold text-text-primary">{formatCurrency(poTotals[po.id] || 0, budget.currency_name)}</td>
+                      <td className="px-6 py-3 text-right font-semibold text-text-primary">{formatCurrency(poTotals[po.id]?.total || 0, budget.currency_name)}</td>
+                      <td className="px-6 py-3 text-right text-text-secondary">{formatCurrency(poTotals[po.id]?.spent || 0, budget.currency_name)}</td>
+                      <td className="px-6 py-3 text-right font-medium text-text-primary">{formatCurrency(poTotals[po.id]?.balance || 0, budget.currency_name)}</td>
                       {isAdmin && (
                         <td className="px-6 py-3">
                           <div className="flex justify-end gap-1">

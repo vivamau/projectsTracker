@@ -2,8 +2,9 @@ const express = require('express');
 const { authenticate } = require('../middleware/auth');
 const authService = require('../services/authService');
 const { success, error } = require('../utilities/responseHelper');
+const { auditLog } = require('../utilities/auditHelper');
 
-function createAuthRoutes(db) {
+function createAuthRoutes(db, auditDb) {
   const router = express.Router();
 
   router.post('/login', async (req, res) => {
@@ -15,6 +16,15 @@ function createAuthRoutes(db) {
 
       const result = await authService.login(db, email, password);
       if (!result) {
+        await auditLog(auditDb, {
+          userId: null,
+          userEmail: email,
+          action: 'auth.login_failed',
+          entityType: 'user',
+          entityId: null,
+          details: {},
+          ip: req.ip
+        });
         return error(res, 'Invalid email or password', 401);
       }
 
@@ -26,14 +36,33 @@ function createAuthRoutes(db) {
         path: '/'
       });
 
+      await auditLog(auditDb, {
+        userId: result.user.id,
+        userEmail: result.user.email,
+        action: 'auth.login',
+        entityType: 'user',
+        entityId: result.user.id,
+        details: {},
+        ip: req.ip
+      });
+
       return success(res, { user: result.user });
     } catch (err) {
       return error(res, 'Login failed');
     }
   });
 
-  router.post('/logout', authenticate, (req, res) => {
+  router.post('/logout', authenticate, async (req, res) => {
     res.clearCookie('token', { path: '/' });
+    await auditLog(auditDb, {
+      userId: req.user.id,
+      userEmail: req.user.email,
+      action: 'auth.logout',
+      entityType: 'user',
+      entityId: req.user.id,
+      details: {},
+      ip: req.ip
+    });
     return success(res, { message: 'Logged out' });
   });
 

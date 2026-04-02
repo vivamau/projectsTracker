@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Plus, Pencil, Trash2 } from 'lucide-react';
+import { Plus, Pencil, Trash2, BarChart3 } from 'lucide-react';
 import { getPurchaseOrderItems, createPurchaseOrderItem, updatePurchaseOrderItem, deletePurchaseOrderItem } from '../../api/projectsApi';
 import { getVendors, getVendorContracts, getVendorContractRoles, getVendorRoleRates } from '../../api/entitiesApi';
 import Modal from '../../commoncomponents/Modal';
 import ConfirmDialog from '../../commoncomponents/ConfirmDialog';
 import LoadingSpinner from '../../commoncomponents/LoadingSpinner';
+import ConsumptionModal from './ConsumptionModal';
 
 export default function PoItemsModal({ open, onClose, budgetId, po, currencies, isAdmin }) {
   const [items, setItems] = useState([]);
@@ -12,13 +13,12 @@ export default function PoItemsModal({ open, onClose, budgetId, po, currencies, 
   const [itemModal, setItemModal] = useState(false);
   const [editItem, setEditItem] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [consumptionItem, setConsumptionItem] = useState(null);
 
-  // Dropdown data
   const [vendors, setVendors] = useState([]);
   const [contracts, setContracts] = useState([]);
   const [roles, setRoles] = useState([]);
   const [rates, setRates] = useState([]);
-  const [resources, setResources] = useState([]);
 
   const [itemForm, setItemForm] = useState({
     purchaseorderitem_description: '',
@@ -54,7 +54,6 @@ export default function PoItemsModal({ open, onClose, budgetId, po, currencies, 
       setContracts([]);
       setRoles([]);
       setRates([]);
-      setResources([]);
       return;
     }
     getVendorContracts(vendorId)
@@ -128,7 +127,6 @@ export default function PoItemsModal({ open, onClose, budgetId, po, currencies, 
     setContracts([]);
     setRoles([]);
     setRates([]);
-    setResources([]);
     setItemModal(true);
   };
 
@@ -188,7 +186,6 @@ export default function PoItemsModal({ open, onClose, budgetId, po, currencies, 
     setContracts([]);
     setRoles([]);
     setRates([]);
-    setResources([]);
     if (vendorId) {
       fetchContracts(vendorId);
     }
@@ -242,7 +239,7 @@ export default function PoItemsModal({ open, onClose, budgetId, po, currencies, 
 
   return (
     <>
-      <Modal open={open} onClose={onClose} title={`Items for PO: ${po?.purchaseorder_description || ''}`} maxWidth="max-w-2xl">
+      <Modal open={open} onClose={onClose} title={`Items for PO: ${po?.purchaseorder_description || ''}`} maxWidth="max-w-4xl">
         <div>
           {isAdmin && (
             <div className="mb-4">
@@ -264,29 +261,45 @@ export default function PoItemsModal({ open, onClose, budgetId, po, currencies, 
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-border bg-surface/50">
-                    <th className="px-4 py-3 text-left font-medium text-text-secondary">Description</th>
+                    <th className="px-4 py-3 text-left font-medium text-text-secondary">Vendor Role</th>
                     <th className="px-4 py-3 text-left font-medium text-text-secondary">Start</th>
                     <th className="px-4 py-3 text-left font-medium text-text-secondary">End</th>
                     <th className="px-4 py-3 text-right font-medium text-text-secondary">Days</th>
                     <th className="px-4 py-3 text-right font-medium text-text-secondary">Rate</th>
-                    <th className="px-4 py-3 text-left font-medium text-text-secondary">Currency</th>
-                    <th className="px-4 py-3 text-left font-medium text-text-secondary">Vendor Role</th>
                     {isAdmin && <th className="px-4 py-3 text-right font-medium text-text-secondary">Actions</th>}
                   </tr>
                 </thead>
                 <tbody>
                   {items.map(item => (
                     <tr key={item.id} className="border-b border-border last:border-0 hover:bg-surface/30 transition-colors">
-                      <td className="px-4 py-3 font-medium text-text-primary">{item.purchaseorderitem_description || '-'}</td>
+                      <td className="px-4 py-3">
+                        <div className="font-medium text-text-primary">{item.vendorcontractrole_name || '-'}</div>
+                        {item.purchaseorderitem_description && (
+                          <div className="text-xs text-text-secondary mt-0.5">{item.purchaseorderitem_description}</div>
+                        )}
+                      </td>
                       <td className="px-4 py-3 text-text-secondary">{formatDate(item.purchaseorderitem_start_date)}</td>
                       <td className="px-4 py-3 text-text-secondary">{formatDate(item.purchaseorderitem_end_date)}</td>
-                      <td className="px-4 py-3 text-right text-text-secondary">{item.purchaseorderitems_days || '-'}</td>
-                      <td className="px-4 py-3 text-right text-text-secondary">{formatCurrency(item.purchaseorderitems_discounted_rate)}</td>
-                      <td className="px-4 py-3 text-text-secondary">{item.currency_name || '-'}</td>
-                      <td className="px-4 py-3 text-text-secondary">{item.vendorcontractrole_name || '-'}</td>
+                      <td className="px-4 py-3 text-right text-text-secondary">
+                        {item.purchaseorderitems_days != null
+                          ? `${(item.purchaseorderitems_days - (item.total_days_consumed || 0))} (${item.purchaseorderitems_days})`
+                          : '-'}
+                      </td>
+                      <td className="px-4 py-3 text-right text-text-secondary">
+                        {item.purchaseorderitems_discounted_rate != null
+                          ? `${formatCurrency(item.purchaseorderitems_discounted_rate)}${item.currency_name ? item.currency_name : ''}`
+                          : '-'}
+                      </td>
                       {isAdmin && (
                         <td className="px-4 py-3">
                           <div className="flex justify-end gap-1">
+                            <button
+                              onClick={() => setConsumptionItem(item)}
+                              className="rounded-lg p-1.5 text-text-secondary hover:bg-surface hover:text-primary-500 transition-colors"
+                              title="Consumption tracking"
+                            >
+                              <BarChart3 size={16} />
+                            </button>
                             <button
                               onClick={() => openEdit(item)}
                               className="rounded-lg p-1.5 text-text-secondary hover:bg-surface hover:text-primary-500 transition-colors"
@@ -478,6 +491,15 @@ export default function PoItemsModal({ open, onClose, budgetId, po, currencies, 
         onConfirm={handleDeleteItem}
         title="Delete Item"
         message={`Delete item "${deleteTarget?.purchaseorderitem_description || 'this item'}"?`}
+      />
+
+      <ConsumptionModal
+        open={!!consumptionItem}
+        onClose={() => setConsumptionItem(null)}
+        budgetId={budgetId}
+        poId={po?.id}
+        item={consumptionItem}
+        isAdmin={isAdmin}
       />
     </>
   );

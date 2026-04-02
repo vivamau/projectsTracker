@@ -1,5 +1,6 @@
 const { initTestDb, seedTestDb, closeTestDb } = require('../helpers/testDb');
 const purchaseOrderItemService = require('../../services/purchaseOrderItemService');
+const poitemConsumptionService = require('../../services/poitemConsumptionService');
 const budgetService = require('../../services/budgetService');
 const currencyService = require('../../services/currencyService');
 const purchaseOrderService = require('../../services/purchaseOrderService');
@@ -281,6 +282,45 @@ describe('purchaseOrderItemService.getByPoId', () => {
 
     const items = await purchaseOrderItemService.getByPoId(db, newPoRes.lastID);
     expect(items.length).toBe(0);
+  });
+
+  it('includes total_days_consumed (0 when no consumptions)', async () => {
+    const startDate = Date.now();
+    const result = await purchaseOrderItemService.create(db, {
+      purchaseorderitem_description: 'Item no consumption',
+      purchaseorderitem_start_date: startDate,
+      purchaseorderitems_days: 5,
+      purchaseorder_id: poId
+    });
+
+    const items = await purchaseOrderItemService.getByPoId(db, poId);
+    const item = items.find(i => i.id === result.lastID);
+    expect(item).toBeDefined();
+    expect(item.total_days_consumed).toBe(0);
+  });
+
+  it('includes total_days_consumed summed from consumptions', async () => {
+    const startDate = Date.now();
+    const result = await purchaseOrderItemService.create(db, {
+      purchaseorderitem_description: 'Item with consumption',
+      purchaseorderitem_start_date: startDate,
+      purchaseorderitems_days: 2,
+      purchaseorder_id: poId
+    });
+    const itemId = result.lastID;
+
+    await poitemConsumptionService.create(db, {
+      purchaseorderitem_id: itemId,
+      consumption_month: new Date(2025, 0, 1).getTime(),
+      consumption_days: 0.5,
+      consumption_comment: null,
+      user_id: null
+    });
+
+    const items = await purchaseOrderItemService.getByPoId(db, poId);
+    const item = items.find(i => i.id === itemId);
+    expect(item).toBeDefined();
+    expect(item.total_days_consumed).toBe(0.5);
   });
 
   it('does not return soft-deleted items', async () => {

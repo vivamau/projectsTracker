@@ -31,3 +31,9 @@ When fetching API data for React dropdowns, the response structure varies:
 - Handle both with: `const data = response.data?.data || response.data || []`
 - Always validate `Array.isArray()` before rendering options
 - Add console.error logging in catch blocks for troubleshooting
+
+## Consumption balance calculation belongs in SQL, not frontend
+When displaying derived data like "days balance" (allocated - consumed) for a list of items, compute the aggregate via SQL LEFT JOIN subquery rather than N+1 API calls from the frontend. The `getByPoId` query joins a `SUM(consumption_days)` subquery, returning `total_days_consumed` alongside each item. This avoids extra network round-trips per item.
+
+## Duplicate API call lines can silently corrupt data flow
+When editing JSX files, be careful not to leave duplicate lines (e.g., `getConsumptions(...)` called twice in a useEffect). The first call's promise is orphaned and never awaited, causing silent failures. Always diff carefully after edits.

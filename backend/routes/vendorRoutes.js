@@ -3,12 +3,12 @@ const { authenticate, authorize } = require('../middleware/auth');
 const vendorService = require('../services/vendorService');
 const vendorContractRoutes = require('./vendorContractRoutes');
 const { success, error } = require('../utilities/responseHelper');
+const { auditLog } = require('../utilities/auditHelper');
 
-function createVendorRoutes(db) {
+function createVendorRoutes(db, auditDb) {
   const router = express.Router();
 
-  // Nested vendor contracts routes
-  router.use('/:vendorId/contracts', vendorContractRoutes(db));
+  router.use('/:vendorId/contracts', vendorContractRoutes(db, auditDb));
 
   router.get('/', authenticate, async (req, res) => {
     try {
@@ -34,6 +34,15 @@ function createVendorRoutes(db) {
       const { vendor_name } = req.body;
       if (!vendor_name) return error(res, 'vendor_name is required', 400);
       const result = await vendorService.create(db, req.body);
+      await auditLog(auditDb, {
+        userId: req.user.id,
+        userEmail: req.user.email,
+        action: 'vendor.create',
+        entityType: 'vendor',
+        entityId: result.lastID,
+        details: { data: req.body },
+        ip: req.ip
+      });
       return success(res, { id: result.lastID }, 201);
     } catch (err) {
       return error(res, 'Failed to create vendor');
@@ -46,6 +55,15 @@ function createVendorRoutes(db) {
       const existing = await vendorService.getById(db, id);
       if (!existing) return error(res, 'Vendor not found', 404);
       await vendorService.update(db, id, req.body);
+      await auditLog(auditDb, {
+        userId: req.user.id,
+        userEmail: req.user.email,
+        action: 'vendor.update',
+        entityType: 'vendor',
+        entityId: id,
+        details: { before: existing, after: req.body },
+        ip: req.ip
+      });
       return success(res, { message: 'Vendor updated' });
     } catch (err) {
       return error(res, 'Failed to update vendor');
@@ -54,8 +72,18 @@ function createVendorRoutes(db) {
 
   router.delete('/:id', authenticate, authorize('superadmin', 'admin'), async (req, res) => {
     try {
-      const result = await vendorService.softDelete(db, parseInt(req.params.id));
+      const id = parseInt(req.params.id);
+      const result = await vendorService.softDelete(db, id);
       if (result.changes === 0) return error(res, 'Vendor not found', 404);
+      await auditLog(auditDb, {
+        userId: req.user.id,
+        userEmail: req.user.email,
+        action: 'vendor.delete',
+        entityType: 'vendor',
+        entityId: id,
+        details: {},
+        ip: req.ip
+      });
       return success(res, { message: 'Vendor deleted' });
     } catch (err) {
       return error(res, 'Failed to delete vendor');
