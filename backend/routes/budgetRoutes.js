@@ -33,6 +33,8 @@ function createBudgetRoutes(db, auditDb) {
     try {
       const budget = await budgetService.getById(db, parseInt(req.params.id));
       if (!budget) return error(res, 'Budget not found', 404);
+      const projects = await budgetService.getProjectsByBudgetId(db, parseInt(req.params.id));
+      budget.projects = projects;
       return success(res, budget);
     } catch (err) {
       return error(res, 'Failed to get budget');

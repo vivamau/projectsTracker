@@ -41,6 +41,8 @@ export const deleteVendorRoleRate = (vendorId, contractId, roleId, rateId) => cl
 // Helper functions for cascading dropdowns in PO items
 export const getVendorResources = (vendorId) => client.get(`/vendors/${vendorId}`).then(r => ({ data: { data: r.data.data.resources || [] } })).catch(() => ({ data: { data: [] } }));
 
+export const getVendorResourceProjects = (vendorId, resourceId) => client.get(`/vendors/${vendorId}/resources/${resourceId}/projects`);
+
 export const getInitiatives = () => client.get('/initiatives');
 export const createInitiative = (data) => client.post('/initiatives', data);
 export const updateInitiative = (id, data) => client.put(`/initiatives/${id}`, data);

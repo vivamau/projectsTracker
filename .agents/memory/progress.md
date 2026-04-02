@@ -206,3 +206,27 @@
   - [x] PoItemsModal.jsx Days column: displays balance (allocated) format, e.g. "1.5 (2)"
   - [x] 671 tests passing, 43 test suites
   - [x] Frontend builds successfully
+- [x] Vendor Resource Selection in PO Items <!-- id: 272 -->
+  - [x] vendorService.getById: returns vendor with nested resources array (id, name, lastname, email, phone)
+  - [x] purchaseOrderItemService.getByPoId + getById: LEFT JOIN vendorresources returning vendorresource_name, vendorresource_lastname
+  - [x] PoItemsModal.jsx: Resource dropdown appears after selecting vendor, displays "Name Lastname", saves vendorresource_id
+  - [x] PoItemsModal.jsx: Items table shows resource name in blue under role name
+  - [x] vendorService.test.js: 4 new tests for resources in getById (16 total)
+  - [x] purchaseOrderItemService.test.js: 2 new tests for resource name fields in getByPoId/getById (31 total)
+  - [x] 711 tests passing, 46 test suites, 91.99% coverage
+  - [x] Frontend builds successfully
+- [x] Vendor Resource Details Page <!-- id: 273 -->
+  - [x] vendorResourceService.js with TDD (6 tests): getById, getProjects (JOINs through PO items → POs → budgets → projects)
+  - [x] GET /api/vendors/:vendorId/resources/:resourceId/projects route (3 integration tests)
+  - [x] resourceDetail.jsx: resource header (name, email, phone), projects table with division, PO, dates, item count
+  - [x] Resource names in vendor detail page now link to /vendors/:vendorId/resources/:resourceId
+  - [x] getVendorResourceProjects API function added to entitiesApi.js
+  - [x] 720 tests passing, 47 test suites, 91.98% coverage
+  - [x] Frontend builds successfully
+- [x] Inherit Vendor from PO for PO Items <!-- id: 274 -->
+  - [x] Added vendorLocked state to PoItemsModal.jsx
+  - [x] openCreate: auto-populates vendor_id from PO, fetches contracts/resources when PO has vendor
+  - [x] openEdit: inherits PO vendor when item has no vendor data
+  - [x] Vendor dropdown replaced with locked badge (Lock icon + vendor name) when vendor inherited
+  - [x] Vendor dropdown required when PO has no vendor (validation added in handleSaveItem)
+  - [x] Frontend builds successfully, 727 tests passing, 91.96% coverage

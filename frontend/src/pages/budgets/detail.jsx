@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { Plus, Pencil, Trash2, DollarSign, Calendar, ArrowLeft, List } from 'lucide-react';
+import { Plus, Pencil, Trash2, DollarSign, Calendar, ArrowLeft, List, FolderOpen } from 'lucide-react';
 import { getBudget, getPurchaseOrders, createPurchaseOrder, updatePurchaseOrder, deletePurchaseOrder, getPurchaseOrderItems } from '../../api/projectsApi';
 import { getVendors, getCurrencies } from '../../api/entitiesApi';
 import { useAuth } from '../../hooks/useAuth';
@@ -160,6 +160,17 @@ export default function BudgetDetailPage() {
               Budget: {formatCurrency(budget.budget_amount, budget.currency_name)}
             </h1>
             <div className="mt-3 space-y-1 text-sm">
+              {budget.projects && budget.projects.length > 0 && (
+                <div className="flex items-center gap-2 flex-wrap">
+                  <FolderOpen size={14} className="text-text-secondary flex-shrink-0" />
+                  {budget.projects.map((p, i) => (
+                    <span key={p.id} className="flex items-center gap-2">
+                      <Link to={`/projects/${p.id}`} className="font-medium text-primary-600 hover:text-primary-700 hover:underline">{p.project_name}</Link>
+                      {i < budget.projects.length - 1 && <span className="text-text-secondary">/</span>}
+                    </span>
+                  ))}
+                </div>
+              )}
               <div className="flex items-center gap-4">
                 <span className="text-text-secondary">Purchase Orders: {formatCurrency(totalPoAmount, budget.currency_name)}</span>
                 <span className="text-text-secondary">Current Balance: <span className={currentBalance < 0 ? 'text-error-500 font-semibold' : 'text-success-600 font-semibold'}>{formatCurrency(currentBalance, budget.currency_name)}</span></span>

@@ -98,16 +98,26 @@ const HEALTH_COMMENTS = {
 const VENDOR_CONTRACT_ROLES = ['Consultant', 'Senior Consultant', 'Manager', 'Senior Manager', 'Architect', 'Solution Architect', 'Developer', 'Senior Developer', 'QA Lead', 'Project Manager', 'Business Analyst'];
 
 const VENDOR_RESOURCES = [
-  { name: 'John', lastname: 'Smith', position: 'Senior Consultant' },
-  { name: 'Sarah', lastname: 'Johnson', position: 'Solution Architect' },
-  { name: 'Michael', lastname: 'Williams', position: 'Project Manager' },
-  { name: 'Emily', lastname: 'Brown', position: 'Business Analyst' },
-  { name: 'David', lastname: 'Davis', position: 'Senior Developer' },
-  { name: 'Lisa', lastname: 'Miller', position: 'QA Lead' },
-  { name: 'James', lastname: 'Wilson', position: 'Consultant' },
-  { name: 'Jennifer', lastname: 'Moore', position: 'Manager' },
-  { name: 'Robert', lastname: 'Taylor', position: 'Architect' },
-  { name: 'Patricia', lastname: 'Anderson', position: 'Developer' }
+  { name: 'John', lastname: 'Smith', middlename: 'A.', email: 'john.smith@vendor.com', phone: '+1-555-1001' },
+  { name: 'Sarah', lastname: 'Johnson', middlename: 'B.', email: 'sarah.johnson@vendor.com', phone: '+1-555-1002' },
+  { name: 'Michael', lastname: 'Williams', middlename: null, email: 'michael.williams@vendor.com', phone: '+1-555-1003' },
+  { name: 'Emily', lastname: 'Brown', middlename: 'C.', email: 'emily.brown@vendor.com', phone: '+1-555-1004' },
+  { name: 'David', lastname: 'Davis', middlename: null, email: 'david.davis@vendor.com', phone: '+1-555-1005' },
+  { name: 'Lisa', lastname: 'Miller', middlename: 'D.', email: 'lisa.miller@vendor.com', phone: '+1-555-1006' },
+  { name: 'James', lastname: 'Wilson', middlename: null, email: 'james.wilson@vendor.com', phone: '+1-555-1007' },
+  { name: 'Jennifer', lastname: 'Moore', middlename: 'E.', email: 'jennifer.moore@vendor.com', phone: '+1-555-1008' },
+  { name: 'Robert', lastname: 'Taylor', middlename: null, email: 'robert.taylor@vendor.com', phone: '+1-555-1009' },
+  { name: 'Patricia', lastname: 'Anderson', middlename: 'F.', email: 'patricia.anderson@vendor.com', phone: '+1-555-1010' },
+  { name: 'Thomas', lastname: 'Garcia', middlename: null, email: 'thomas.garcia@vendor.com', phone: '+1-555-1011' },
+  { name: 'Maria', lastname: 'Martinez', middlename: 'G.', email: 'maria.martinez@vendor.com', phone: '+1-555-1012' },
+  { name: 'Daniel', lastname: 'Lopez', middlename: null, email: 'daniel.lopez@vendor.com', phone: '+1-555-1013' },
+  { name: 'Jessica', lastname: 'Lee', middlename: 'H.', email: 'jessica.lee@vendor.com', phone: '+1-555-1014' },
+  { name: 'Christopher', lastname: 'Clark', middlename: null, email: 'christopher.clark@vendor.com', phone: '+1-555-1015' },
+  { name: 'Amanda', lastname: 'Harris', middlename: 'I.', email: 'amanda.harris@vendor.com', phone: '+1-555-1016' },
+  { name: 'Matthew', lastname: 'Lewis', middlename: null, email: 'matthew.lewis@vendor.com', phone: '+1-555-1017' },
+  { name: 'Stephanie', lastname: 'Walker', middlename: 'J.', email: 'stephanie.walker@vendor.com', phone: '+1-555-1018' },
+  { name: 'Andrew', lastname: 'Hall', middlename: null, email: 'andrew.hall@vendor.com', phone: '+1-555-1019' },
+  { name: 'Nicole', lastname: 'Young', middlename: 'K.', email: 'nicole.young@vendor.com', phone: '+1-555-1020' }
 ];
 
 const SENIORITIES = [
@@ -496,8 +506,8 @@ async function seedDummyData(db) {
 
           if (!existing) {
             await runQuery(db,
-              'INSERT INTO vendorresources (vendorresource_name, vendorresource_lastname, vendor_id, vendorresource_create_date, vendorresource_update_date) VALUES (?, ?, ?, ?, ?)',
-              [resource.name, resource.lastname, vendorId, daysAgo(randomInt(0, 30)), now]
+              'INSERT INTO vendorresources (vendorresource_name, vendorresource_lastname, vendorresource_middlename, vendorresource_email, vendorresource_phone, vendor_id, vendorresource_create_date, vendorresource_update_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+              [resource.name, resource.lastname, resource.middlename || null, resource.email || null, resource.phone || null, vendorId, daysAgo(randomInt(0, 30)), now]
             );
             totalResources++;
           }

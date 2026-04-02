@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Plus, Pencil, Trash2, BarChart3 } from 'lucide-react';
+import { Plus, Pencil, Trash2, BarChart3, Lock } from 'lucide-react';
 import { getPurchaseOrderItems, createPurchaseOrderItem, updatePurchaseOrderItem, deletePurchaseOrderItem } from '../../api/projectsApi';
-import { getVendors, getVendorContracts, getVendorContractRoles, getVendorRoleRates } from '../../api/entitiesApi';
+import { getVendors, getVendorContracts, getVendorContractRoles, getVendorRoleRates, getVendorResources } from '../../api/entitiesApi';
 import Modal from '../../commoncomponents/Modal';
 import ConfirmDialog from '../../commoncomponents/ConfirmDialog';
 import LoadingSpinner from '../../commoncomponents/LoadingSpinner';
@@ -19,6 +19,8 @@ export default function PoItemsModal({ open, onClose, budgetId, po, currencies, 
   const [contracts, setContracts] = useState([]);
   const [roles, setRoles] = useState([]);
   const [rates, setRates] = useState([]);
+  const [resources, setResources] = useState([]);
+  const [vendorLocked, setVendorLocked] = useState(false);
 
   const [itemForm, setItemForm] = useState({
     purchaseorderitem_description: '',
@@ -82,6 +84,16 @@ export default function PoItemsModal({ open, onClose, budgetId, po, currencies, 
       .catch(() => setRates([]));
   }, []);
 
+  const fetchResources = useCallback((vendorId) => {
+    if (!vendorId) {
+      setResources([]);
+      return;
+    }
+    getVendorResources(vendorId)
+      .then(r => setResources(r.data.data || []))
+      .catch(() => setResources([]));
+  }, []);
+
   useEffect(() => {
     if (open && po?.id) {
       fetchItems();
@@ -111,46 +123,90 @@ export default function PoItemsModal({ open, onClose, budgetId, po, currencies, 
 
   const openCreate = () => {
     setEditItem(null);
-    setItemForm({
-      purchaseorderitem_description: '',
-      purchaseorderitem_start_date: '',
-      purchaseorderitem_end_date: '',
-      purchaseorderitems_days: '',
-      purchaseorderitems_discounted_rate: '',
-      currency_id: '',
-      vendor_id: '',
-      vendorcontract_id: '',
-      vendorcontractrole_id: '',
-      vendorrolerate_id: '',
-      vendorresource_id: ''
-    });
-    setContracts([]);
-    setRoles([]);
-    setRates([]);
+    const poVendorId = po?.vendor_id ? String(po.vendor_id) : '';
+    if (poVendorId) {
+      setVendorLocked(true);
+      setItemForm({
+        purchaseorderitem_description: '',
+        purchaseorderitem_start_date: '',
+        purchaseorderitem_end_date: '',
+        purchaseorderitems_days: '',
+        purchaseorderitems_discounted_rate: '',
+        currency_id: '',
+        vendor_id: poVendorId,
+        vendorcontract_id: '',
+        vendorcontractrole_id: '',
+        vendorrolerate_id: '',
+        vendorresource_id: ''
+      });
+      fetchContracts(poVendorId);
+      fetchResources(poVendorId);
+    } else {
+      setVendorLocked(false);
+      setItemForm({
+        purchaseorderitem_description: '',
+        purchaseorderitem_start_date: '',
+        purchaseorderitem_end_date: '',
+        purchaseorderitems_days: '',
+        purchaseorderitems_discounted_rate: '',
+        currency_id: '',
+        vendor_id: '',
+        vendorcontract_id: '',
+        vendorcontractrole_id: '',
+        vendorrolerate_id: '',
+        vendorresource_id: ''
+      });
+      setContracts([]);
+      setRoles([]);
+      setRates([]);
+      setResources([]);
+    }
     setItemModal(true);
   };
 
   const openEdit = (item) => {
     setEditItem(item);
-    setItemForm({
-      purchaseorderitem_description: item.purchaseorderitem_description || '',
-      purchaseorderitem_start_date: tsToInput(item.purchaseorderitem_start_date),
-      purchaseorderitem_end_date: tsToInput(item.purchaseorderitem_end_date),
-      purchaseorderitems_days: item.purchaseorderitems_days || '',
-      purchaseorderitems_discounted_rate: item.purchaseorderitems_discounted_rate || '',
-      currency_id: item.currency_id || '',
-      vendor_id: '',
-      vendorcontract_id: '',
-      vendorcontractrole_id: item.vendorcontractrole_id || '',
-      vendorrolerate_id: item.vendorrolerate_id || '',
-      vendorresource_id: item.vendorresource_id || ''
-    });
+    const poVendorId = po?.vendor_id ? String(po.vendor_id) : '';
+    if (poVendorId) {
+      setVendorLocked(true);
+      setItemForm({
+        purchaseorderitem_description: item.purchaseorderitem_description || '',
+        purchaseorderitem_start_date: tsToInput(item.purchaseorderitem_start_date),
+        purchaseorderitem_end_date: tsToInput(item.purchaseorderitem_end_date),
+        purchaseorderitems_days: item.purchaseorderitems_days || '',
+        purchaseorderitems_discounted_rate: item.purchaseorderitems_discounted_rate || '',
+        currency_id: item.currency_id || '',
+        vendor_id: poVendorId,
+        vendorcontract_id: '',
+        vendorcontractrole_id: item.vendorcontractrole_id || '',
+        vendorrolerate_id: item.vendorrolerate_id || '',
+        vendorresource_id: item.vendorresource_id || ''
+      });
+      fetchContracts(poVendorId);
+      fetchResources(poVendorId);
+    } else {
+      setVendorLocked(false);
+      setItemForm({
+        purchaseorderitem_description: item.purchaseorderitem_description || '',
+        purchaseorderitem_start_date: tsToInput(item.purchaseorderitem_start_date),
+        purchaseorderitem_end_date: tsToInput(item.purchaseorderitem_end_date),
+        purchaseorderitems_days: item.purchaseorderitems_days || '',
+        purchaseorderitems_discounted_rate: item.purchaseorderitems_discounted_rate || '',
+        currency_id: item.currency_id || '',
+        vendor_id: '',
+        vendorcontract_id: '',
+        vendorcontractrole_id: item.vendorcontractrole_id || '',
+        vendorrolerate_id: item.vendorrolerate_id || '',
+        vendorresource_id: item.vendorresource_id || ''
+      });
+    }
     setItemModal(true);
   };
 
   const handleSaveItem = async (e) => {
     e.preventDefault();
     if (!itemForm.purchaseorderitem_start_date) return;
+    if (!vendorLocked && !itemForm.vendor_id) return;
 
     const data = {
       purchaseorderitem_description: itemForm.purchaseorderitem_description.trim(),
@@ -186,8 +242,10 @@ export default function PoItemsModal({ open, onClose, budgetId, po, currencies, 
     setContracts([]);
     setRoles([]);
     setRates([]);
+    setResources([]);
     if (vendorId) {
       fetchContracts(vendorId);
+      fetchResources(vendorId);
     }
   };
 
@@ -274,6 +332,9 @@ export default function PoItemsModal({ open, onClose, budgetId, po, currencies, 
                     <tr key={item.id} className="border-b border-border last:border-0 hover:bg-surface/30 transition-colors">
                       <td className="px-4 py-3">
                         <div className="font-medium text-text-primary">{item.vendorcontractrole_name || '-'}</div>
+                        {item.vendorresource_name && (
+                          <div className="text-xs text-primary-600 mt-0.5">{item.vendorresource_name} {item.vendorresource_lastname}</div>
+                        )}
                         {item.purchaseorderitem_description && (
                           <div className="text-xs text-text-secondary mt-0.5">{item.purchaseorderitem_description}</div>
                         )}
@@ -405,16 +466,24 @@ export default function PoItemsModal({ open, onClose, budgetId, po, currencies, 
 
           <div>
             <label className="mb-1.5 block text-sm font-medium">Vendor</label>
-            <select
-              value={itemForm.vendor_id}
-              onChange={e => handleVendorChange(e.target.value)}
-              className="w-full rounded-lg border border-border-dark bg-surface px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 appearance-none"
-            >
-              <option value="">Select a vendor...</option>
-              {vendors.map(v => (
-                <option key={v.id} value={v.id}>{v.vendor_name}</option>
-              ))}
-            </select>
+            {vendorLocked ? (
+              <div className="flex items-center gap-2 rounded-lg border border-border-dark bg-surface/50 px-3 py-2 text-sm">
+                <Lock size={14} className="text-text-secondary flex-shrink-0" />
+                <span className="text-text-primary">{po?.vendor_name || 'Unknown vendor'}</span>
+              </div>
+            ) : (
+              <select
+                value={itemForm.vendor_id}
+                onChange={e => handleVendorChange(e.target.value)}
+                className="w-full rounded-lg border border-border-dark bg-surface px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 appearance-none"
+                required
+              >
+                <option value="">Select a vendor...</option>
+                {vendors.map(v => (
+                  <option key={v.id} value={v.id}>{v.vendor_name}</option>
+                ))}
+              </select>
+            )}
           </div>
 
           {itemForm.vendor_id && (
@@ -461,6 +530,24 @@ export default function PoItemsModal({ open, onClose, budgetId, po, currencies, 
                 {rates.map(r => (
                   <option key={r.id} value={r.id}>
                     {r.currency_symbol || ''}{r.vendorrolerate_rate?.toFixed(2)} ({r.currency_name}) - {r.seniority_description || 'No seniority'}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {itemForm.vendor_id && resources.length > 0 && (
+            <div>
+              <label className="mb-1.5 block text-sm font-medium">Resource</label>
+              <select
+                value={itemForm.vendorresource_id}
+                onChange={e => setItemForm(f => ({ ...f, vendorresource_id: e.target.value }))}
+                className="w-full rounded-lg border border-border-dark bg-surface px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 appearance-none"
+              >
+                <option value="">Select a resource...</option>
+                {resources.map(r => (
+                  <option key={r.id} value={r.id}>
+                    {r.vendorresource_name} {r.vendorresource_lastname}
                   </option>
                 ))}
               </select>

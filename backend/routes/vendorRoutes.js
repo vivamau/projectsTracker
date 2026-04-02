@@ -1,6 +1,7 @@
 const express = require('express');
 const { authenticate, authorize } = require('../middleware/auth');
 const vendorService = require('../services/vendorService');
+const vendorResourceService = require('../services/vendorResourceService');
 const vendorContractRoutes = require('./vendorContractRoutes');
 const { success, error } = require('../utilities/responseHelper');
 const { auditLog } = require('../utilities/auditHelper');
@@ -16,6 +17,15 @@ function createVendorRoutes(db, auditDb) {
       return success(res, vendors);
     } catch (err) {
       return error(res, 'Failed to list vendors');
+    }
+  });
+
+  router.get('/:vendorId/resources/:resourceId/projects', authenticate, async (req, res) => {
+    try {
+      const projects = await vendorResourceService.getProjects(db, parseInt(req.params.resourceId));
+      return success(res, projects);
+    } catch (err) {
+      return error(res, 'Failed to get resource projects');
     }
   });
 

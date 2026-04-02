@@ -5,6 +5,7 @@ const healthStatusService = require('../services/healthStatusService');
 const completionService = require('../services/completionService');
 const budgetService = require('../services/budgetService');
 const projectManagerService = require('../services/projectManagerService');
+const vendorResourceService = require('../services/vendorResourceService');
 const { success, error, paginated } = require('../utilities/responseHelper');
 const { auditLog } = require('../utilities/auditHelper');
 
@@ -352,6 +353,15 @@ function createProjectRoutes(db, auditDb) {
       return success(res, { message: 'Project managers updated' });
     } catch (err) {
       return error(res, 'Failed to update project managers');
+    }
+  });
+
+  router.get('/:id/vendor-resources', authenticate, async (req, res) => {
+    try {
+      const resources = await vendorResourceService.getByProjectId(db, parseInt(req.params.id));
+      return success(res, resources);
+    } catch (err) {
+      return error(res, 'Failed to get vendor resources');
     }
   });
 

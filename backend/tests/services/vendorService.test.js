@@ -61,6 +61,49 @@ describe('vendorService.getById', () => {
     const vendor = await vendorService.getById(db, 99999);
     expect(vendor).toBeNull();
   });
+
+  it('should include resources array when vendor has resources', async () => {
+    const { runQuery } = require('../../config/database');
+    await runQuery(db,
+      `INSERT INTO vendorresources (vendorresource_name, vendorresource_lastname, vendor_id, vendorresource_create_date)
+       VALUES (?, ?, ?, ?)`,
+      ['Jane', 'Smith', 1, Date.now()]
+    );
+    await runQuery(db,
+      `INSERT INTO vendorresources (vendorresource_name, vendorresource_lastname, vendor_id, vendorresource_create_date)
+       VALUES (?, ?, ?, ?)`,
+      ['Bob', 'Johnson', 1, Date.now()]
+    );
+
+    const vendor = await vendorService.getById(db, 1);
+    expect(vendor).toBeDefined();
+    expect(Array.isArray(vendor.resources)).toBe(true);
+    expect(vendor.resources.length).toBe(2);
+    const names = vendor.resources.map(r => `${r.vendorresource_lastname} ${r.vendorresource_name}`);
+    expect(names).toContain('Smith Jane');
+    expect(names).toContain('Johnson Bob');
+  });
+
+  it('should return empty resources array when vendor has no resources', async () => {
+    const vendor = await vendorService.getById(db, 2);
+    expect(vendor).toBeDefined();
+    expect(Array.isArray(vendor.resources)).toBe(true);
+    expect(vendor.resources.length).toBe(0);
+  });
+
+  it('should include email and phone in resources', async () => {
+    const { runQuery } = require('../../config/database');
+    await runQuery(db,
+      `INSERT INTO vendorresources (vendorresource_name, vendorresource_lastname, vendorresource_email, vendorresource_phone, vendor_id, vendorresource_create_date)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      ['Alice', 'Williams', 'alice@test.com', '+1-555-0100', 2, Date.now()]
+    );
+
+    const vendor = await vendorService.getById(db, 2);
+    expect(vendor.resources.length).toBe(1);
+    expect(vendor.resources[0].vendorresource_email).toBe('alice@test.com');
+    expect(vendor.resources[0].vendorresource_phone).toBe('+1-555-0100');
+  });
 });
 
 describe('vendorService.update', () => {

@@ -198,6 +198,8 @@ describe('purchaseOrderItemService.create', () => {
 
     const item = await purchaseOrderItemService.getById(db, result.lastID);
     expect(item.vendorresource_id).toBe(vendorResourceId);
+    expect(item.vendorresource_name).toBe('John');
+    expect(item.vendorresource_lastname).toBe('Doe');
   });
 
   it('creates an item with all vendor fields', async () => {
@@ -282,6 +284,23 @@ describe('purchaseOrderItemService.getByPoId', () => {
 
     const items = await purchaseOrderItemService.getByPoId(db, newPoRes.lastID);
     expect(items.length).toBe(0);
+  });
+
+  it('includes vendor resource name via LEFT JOIN in getByPoId', async () => {
+    const startDate = Date.now();
+    const result = await purchaseOrderItemService.create(db, {
+      purchaseorderitem_description: 'Item with resource in list',
+      purchaseorderitem_start_date: startDate,
+      purchaseorder_id: poId,
+      vendorresource_id: vendorResourceId
+    });
+
+    const items = await purchaseOrderItemService.getByPoId(db, poId);
+    const item = items.find(i => i.id === result.lastID);
+    expect(item).toBeDefined();
+    expect(item.vendorresource_id).toBe(vendorResourceId);
+    expect(item.vendorresource_name).toBe('John');
+    expect(item.vendorresource_lastname).toBe('Doe');
   });
 
   it('includes total_days_consumed (0 when no consumptions)', async () => {

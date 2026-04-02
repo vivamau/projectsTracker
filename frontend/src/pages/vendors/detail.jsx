@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, Globe, Mail, Phone, MapPin, FolderKanban } from 'lucide-react';
-import { getVendors, getVendorContracts, getVendorContractRoles, getVendorRoleRates } from '../../api/entitiesApi';
+import { ArrowLeft, Globe, Mail, Phone, MapPin, FolderKanban, Users } from 'lucide-react';
+import { getVendor, getVendors, getVendorContracts, getVendorContractRoles, getVendorRoleRates } from '../../api/entitiesApi';
 import { getProjects, getBudgets, getPurchaseOrders, getPurchaseOrderItems } from '../../api/projectsApi';
 import Card from '../../commoncomponents/Card';
 import LoadingSpinner from '../../commoncomponents/LoadingSpinner';
@@ -10,6 +10,7 @@ export default function VendorDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [vendor, setVendor] = useState(null);
+  const [resources, setResources] = useState([]);
   const [contracts, setContracts] = useState([]);
   const [contractRoles, setContractRoles] = useState({});
   const [ratesByRole, setRatesByRole] = useState({});
@@ -22,9 +23,10 @@ export default function VendorDetailPage() {
     const fetchData = async () => {
       try {
         // Fetch vendor
-        const vendorsRes = await getVendors();
-        const vendorData = vendorsRes.data.data.find(v => v.id === parseInt(id));
+        const vendorRes = await getVendor(parseInt(id));
+        const vendorData = vendorRes.data.data;
         setVendor(vendorData);
+        setResources(vendorData.resources || []);
 
         // Fetch contracts
         const contractsRes = await getVendorContracts(parseInt(id));
@@ -205,9 +207,53 @@ export default function VendorDetailPage() {
         </div>
       </div>
 
-      {/* Contracts and Projects */}
+      {/* Resources and Contracts */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
+          {/* Resources Card */}
+          {resources.length > 0 && (
+            <Card title="Resources" noPadding className="mb-6">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-border bg-surface/50">
+                      <th className="px-6 py-3 text-left font-medium text-text-secondary">Name</th>
+                      <th className="px-6 py-3 text-left font-medium text-text-secondary">Email</th>
+                      <th className="px-6 py-3 text-left font-medium text-text-secondary">Phone</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {resources.map(r => (
+                      <tr key={r.id} className="border-b border-border last:border-0 hover:bg-surface/30 transition-colors">
+                        <td className="px-6 py-3">
+                          <div className="flex items-center gap-2">
+                            <Users size={14} className="text-primary-500 flex-shrink-0" />
+                            <div>
+                              <Link to={`/vendors/${id}/resources/${r.id}`} className="font-medium text-primary-600 hover:underline">
+                                {r.vendorresource_name} {r.vendorresource_lastname}
+                              </Link>
+                              {r.vendorresource_middlename && (
+                                <span className="text-text-secondary ml-1">{r.vendorresource_middlename}</span>
+                              )}
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-3">
+                          {r.vendorresource_email ? (
+                            <a href={`mailto:${r.vendorresource_email}`} className="text-sm text-primary-600 hover:underline">{r.vendorresource_email}</a>
+                          ) : (
+                            <span className="text-text-secondary">-</span>
+                          )}
+                        </td>
+                        <td className="px-6 py-3 text-text-secondary">{r.vendorresource_phone || '-'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+          )}
+
           {contracts.length === 0 ? (
             <Card>
               <p className="text-center py-8 text-text-secondary">No contracts for this vendor</p>

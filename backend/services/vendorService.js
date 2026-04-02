@@ -9,11 +9,22 @@ async function getAllVendors(db) {
 }
 
 async function getById(db, id) {
-  const result = await getOne(db,
+  const vendor = await getOne(db,
     `SELECT * FROM vendors WHERE id = ? AND ${NOT_DELETED}`,
     [id]
   );
-  return result || null;
+  if (!vendor) return null;
+
+  const resources = await getAll(db,
+    `SELECT id, vendorresource_name, vendorresource_lastname, vendorresource_middlename,
+            vendorresource_email, vendorresource_phone
+     FROM vendorresources WHERE vendor_id = ?
+     ORDER BY vendorresource_lastname, vendorresource_name`,
+    [id]
+  );
+
+  vendor.resources = resources || [];
+  return vendor;
 }
 
 async function create(db, { vendor_name, vendor_address, vendor_phone, vendor_email, vendor_website, user_id }) {

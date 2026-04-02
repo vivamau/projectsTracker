@@ -107,3 +107,6 @@ export const updateConsumption = (budgetId, poId, itemId, consumptionId, data) =
 
 export const deleteConsumption = (budgetId, poId, itemId, consumptionId) =>
   client.delete(`/budgets/${budgetId}/purchase-orders/${poId}/items/${itemId}/consumptions/${consumptionId}`);
+
+export const getVendorResources = (projectId) =>
+  client.get(`/projects/${projectId}/vendor-resources`);

@@ -111,4 +111,14 @@ async function getAllBudgets(db) {
   );
 }
 
-module.exports = { getById, getByProjectId, getTotalByProjectId, create, update, softDelete, linkToProject, unlinkFromProject, getRecent, getAllBudgets };
+async function getProjectsByBudgetId(db, budgetId) {
+  return getAll(db,
+    `SELECT p.id, p.project_name
+     FROM projects p
+     INNER JOIN projects_to_budgets pb ON p.id = pb.project_id
+     WHERE pb.budget_id = ?`,
+    [budgetId]
+  );
+}
+
+module.exports = { getById, getByProjectId, getTotalByProjectId, create, update, softDelete, linkToProject, unlinkFromProject, getRecent, getAllBudgets, getProjectsByBudgetId };

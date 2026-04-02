@@ -5,7 +5,8 @@ import {
   getProject, deleteProject,
   getHealthStatuses, createHealthStatus,
   getCompletions, createCompletion, deleteCompletion,
-  getBudgets, createBudget, deleteBudget
+  getBudgets, createBudget, deleteBudget,
+  getVendorResources
 } from '../../api/projectsApi';
 import { getCurrencies } from '../../api/entitiesApi';
 import { useAuth } from '../../hooks/useAuth';
@@ -25,6 +26,7 @@ export default function ProjectDetailPage() {
   const [completions, setCompletions] = useState([]);
   const [budgets, setBudgets] = useState([]);
   const [currencies, setCurrencies] = useState([]);
+  const [vendorResources, setVendorResources] = useState([]);
   const [loading, setLoading] = useState(true);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [healthModal, setHealthModal] = useState(false);
@@ -40,7 +42,8 @@ export default function ProjectDetailPage() {
       getHealthStatuses(id).then(r => setHealthStatuses(r.data.data)),
       getCompletions(id).then(r => setCompletions(r.data.data)),
       getBudgets(id).then(r => setBudgets(r.data.data)),
-      getCurrencies().then(r => setCurrencies(r.data.data))
+      getCurrencies().then(r => setCurrencies(r.data.data)),
+      getVendorResources(id).then(r => setVendorResources(r.data.data))
     ])
       .catch(() => navigate('/projects'))
       .finally(() => setLoading(false));
@@ -360,6 +363,35 @@ export default function ProjectDetailPage() {
                         {pm.user_email}
                         {pm.division_name && <span className="ml-1.5 text-primary-500">· {pm.division_name}</span>}
                       </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+
+          {/* Vendor Resources */}
+          <Card title="Vendor Resources">
+            {(!vendorResources || vendorResources.length === 0) ? (
+              <p className="text-sm text-text-secondary">No vendor resources assigned</p>
+            ) : (
+              <div className="space-y-2">
+                {vendorResources.map(vr => (
+                  <div key={vr.vendorresource_id} className="flex items-start gap-2.5">
+                    <span className="flex h-8 w-8 items-center justify-center rounded-full bg-warning-50 text-xs font-bold text-warning-600">
+                      {(vr.vendorresource_name?.[0] || '') + (vr.vendorresource_lastname?.[0] || '')}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium text-text-primary truncate">
+                        {vr.vendorresource_name} {vr.vendorresource_lastname}
+                      </p>
+                      <p className="text-xs text-text-secondary truncate">
+                        {vr.vendor_name}
+                        {vr.vendorcontractrole_name && <span className="ml-1 text-primary-500">· {vr.vendorcontractrole_name}</span>}
+                      </p>
+                      {vr.vendorresource_email && (
+                        <p className="text-xs text-text-secondary truncate">{vr.vendorresource_email}</p>
+                      )}
                     </div>
                   </div>
                 ))}

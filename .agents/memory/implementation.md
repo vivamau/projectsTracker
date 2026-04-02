@@ -1,7 +1,7 @@
 # Implementation Status
 
 ## Backend
-- **43 test suites, 671 tests, all passing**
+- **46 test suites, 711 tests, all passing, 91.99% coverage**
 - 19 services: auth, user, project, division, country, currency, healthStatus, initiative, deliveryPath, completion, budget, purchaseOrder, purchaseOrderItem, focalPoint, vendor, vendorContract, vendorContractRole, vendorRoleRate, seniority, poitemConsumption
 - 14 route files: auth, projects (includes health-statuses + completions + budgets + project-managers), divisions (includes focal-points + projects + project-managers), budgets (includes purchase-orders + purchase-order items + item consumptions), users, countries, currencies, initiatives, deliveryPaths, vendors (includes contracts > roles > rates), seniorities
 - 16 migrations: initial schema, auth+soft-delete, completions FK, projectmanagers FK, PM division FK, vendors, PO+items, PO soft delete, vendor soft delete, PO items soft delete, vendor contracts soft delete, seniorities, vendor rates update, milestones dates, supporting divisions, poitem_consumptions

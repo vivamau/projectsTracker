@@ -362,3 +362,28 @@ describe('POST /api/projects/:id/health-statuses', () => {
     expect(res.body.data.length).toBeGreaterThanOrEqual(2);
   });
 });
+
+describe('GET /api/projects/:id/vendor-resources', () => {
+  it('should return empty array for project with no vendor resources', async () => {
+    const createRes = await request(app)
+      .post('/api/projects')
+      .set('Cookie', ['token=' + adminToken()])
+      .send({ project_name: 'No Resources Project' });
+
+    const res = await request(app)
+      .get(`/api/projects/${createRes.body.data.id}/vendor-resources`)
+      .set('Cookie', ['token=' + adminToken()]);
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(Array.isArray(res.body.data)).toBe(true);
+    expect(res.body.data.length).toBe(0);
+  });
+
+  it('should return 401 when not authenticated', async () => {
+    const res = await request(app)
+      .get('/api/projects/1/vendor-resources');
+
+    expect(res.status).toBe(401);
+  });
+});

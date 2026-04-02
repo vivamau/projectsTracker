@@ -16,6 +16,7 @@ import DeliveryPathsPage from './pages/deliveryPaths/index';
 import DeliveryPathDetailPage from './pages/deliveryPaths/detail';
 import VendorsPage from './pages/vendors/index';
 import VendorDetailPage from './pages/vendors/detail';
+import VendorResourceDetailPage from './pages/vendors/resourceDetail';
 import UsersPage from './pages/users/index';
 import LogsPage from './pages/logs/index';
 import SettingsPage from './pages/settings/index';
@@ -47,6 +48,7 @@ export default function App() {
         <Route path="/delivery-paths/:id" element={<DeliveryPathDetailPage />} />
         <Route path="/vendors" element={<VendorsPage />} />
         <Route path="/vendors/:id" element={<VendorDetailPage />} />
+        <Route path="/vendors/:vendorId/resources/:resourceId" element={<VendorResourceDetailPage />} />
         <Route path="/users" element={<UsersPage />} />
         <Route path="/logs" element={<LogsPage />} />
         <Route path="/settings" element={<SettingsPage />} />
