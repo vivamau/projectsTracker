@@ -60,3 +60,8 @@ export const getUsers = (params) => client.get('/users', { params });
 export const createUser = (data) => client.post('/users', data);
 export const updateUser = (id, data) => client.put(`/users/${id}`, data);
 export const deleteUser = (id) => client.delete(`/users/${id}`);
+
+export const getAuditLogs = (params) => client.get('/audit-logs', { params });
+export const getAuditLogFilters = () => client.get('/audit-logs/filters');
+export const getAuditLogStats = () => client.get('/audit-logs/stats');
+export const cleanupAuditLogs = (data) => client.post('/audit-logs/cleanup', data);

@@ -9,6 +9,7 @@ import {
   Flag,
   Store,
   DollarSign,
+  FileText,
   ChevronLeft
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
@@ -22,6 +23,7 @@ const navItems = [
   { label: 'Budgets', path: '/budgets', icon: DollarSign },
   { label: 'Vendors', path: '/vendors', icon: Store },
   { label: 'Users', path: '/users', icon: Users, roles: ['superadmin', 'admin'] },
+  { label: 'Logs', path: '/logs', icon: FileText, roles: ['superadmin'] },
   { label: 'Settings', path: '/settings', icon: Settings },
 ];
 
