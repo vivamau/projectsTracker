@@ -1,15 +1,18 @@
 import { useState } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
-import { FolderKanban } from 'lucide-react';
+import { useTheme } from '../../hooks/useTheme';
+import { FolderKanban, Sun, Moon } from 'lucide-react';
 
 export default function LoginPage() {
   const { login, isAuthenticated, loading } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+
   if (!loading && isAuthenticated) {
     return <Navigate to="/dashboard" replace />;
   }
@@ -29,9 +32,18 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-primary-900 via-primary-800 to-primary-700 px-4">
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-primary-900 via-primary-800 to-primary-700 px-4 transition-colors duration-200">
       <div className="w-full max-w-md">
-        {/* Logo */}
+        <div className="absolute top-4 right-4">
+          <button
+            onClick={toggleTheme}
+            className="rounded-lg p-2 text-white/70 hover:text-white hover:bg-white/10 transition-colors"
+            title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+          >
+            {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
+          </button>
+        </div>
+
         <div className="mb-8 text-center">
           <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-xl bg-white/10 backdrop-blur-sm">
             <FolderKanban size={28} className="text-white" />
@@ -40,11 +52,10 @@ export default function LoginPage() {
           <p className="mt-1 text-sm text-white/60">Sign in to your account</p>
         </div>
 
-        {/* Card */}
-        <div className="rounded-xl bg-white p-8 shadow-2xl">
+        <div className="rounded-xl bg-surface-card border border-border p-8 shadow-2xl transition-colors duration-200">
           <form onSubmit={handleSubmit} className="space-y-5">
             {error && (
-              <div className="rounded-lg bg-error-50 px-4 py-3 text-sm text-error-600">
+              <div className="rounded-lg bg-error-50 px-4 py-3 text-sm text-error-500">
                 {error}
               </div>
             )}
@@ -59,7 +70,7 @@ export default function LoginPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="admin@projecttracker.it"
                 required
-                className="w-full rounded-lg border border-border-dark px-3.5 py-2.5 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 transition-colors"
+                className="w-full rounded-lg border border-border-dark bg-surface px-3.5 py-2.5 text-sm text-text-primary outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 transition-colors"
               />
             </div>
 
@@ -73,7 +84,7 @@ export default function LoginPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Enter your password"
                 required
-                className="w-full rounded-lg border border-border-dark px-3.5 py-2.5 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 transition-colors"
+                className="w-full rounded-lg border border-border-dark bg-surface px-3.5 py-2.5 text-sm text-text-primary outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 transition-colors"
               />
             </div>
 

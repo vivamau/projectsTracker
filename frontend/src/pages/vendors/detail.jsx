@@ -298,7 +298,7 @@ export default function VendorDetailPage() {
                           const rates = ratesByRole[role.id] || [];
                           return (
                             <tr key={role.id} className="border-b border-border last:border-0 hover:bg-surface/20">
-                              <td className="px-6 py-3 font-medium text-text-primary whitespace-nowrap sticky left-0 bg-white z-10">
+                              <td className="px-6 py-3 font-medium text-text-primary whitespace-nowrap sticky left-0 bg-surface-card z-10">
                                 {role.vendorcontractrole_name}
                               </td>
                               {seniorities.map(sen =>

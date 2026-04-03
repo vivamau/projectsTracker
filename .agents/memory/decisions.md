@@ -238,3 +238,18 @@ The backend `getByPoId` query LEFT JOINs a subquery that sums `consumption_days`
 Alternative rejected: Adding recharts/chart.js would add ~50-200KB to bundle for a single chart type.
 
 **Status:** Implemented (PieChart.jsx with `describeArc()` helper, hover effects, empty state handling).
+
+## Dark Theme via CSS Custom Properties + .dark Class
+**Date:** 2026-04-03
+**Decision:** Implement dark mode by overriding Tailwind v4 `@theme` CSS variables under a `.dark` class on `<html>`. Reasons:
+- Tailwind v4 uses CSS-based `@theme` for all design tokens -- overriding the same CSS variables is the natural approach
+- No need for `dark:` variants on every component -- all existing components automatically adapt
+- `.dark` class toggled via React Context (useTheme.jsx) + `document.documentElement`
+- Theme persisted to `localStorage`, falls back to `prefers-color-scheme` on first visit
+- Sidebar (#001529) stays the same in both modes since it's already dark
+
+Palette: deep blue/purple tones (surface #1a1a2e, card #252540, text #e0e0e0).
+
+Alternative rejected: Tailwind's built-in `dark:` variant strategy would require adding `dark:` classes to every component (hundreds of changes).
+
+**Status:** Implemented (useTheme.jsx, index.css .dark block, Header.jsx toggle, main.jsx provider).

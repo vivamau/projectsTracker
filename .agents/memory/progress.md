@@ -238,3 +238,17 @@
   - [x] Vendor dropdown replaced with locked badge (Lock icon + vendor name) when vendor inherited
   - [x] Vendor dropdown required when PO has no vendor (validation added in handleSaveItem)
   - [x] Frontend builds successfully, 727 tests passing, 91.96% coverage
+- [x] Audit Logs Page Enhancement <!-- id: 275 -->
+  - [x] auditLogService.getStats(): returns { total, byAction, byEntityType } with GROUP BY queries
+  - [x] /api/audit-logs/stats endpoint updated to return full stats object
+  - [x] PieChart.jsx: custom SVG pie chart component (no external deps), arc paths, percentage labels, hover effects
+  - [x] logs/index.jsx: two pie charts (Actions Breakdown, Entity Types), toggle visibility, fun messages, lucide-react icons
+  - [x] auditLogService.test.js: 2 new tests for getStats()
+  - [x] auditSettingsRoutes.test.js: updated stats route test
+  - [x] All tests passing, no new dependencies
+- [x] Light/Dark Theme Toggle <!-- id: 276 -->
+  - [x] useTheme.jsx: React Context + Provider + useTheme() hook, persists to localStorage, respects prefers-color-scheme
+  - [x] index.css: added .dark class overrides with deep blue/purple palette (surface #1a1a2e, card #252540, etc.)
+  - [x] Header.jsx: Sun/Moon toggle button (lucide-react) next to user avatar
+  - [x] main.jsx: ThemeProvider wrapping AuthProvider
+  - [x] Frontend builds successfully

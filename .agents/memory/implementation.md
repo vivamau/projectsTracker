@@ -19,9 +19,10 @@
   - ContractRolesModal.jsx: manage roles per contract (create/edit/delete, nested rates management)
   - RatesModal.jsx: manage rates per role (currency dropdown, seniority dropdown, rate amount, description)
 - Initiatives, Delivery Paths, Users, Settings
-- Shared components: Sidebar, Header, Card, Modal, ConfirmDialog, StatusBadge, Pagination, SearchInput, LoadingSpinner, ProtectedRoute
+- Shared components: Sidebar, Header, Card, Modal, ConfirmDialog, StatusBadge, Pagination, SearchInput, LoadingSpinner, ProtectedRoute, PieChart
 - Custom pages: PoItemsModal.jsx (self-contained PO items management), ContractsModal.jsx, ContractRolesModal.jsx, RatesModal.jsx
-- TailwindCSS v4 with custom theme (primary blue, success green, warning amber, error red)
+- TailwindCSS v4 with custom theme (primary blue, success green, warning amber, error red) + light/dark toggle (deep blue/purple dark palette)
+- Theme system: useTheme.jsx (React Context), CSS custom property overrides via `.dark` class on `<html>`, persisted to localStorage, respects OS preference
 
 ## API Endpoints
 | Route | Methods | Auth |

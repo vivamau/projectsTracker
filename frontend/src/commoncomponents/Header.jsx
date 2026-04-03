@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
 import { useLocation, Link } from 'react-router-dom';
-import { Menu, LogOut, User, ChevronRight } from 'lucide-react';
+import { Menu, LogOut, User, ChevronRight, Sun, Moon } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
+import { useTheme } from '../hooks/useTheme';
 
 const pathLabels = {
   dashboard: 'Dashboard',
@@ -17,18 +18,19 @@ const pathLabels = {
 
 export default function Header({ onMenuClick }) {
   const { user, logout } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef(null);
   const location = useLocation();
 
   useEffect(() => {
-    const handle = (e) => {
+    const handleClick = (e) => {
       if (menuRef.current && !menuRef.current.contains(e.target)) {
         setMenuOpen(false);
       }
     };
-    document.addEventListener('mousedown', handle);
-    return () => document.removeEventListener('mousedown', handle);
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
   }, []);
 
   const segments = location.pathname.split('/').filter(Boolean);
@@ -43,12 +45,11 @@ export default function Header({ onMenuClick }) {
     : '';
 
   return (
-    <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-border bg-surface-header px-6 shadow-sm">
-      {/* Left: hamburger + breadcrumb */}
+    <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-border bg-surface-header px-6 shadow-sm transition-colors duration-200">
       <div className="flex items-center gap-4">
         <button
           onClick={onMenuClick}
-          className="rounded-lg p-2 hover:bg-surface transition-colors lg:hidden"
+          className="rounded-lg p-2 hover:bg-surface-hover transition-colors lg:hidden"
         >
           <Menu size={20} />
         </button>
@@ -72,49 +73,58 @@ export default function Header({ onMenuClick }) {
         </nav>
       </div>
 
-      {/* Right: user menu */}
-      <div className="relative" ref={menuRef}>
+      <div className="flex items-center gap-2">
         <button
-          onClick={() => setMenuOpen(!menuOpen)}
-          className="flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-surface transition-colors"
+          onClick={toggleTheme}
+          className="rounded-lg p-2 hover:bg-surface-hover transition-colors"
+          title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
         >
-          <img
-            src={avatarUrl}
-            alt="avatar"
-            className="h-8 w-8 rounded-full"
-            crossOrigin="anonymous"
-          />
-          <div className="hidden text-left sm:block">
-            <p className="text-sm font-medium leading-tight">
-              {user?.user_name} {user?.user_lastname}
-            </p>
-            <p className="text-xs text-text-secondary capitalize">{user?.role}</p>
-          </div>
+          {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
         </button>
 
-        {menuOpen && (
-          <div className="absolute right-0 top-full mt-1 w-48 rounded-lg border border-border bg-surface-card py-1 shadow-lg">
-            <div className="border-b border-border px-4 py-2">
-              <p className="text-sm font-medium truncate">{user?.user_email}</p>
+        <div className="relative" ref={menuRef}>
+          <button
+            onClick={() => setMenuOpen(!menuOpen)}
+            className="flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-surface-hover transition-colors"
+          >
+            <img
+              src={avatarUrl}
+              alt="avatar"
+              className="h-8 w-8 rounded-full"
+              crossOrigin="anonymous"
+            />
+            <div className="hidden text-left sm:block">
+              <p className="text-sm font-medium leading-tight">
+                {user?.user_name} {user?.user_lastname}
+              </p>
               <p className="text-xs text-text-secondary capitalize">{user?.role}</p>
             </div>
-            <Link
-              to="/settings"
-              onClick={() => setMenuOpen(false)}
-              className="flex items-center gap-2 px-4 py-2 text-sm text-text-primary hover:bg-surface transition-colors"
-            >
-              <User size={16} />
-              Profile
-            </Link>
-            <button
-              onClick={() => { setMenuOpen(false); logout(); }}
-              className="flex w-full items-center gap-2 px-4 py-2 text-sm text-error-500 hover:bg-error-50 transition-colors"
-            >
-              <LogOut size={16} />
-              Sign Out
-            </button>
-          </div>
-        )}
+          </button>
+
+          {menuOpen && (
+            <div className="absolute right-0 top-full mt-1 w-48 rounded-lg border border-border bg-surface-card py-1 shadow-lg">
+              <div className="border-b border-border px-4 py-2">
+                <p className="text-sm font-medium truncate">{user?.user_email}</p>
+                <p className="text-xs text-text-secondary capitalize">{user?.role}</p>
+              </div>
+              <Link
+                to="/settings"
+                onClick={() => setMenuOpen(false)}
+                className="flex items-center gap-2 px-4 py-2 text-sm text-text-primary hover:bg-surface-hover transition-colors"
+              >
+                <User size={16} />
+                Profile
+              </Link>
+              <button
+                onClick={() => { setMenuOpen(false); logout(); }}
+                className="flex w-full items-center gap-2 px-4 py-2 text-sm text-error-500 hover:bg-error-50 transition-colors"
+              >
+                <LogOut size={16} />
+                Sign Out
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </header>
   );

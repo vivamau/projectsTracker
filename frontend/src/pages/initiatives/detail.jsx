@@ -5,6 +5,7 @@ import { getInitiatives } from '../../api/entitiesApi';
 import { getProjects, getBudgets, getPurchaseOrders, getPurchaseOrderItems } from '../../api/projectsApi';
 import Card from '../../commoncomponents/Card';
 import LoadingSpinner from '../../commoncomponents/LoadingSpinner';
+import StatusBadge from '../../commoncomponents/StatusBadge';
 
 export default function InitiativeDetailPage() {
   const { id } = useParams();
