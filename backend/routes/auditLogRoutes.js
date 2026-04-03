@@ -22,8 +22,8 @@ function createAuditLogRoutes(db, auditDb) {
 
   router.get('/stats', authenticate, authorize('superadmin'), async (req, res) => {
     try {
-      const count = await auditLogService.getLogCount(auditDb);
-      return success(res, { count });
+      const stats = await auditLogService.getStats(auditDb);
+      return success(res, stats);
     } catch (err) {
       return error(res, 'Failed to get stats');
     }

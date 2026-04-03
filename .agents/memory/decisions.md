@@ -226,3 +226,15 @@ The backend `getByPoId` query LEFT JOINs a subquery that sums `consumption_days`
 **Decision:** Monthly consumption entries are stored in a separate `poitem_consumptions` table (not by updating the PO item's `purchaseorderitems_days` field). This preserves the original allocation as an immutable reference while allowing granular monthly tracking. UNIQUE constraint on (purchaseorderitem_id, consumption_month) prevents duplicate entries.
 
 **Status:** Implemented (migration 016, poitemConsumptionService.js, consumption routes).
+
+## Custom SVG Pie Chart Over External Library
+**Date:** 2026-04-03
+**Decision:** Built a custom SVG pie chart component (`PieChart.jsx`) instead of adding an external charting library (recharts, chart.js, etc.). Reasons:
+- Zero additional dependencies (reduces bundle size and vulnerability surface)
+- Simple use case only needs basic pie charts with percentage labels
+- Full control over styling and theming (matches existing TailwindCSS design)
+- Easy to maintain and modify
+
+Alternative rejected: Adding recharts/chart.js would add ~50-200KB to bundle for a single chart type.
+
+**Status:** Implemented (PieChart.jsx with `describeArc()` helper, hover effects, empty state handling).

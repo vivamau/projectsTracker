@@ -178,6 +178,38 @@ describe('auditLogService.getEntityTypes', () => {
   });
 });
 
+describe('auditLogService.getStats', () => {
+  beforeEach(async () => {
+    await new Promise((resolve, reject) => {
+      auditDb.run('DELETE FROM audit_logs', (err) => err ? reject(err) : resolve());
+    });
+  });
+
+  it('returns grouped stats by action and entity type', async () => {
+    await auditLog(auditDb, { action: 'CREATE', entityType: 'project' });
+    await auditLog(auditDb, { action: 'CREATE', entityType: 'project' });
+    await auditLog(auditDb, { action: 'UPDATE', entityType: 'user' });
+    await auditLog(auditDb, { action: 'DELETE', entityType: 'project' });
+
+    const stats = await auditLogService.getStats(auditDb);
+
+    expect(stats.total).toBe(4);
+    expect(stats.byAction.length).toBe(3);
+    expect(stats.byAction.find(r => r.action === 'CREATE').count).toBe(2);
+    expect(stats.byAction.find(r => r.action === 'UPDATE').count).toBe(1);
+    expect(stats.byAction.find(r => r.action === 'DELETE').count).toBe(1);
+    expect(stats.byEntityType.find(r => r.entity_type === 'project').count).toBe(3);
+    expect(stats.byEntityType.find(r => r.entity_type === 'user').count).toBe(1);
+  });
+
+  it('returns empty arrays when no logs exist', async () => {
+    const stats = await auditLogService.getStats(auditDb);
+    expect(stats.total).toBe(0);
+    expect(stats.byAction).toEqual([]);
+    expect(stats.byEntityType).toEqual([]);
+  });
+});
+
 describe('auditLogService.cleanup', () => {
   it('deletes logs older than retention days', async () => {
     await new Promise((resolve, reject) => {

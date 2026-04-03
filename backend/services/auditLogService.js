@@ -57,6 +57,13 @@ async function getUserEmails(auditDb) {
   return rows.map(r => r.user_email);
 }
 
+async function getStats(auditDb) {
+  const actionRows = await getAll(auditDb, 'SELECT action, COUNT(*) as count FROM audit_logs GROUP BY action ORDER BY count DESC');
+  const entityRows = await getAll(auditDb, 'SELECT entity_type, COUNT(*) as count FROM audit_logs WHERE entity_type IS NOT NULL GROUP BY entity_type ORDER BY count DESC');
+  const total = await getLogCount(auditDb);
+  return { total, byAction: actionRows, byEntityType: entityRows };
+}
+
 async function cleanup(auditDb, retentionDays) {
   if (!retentionDays || retentionDays === 'never') return 0;
   const cutoff = Date.now() - (parseInt(retentionDays) * 24 * 60 * 60 * 1000);
@@ -64,4 +71,4 @@ async function cleanup(auditDb, retentionDays) {
   return result.changes;
 }
 
-module.exports = { getLogs, getLogCount, getActionTypes, getEntityTypes, getUserEmails, cleanup };
+module.exports = { getLogs, getLogCount, getActionTypes, getEntityTypes, getUserEmails, getStats, cleanup };

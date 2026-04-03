@@ -162,12 +162,14 @@ describe('GET /api/audit-logs/filters', () => {
 });
 
 describe('GET /api/audit-logs/stats', () => {
-  it('returns log count for superadmin', async () => {
+  it('returns log stats for superadmin', async () => {
     const res = await request(app)
       .get('/api/audit-logs/stats')
       .set('Cookie', ['token=' + superadminToken()]);
     expect(res.status).toBe(200);
-    expect(res.body.data.count).toBeDefined();
+    expect(res.body.data.total).toBeDefined();
+    expect(res.body.data.byAction).toBeDefined();
+    expect(res.body.data.byEntityType).toBeDefined();
   });
 });
 

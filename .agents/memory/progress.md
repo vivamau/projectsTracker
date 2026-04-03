@@ -215,6 +215,14 @@
   - [x] purchaseOrderItemService.test.js: 2 new tests for resource name fields in getByPoId/getById (31 total)
   - [x] 711 tests passing, 46 test suites, 91.99% coverage
   - [x] Frontend builds successfully
+- [x] Audit Logs Page Enhancement <!-- id: 275 -->
+  - [x] auditLogService.getStats(): returns { total, byAction, byEntityType } with GROUP BY queries
+  - [x] /api/audit-logs/stats endpoint updated to return full stats object
+  - [x] PieChart.jsx: custom SVG pie chart component (no external deps), arc paths, percentage labels, hover effects
+  - [x] logs/index.jsx: two pie charts (Actions Breakdown, Entity Types), toggle visibility, fun messages, emoji badges
+  - [x] auditLogService.test.js: 2 new tests for getStats()
+  - [x] auditSettingsRoutes.test.js: updated stats route test
+  - [x] All tests passing, no new dependencies
 - [x] Vendor Resource Details Page <!-- id: 273 -->
   - [x] vendorResourceService.js with TDD (6 tests): getById, getProjects (JOINs through PO items → POs → budgets → projects)
   - [x] GET /api/vendors/:vendorId/resources/:resourceId/projects route (3 integration tests)
