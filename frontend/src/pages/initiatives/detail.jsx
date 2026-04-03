@@ -18,17 +18,14 @@ export default function InitiativeDetailPage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Fetch initiative
         const initiativesRes = await getInitiatives();
         const initiativeData = initiativesRes.data.data.find(i => i.id === parseInt(id));
         setInitiative(initiativeData);
 
-        // Fetch projects for this initiative
         const projectsRes = await getProjects({ limit: 100, initiative_id: parseInt(id) });
         const projectsList = projectsRes.data.data || [];
         setProjects(projectsList);
 
-        // Fetch budget data for each project
         const budgetsData = {};
         const currenciesSet = new Set();
         for (const project of projectsList) {
@@ -62,11 +59,9 @@ export default function InitiativeDetailPage() {
                     }, 0);
                     totalSpent += poTotal;
                   } catch {
-                    // Continue if items fail
                   }
                 }
               } catch {
-                // Continue if POs fail
               }
             }
 
@@ -112,7 +107,6 @@ export default function InitiativeDetailPage() {
 
   return (
     <div>
-      {/* Header */}
       <div className="mb-6">
         <button
           onClick={() => navigate('/initiatives')}
@@ -128,7 +122,6 @@ export default function InitiativeDetailPage() {
           )}
         </div>
 
-        {/* Budget Summary */}
         {projects.length > 0 && (() => {
           const allCurrencies = Array.from(new Set(Object.values(projectBudgets).flatMap(b => b.currencies || []))).sort().join('/');
           return (
@@ -156,7 +149,6 @@ export default function InitiativeDetailPage() {
         })()}
       </div>
 
-      {/* Projects */}
       <Card title={`Projects (${projects.length})`} noPadding>
         {projects.length === 0 ? (
           <p className="px-6 py-8 text-center text-text-secondary">No projects in this initiative</p>
@@ -173,7 +165,10 @@ export default function InitiativeDetailPage() {
                   <div className="flex items-start gap-3">
                     <FolderKanban size={18} className="text-primary-500 mt-0.5 flex-shrink-0" />
                     <div className="flex-1 min-w-0">
-                      <p className="font-medium text-primary-600 hover:text-primary-700 truncate">{project.project_name}</p>
+                      <div className="flex items-center gap-2">
+                        <p className="font-medium text-primary-600 hover:text-primary-700 truncate">{project.project_name}</p>
+                        <StatusBadge value={project.health_status} />
+                      </div>
                       <div className="flex flex-col gap-2 mt-2">
                         <div className="flex flex-col gap-1 text-xs text-text-secondary">
                           <p>Division: {project.division_name || '-'}</p>
