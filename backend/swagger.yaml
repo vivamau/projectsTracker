@@ -13,10 +13,8 @@ info:
     url: https://opensource.org/licenses/MIT
 
 servers:
-  - url: http://localhost:3000/api
+  - url: http://localhost:3001/api
     description: Development server
-  - url: https://api.example.com/api
-    description: Production server
 
 tags:
   - name: Authentication
@@ -47,6 +45,10 @@ tags:
     description: Vendor contract role management endpoints
   - name: Vendor Role Rates
     description: Vendor role rate management endpoints
+  - name: Settings
+    description: Application settings (superadmin only)
+  - name: Audit Logs
+    description: Audit log management (superadmin only)
 
 security:
   - bearerAuth: []
@@ -2402,3 +2404,1001 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+
+  # ==================== Project Completions ====================
+  /projects/{id}/completions:
+    get:
+      tags:
+        - Projects
+      summary: Get project completions
+      description: Get all completion records for a project
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Project ID
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Completion records retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                    project_id:
+                      type: integer
+                    completion_percentage:
+                      type: number
+                      minimum: 0
+                      maximum: 100
+                    recorded_at:
+                      type: string
+                      format: date-time
+    post:
+      tags:
+        - Projects
+      summary: Add completion record
+      description: Add a completion record for a project (admin and above)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Project ID
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - completion_percentage
+              properties:
+                completion_percentage:
+                  type: number
+                  minimum: 0
+                  maximum: 100
+      responses:
+        '201':
+          description: Completion record created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: integer
+
+  /projects/{id}/completions/{completionId}:
+    put:
+      tags:
+        - Projects
+      summary: Update completion record
+      description: Update a completion record (admin and above)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Project ID
+          schema:
+            type: integer
+        - name: completionId
+          in: path
+          required: true
+          description: Completion record ID
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                completion_percentage:
+                  type: number
+                  minimum: 0
+                  maximum: 100
+      responses:
+        '200':
+          description: Completion record updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+    delete:
+      tags:
+        - Projects
+      summary: Delete completion record
+      description: Delete a completion record (admin and above)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Project ID
+          schema:
+            type: integer
+        - name: completionId
+          in: path
+          required: true
+          description: Completion record ID
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Completion record deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+
+  # ==================== Project Budgets ====================
+  /projects/{id}/budgets/total:
+    get:
+      tags:
+        - Projects
+      summary: Get total project budget
+      description: Get the total budget amount for a project
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Project ID
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Total budget retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total:
+                    type: number
+
+  /projects/{id}/budgets:
+    get:
+      tags:
+        - Projects
+      summary: Get project budgets
+      description: Get all budgets associated with a project
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Project ID
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Budgets retrieved
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Budget'
+    post:
+      tags:
+        - Projects
+      summary: Add budget to project
+      description: Associate a budget with a project (admin and above)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Project ID
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - budget_id
+              properties:
+                budget_id:
+                  type: integer
+      responses:
+        '201':
+          description: Budget associated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+
+  /projects/{id}/budgets/{budgetId}:
+    put:
+      tags:
+        - Projects
+      summary: Update project budget link
+      description: Update the link between a project and a budget (admin and above)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Project ID
+          schema:
+            type: integer
+        - name: budgetId
+          in: path
+          required: true
+          description: Budget ID
+          schema:
+            type: integer
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Budget link updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+    delete:
+      tags:
+        - Projects
+      summary: Remove budget from project
+      description: Remove the association between a project and a budget (admin and above)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Project ID
+          schema:
+            type: integer
+        - name: budgetId
+          in: path
+          required: true
+          description: Budget ID
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Budget removed from project
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+
+  # ==================== Project Managers ====================
+  /projects/{id}/project-managers:
+    get:
+      tags:
+        - Projects
+      summary: Get project managers
+      description: Get all project managers for a project
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Project ID
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Project managers retrieved
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                    user_id:
+                      type: integer
+                    user_name:
+                      type: string
+                    user_email:
+                      type: string
+    put:
+      tags:
+        - Projects
+      summary: Sync project managers
+      description: Replace all project managers for a project (admin and above)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Project ID
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - user_ids
+              properties:
+                user_ids:
+                  type: array
+                  items:
+                    type: integer
+      responses:
+        '200':
+          description: Project managers synced
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+
+  # ==================== Project Vendor Resources ====================
+  /projects/{id}/vendor-resources:
+    get:
+      tags:
+        - Projects
+      summary: Get vendor resources assigned to project
+      description: Get all vendor resources assigned to a project
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Project ID
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Vendor resources retrieved
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                    vendor_id:
+                      type: integer
+                    vendor_name:
+                      type: string
+                    contract_id:
+                      type: integer
+                    role_id:
+                      type: integer
+                    role_name:
+                      type: string
+
+  # ==================== Division Sub-routes ====================
+  /divisions/{id}/project-managers:
+    get:
+      tags:
+        - Divisions
+      summary: Get project managers in division
+      description: Get all project managers belonging to a division
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Division ID
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Project managers retrieved
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                    user_name:
+                      type: string
+                    user_email:
+                      type: string
+
+  /divisions/{id}/projects:
+    get:
+      tags:
+        - Divisions
+      summary: Get division projects
+      description: Get all projects that belong to a division
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Division ID
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Projects retrieved
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Project'
+
+  /divisions/{id}/supporting-projects:
+    get:
+      tags:
+        - Divisions
+      summary: Get supporting projects
+      description: Get projects that support this division (via projects_to_divisions)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Division ID
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Supporting projects retrieved
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Project'
+
+  # ==================== PO Item CRUD ====================
+  /budgets/{id}/purchase-orders/{poId}/items/{itemId}:
+    put:
+      tags:
+        - Budgets
+      summary: Update purchase order item
+      description: Update a purchase order item (admin and above)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Budget ID
+          schema:
+            type: integer
+        - name: poId
+          in: path
+          required: true
+          description: Purchase Order ID
+          schema:
+            type: integer
+        - name: itemId
+          in: path
+          required: true
+          description: Item ID
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                purchaseorderitem_description:
+                  type: string
+                purchaseorderitem_quantity:
+                  type: number
+                  format: float
+                purchaseorderitem_unit_price:
+                  type: number
+                  format: float
+                purchaseorderitem_start_date:
+                  type: string
+                  format: date
+                purchaseorderitem_end_date:
+                  type: string
+                  format: date
+      responses:
+        '200':
+          description: Item updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+    delete:
+      tags:
+        - Budgets
+      summary: Delete purchase order item
+      description: Delete a purchase order item (admin and above)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Budget ID
+          schema:
+            type: integer
+        - name: poId
+          in: path
+          required: true
+          description: Purchase Order ID
+          schema:
+            type: integer
+        - name: itemId
+          in: path
+          required: true
+          description: Item ID
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Item deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+
+  # ==================== PO Item Consumptions ====================
+  /budgets/{id}/purchase-orders/{poId}/items/{itemId}/consumptions:
+    get:
+      tags:
+        - Budgets
+      summary: Get item consumptions
+      description: Get all consumptions for a PO item with summary
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Budget ID
+          schema:
+            type: integer
+        - name: poId
+          in: path
+          required: true
+          description: Purchase Order ID
+          schema:
+            type: integer
+        - name: itemId
+          in: path
+          required: true
+          description: Item ID
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Consumptions with summary retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  consumptions:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                        amount:
+                          type: number
+                        description:
+                          type: string
+                        consumed_at:
+                          type: string
+                          format: date
+                  total_consumed:
+                    type: number
+                  remaining:
+                    type: number
+    post:
+      tags:
+        - Budgets
+      summary: Create consumption
+      description: Add a consumption entry for a PO item (admin and above)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Budget ID
+          schema:
+            type: integer
+        - name: poId
+          in: path
+          required: true
+          description: Purchase Order ID
+          schema:
+            type: integer
+        - name: itemId
+          in: path
+          required: true
+          description: Item ID
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - amount
+              properties:
+                amount:
+                  type: number
+                description:
+                  type: string
+                consumed_at:
+                  type: string
+                  format: date
+      responses:
+        '201':
+          description: Consumption created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: integer
+
+  /budgets/{id}/purchase-orders/{poId}/items/{itemId}/consumptions/{consumptionId}:
+    put:
+      tags:
+        - Budgets
+      summary: Update consumption
+      description: Update a consumption entry (admin and above)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Budget ID
+          schema:
+            type: integer
+        - name: poId
+          in: path
+          required: true
+          description: Purchase Order ID
+          schema:
+            type: integer
+        - name: itemId
+          in: path
+          required: true
+          description: Item ID
+          schema:
+            type: integer
+        - name: consumptionId
+          in: path
+          required: true
+          description: Consumption ID
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                amount:
+                  type: number
+                description:
+                  type: string
+                consumed_at:
+                  type: string
+                  format: date
+      responses:
+        '200':
+          description: Consumption updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+    delete:
+      tags:
+        - Budgets
+      summary: Delete consumption
+      description: Delete a consumption entry (admin and above)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Budget ID
+          schema:
+            type: integer
+        - name: poId
+          in: path
+          required: true
+          description: Purchase Order ID
+          schema:
+            type: integer
+        - name: itemId
+          in: path
+          required: true
+          description: Item ID
+          schema:
+            type: integer
+        - name: consumptionId
+          in: path
+          required: true
+          description: Consumption ID
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Consumption deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+
+  # ==================== Vendor Resources ====================
+  /vendors/{vendorId}/resources/{resourceId}/projects:
+    get:
+      tags:
+        - Vendors
+      summary: Get projects for vendor resource
+      description: Get all projects a vendor resource is assigned to
+      parameters:
+        - name: vendorId
+          in: path
+          required: true
+          description: Vendor ID
+          schema:
+            type: integer
+        - name: resourceId
+          in: path
+          required: true
+          description: Resource ID
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Projects retrieved
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Project'
+
+  # ==================== Settings ====================
+  /settings:
+    get:
+      tags:
+        - Settings
+      summary: Get all settings
+      description: Get all application settings (superadmin only)
+      responses:
+        '200':
+          description: Settings retrieved
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    key:
+                      type: string
+                    value:
+                      type: string
+                    description:
+                      type: string
+
+  /settings/{key}:
+    put:
+      tags:
+        - Settings
+      summary: Update setting
+      description: Update an application setting by key (superadmin only)
+      parameters:
+        - name: key
+          in: path
+          required: true
+          description: Setting key
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - value
+              properties:
+                value:
+                  type: string
+      responses:
+        '200':
+          description: Setting updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+        '404':
+          description: Setting not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ==================== Audit Logs ====================
+  /audit-logs:
+    get:
+      tags:
+        - Audit Logs
+      summary: Get audit logs
+      description: Get audit logs with filtering (superadmin only)
+      parameters:
+        - name: page
+          in: query
+          description: Page number
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          description: Items per page
+          schema:
+            type: integer
+            default: 50
+        - name: user_id
+          in: query
+          description: Filter by user ID
+          schema:
+            type: integer
+        - name: action
+          in: query
+          description: Filter by action type
+          schema:
+            type: string
+        - name: entity_type
+          in: query
+          description: Filter by entity type
+          schema:
+            type: string
+        - name: start_date
+          in: query
+          description: Filter from date (ISO 8601)
+          schema:
+            type: string
+            format: date-time
+        - name: end_date
+          in: query
+          description: Filter to date (ISO 8601)
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: Audit logs retrieved
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                            user_id:
+                              type: integer
+                            user_email:
+                              type: string
+                            action:
+                              type: string
+                            entity_type:
+                              type: string
+                            entity_id:
+                              type: integer
+                            details:
+                              type: string
+                            created_at:
+                              type: string
+                              format: date-time
+
+  /audit-logs/filters:
+    get:
+      tags:
+        - Audit Logs
+      summary: Get audit log filter options
+      description: Get available filter options for audit logs (superadmin only)
+      responses:
+        '200':
+          description: Filter options retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  actions:
+                    type: array
+                    items:
+                      type: string
+                  entity_types:
+                    type: array
+                    items:
+                      type: string
+                  users:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                        email:
+                          type: string
+
+  /audit-logs/stats:
+    get:
+      tags:
+        - Audit Logs
+      summary: Get audit log statistics
+      description: Get statistics about audit logs (superadmin only)
+      responses:
+        '200':
+          description: Statistics retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total:
+                    type: integer
+                  by_action:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        action:
+                          type: string
+                        count:
+                          type: integer
+                  by_entity:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        entity_type:
+                          type: string
+                        count:
+                          type: integer
+
+  /audit-logs/cleanup:
+    post:
+      tags:
+        - Audit Logs
+      summary: Cleanup old audit logs
+      description: Delete audit logs older than specified date (superadmin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - before_date
+              properties:
+                before_date:
+                  type: string
+                  format: date-time
+                  description: Delete logs older than this date
+      responses:
+        '200':
+          description: Cleanup completed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  deleted:
+                    type: integer
+                    description: Number of records deleted
