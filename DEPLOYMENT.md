@@ -251,6 +251,12 @@ docker compose logs frontend
 
 ## Production Deployment
 
+Two deployment methods are supported: **Docker** (containerised, recommended for isolated environments) and **PM2 + Nginx** (recommended when Node.js is already installed on the server).
+
+---
+
+## Option A — Docker
+
 ### On Ubuntu/Debian Server
 
 1. **Install Docker & Docker Compose**:
@@ -280,36 +286,7 @@ docker compose logs frontend
 5. **Setup Nginx reverse proxy** (optional, for multiple apps on one server):
    See "Reverse Proxy Setup" section below.
 
-### Using PM2 for Process Management
-
-```bash
-# Install PM2 globally
-npm install -g pm2
-
-# Create PM2 ecosystem file
-cat > ecosystem.config.js << 'EOF'
-module.exports = {
-  apps: [{
-    name: 'projectstracker',
-    script: 'docker-compose',
-    args: 'up',
-    cwd: '/opt/projectstracker',
-    autorestart: true,
-    watch: false,
-    env: {
-      NODE_ENV: 'production'
-    }
-  }]
-};
-EOF
-
-# Start with PM2
-pm2 start ecosystem.config.js
-pm2 save
-pm2 startup
-```
-
-### Using systemd (Recommended)
+### Using systemd (Recommended for Docker)
 
 Create `/etc/systemd/system/projectstracker.service`:
 
@@ -339,6 +316,146 @@ sudo systemctl daemon-reload
 sudo systemctl enable projectstracker.service
 sudo systemctl start projectstracker.service
 sudo systemctl status projectstracker.service
+```
+
+---
+
+## Option B — PM2 + Nginx (no Docker)
+
+Use this method when Docker is not available or when you prefer to run Node.js directly on the host.
+
+### Prerequisites
+
+- Node.js 20.x LTS
+- npm
+- PM2 (`npm install -g pm2`)
+- Nginx
+
+### 1. Clone & install dependencies
+
+```bash
+git clone <repo-url> /opt/projectstracker
+cd /opt/projectstracker
+
+# Backend
+cd backend && npm install --omit=dev && cd ..
+
+# Frontend — build static assets
+cd frontend && npm install && npm run build && cd ..
+```
+
+### 2. Configure backend environment
+
+```bash
+cp backend/.env.sample backend/.env
+nano backend/.env
+```
+
+Key variables to set:
+
+| Variable | Example | Notes |
+|----------|---------|-------|
+| `PORT` | `5000` | Port the API listens on |
+| `JWT_SECRET` | *(random string)* | **Must change in production** — generate with `openssl rand -base64 32` |
+| `JWT_EXPIRES_IN` | `2h` | Session token lifetime |
+| `CORS_ORIGIN` | `https://yourdomain.com` | Exact frontend origin |
+| `NODE_ENV` | `production` | Disables dev logging |
+
+### 3. Create the logs directory
+
+```bash
+mkdir -p /opt/projectstracker/logs
+```
+
+### 4. Start the backend with PM2
+
+The `ecosystem.config.js` file is already included in the repository root.
+
+```bash
+cd /opt/projectstracker
+pm2 start ecosystem.config.js --env production
+pm2 save
+pm2 startup   # follow the printed command to enable auto-start on reboot
+```
+
+Verify it is running:
+```bash
+pm2 status
+pm2 logs projectstracker-api
+```
+
+### 5. Configure Nginx
+
+Nginx serves the built frontend and proxies `/api` requests to the Node.js backend.
+
+Create `/etc/nginx/sites-available/projectstracker`:
+
+```nginx
+server {
+    listen 80;
+    server_name yourdomain.com;
+
+    # Serve the built React frontend
+    root /opt/projectstracker/frontend/dist;
+    index index.html;
+
+    # SPA fallback — all non-asset routes go to index.html
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    # Proxy API and Swagger docs to the Node.js backend
+    location /api {
+        proxy_pass http://127.0.0.1:5000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+```
+
+Enable and reload:
+```bash
+sudo ln -s /etc/nginx/sites-available/projectstracker /etc/nginx/sites-enabled/
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
+### 6. Enable HTTPS (recommended)
+
+```bash
+sudo apt-get install -y certbot python3-certbot-nginx
+sudo certbot --nginx -d yourdomain.com
+```
+
+### Deploying updates (PM2)
+
+```bash
+cd /opt/projectstracker
+git pull origin main
+
+# Rebuild frontend
+cd frontend && npm install && npm run build && cd ..
+
+# Install any new backend dependencies
+cd backend && npm install --omit=dev && cd ..
+
+# Restart the API
+pm2 restart projectstracker-api
+```
+
+### PM2 quick reference
+
+```bash
+pm2 status                        # show all processes
+pm2 logs projectstracker-api      # tail live logs
+pm2 logs projectstracker-api --lines 100  # last 100 lines
+pm2 restart projectstracker-api   # restart
+pm2 reload projectstracker-api    # zero-downtime reload
+pm2 stop projectstracker-api      # stop
+pm2 delete projectstracker-api    # remove from PM2
 ```
 
 ### Reverse Proxy Setup (Nginx)
