@@ -370,6 +370,30 @@ export default function ProjectDetailPage() {
             )}
           </Card>
 
+          {/* Solution Architects */}
+          <Card title="Solution Architects">
+            {(!project.solution_architects || project.solution_architects.length === 0) ? (
+              <p className="text-sm text-text-secondary">No solution architects assigned</p>
+            ) : (
+              <div className="space-y-2">
+                {project.solution_architects.map(sa => (
+                  <div key={sa.id} className="flex items-center gap-2.5">
+                    <span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary-50 text-xs font-bold text-primary-600">
+                      {(sa.user_name?.[0] || '') + (sa.user_lastname?.[0] || '')}
+                    </span>
+                    <div>
+                      <p className="text-sm font-medium text-text-primary">{sa.user_name} {sa.user_lastname}</p>
+                      <p className="text-xs text-text-secondary">
+                        {sa.user_email}
+                        {sa.division_name && <span className="ml-1.5 text-primary-500">· {sa.division_name}</span>}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+
           {/* Vendor Resources */}
           <Card title="Vendor Resources">
             {(!vendorResources || vendorResources.length === 0) ? (

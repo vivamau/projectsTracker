@@ -261,3 +261,27 @@
   - [x] Added StatusBadge next to project name in initiatives/detail.jsx
   - [x] Uses project.health_status from existing getProjects API (no new API call)
   - [x] Frontend builds successfully
+- [x] Swagger API Documentation <!-- id: 279 -->
+  - [x] Installed swagger-ui-express + yamljs, served at /api/docs
+  - [x] Updated swagger.yaml: fixed server URL, added 22 missing endpoints (56 total), added Settings + Audit Logs tags
+  - [x] Relaxed helmet CSP for Swagger UI inline scripts/styles
+- [x] Frontend .env Configuration <!-- id: 280 -->
+  - [x] vite.config.js reads VITE_API_URL via loadEnv for the /api proxy target
+  - [x] .env set to http://localhost:3001 (macOS port 5000 conflict)
+- [x] Audit Logs Page <!-- id: 281 -->
+  - [x] Created frontend/src/pages/logs/index.jsx with filters, stats, pie charts, table, pagination
+  - [x] Fixed .gitignore: `logs` pattern was blocking `pages/logs/` directory (changed to `/logs/`)
+- [x] Countries Seed <!-- id: 282 -->
+  - [x] Created seed_countries.js with 196 UN countries, wired into server startup
+- [x] Dark Theme Link Readability <!-- id: 283 -->
+  - [x] Overrode --color-primary-500 (#6ab0ff) and --color-primary-600 (#4d9fff) in .dark
+- [x] PM2 Deployment <!-- id: 284 -->
+  - [x] Created ecosystem.config.js (single instance, fork mode, SQLite-safe)
+  - [x] Updated DEPLOYMENT.md: added Option B (PM2 + Nginx) with full guide
+- [x] Solution Architects Feature <!-- id: 285 -->
+  - [x] Migration 002: solutionarchitects + projects_to_solutionarchitects (with division_id)
+  - [x] solutionArchitectService.js with TDD (9 tests, 100% coverage)
+  - [x] Solution architect routes on projectRoutes.js + divisionRoutes.js with TDD (10 tests)
+  - [x] projectService.js: SA included in getById, create, update
+  - [x] Frontend: form.jsx SA picker, detail.jsx SA card, projectsApi.js API calls
+  - [x] All 748 tests passing

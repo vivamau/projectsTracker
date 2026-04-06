@@ -204,6 +204,25 @@ function createDivisionRoutes(db, auditDb) {
     }
   });
 
+  router.get('/:id/solution-architects', authenticate, async (req, res) => {
+    try {
+      const sas = await getAll(db,
+        `SELECT DISTINCT sa.id, sa.user_id, u.user_name, u.user_lastname, u.user_email,
+                p.id as project_id, p.project_name
+         FROM solutionarchitects sa
+         INNER JOIN projects_to_solutionarchitects psa ON sa.id = psa.solutionarchitect_id
+         INNER JOIN projects p ON psa.project_id = p.id
+         LEFT JOIN users u ON sa.user_id = u.id
+         WHERE psa.division_id = ? AND (p.project_is_deleted = 0 OR p.project_is_deleted IS NULL)
+         ORDER BY u.user_name, p.project_name`,
+        [parseInt(req.params.id)]
+      );
+      return success(res, sas);
+    } catch (err) {
+      return error(res, 'Failed to get division solution architects');
+    }
+  });
+
   router.get('/:id/projects', authenticate, async (req, res) => {
     try {
       const projects = await getAll(db,

@@ -60,6 +60,12 @@ export const getProjectManagers = (projectId) =>
 export const syncProjectManagers = (projectId, projectManagers) =>
   client.put(`/projects/${projectId}/project-managers`, { project_managers: projectManagers });
 
+export const getSolutionArchitects = (projectId) =>
+  client.get(`/projects/${projectId}/solution-architects`);
+
+export const syncSolutionArchitects = (projectId, solutionArchitects) =>
+  client.put(`/projects/${projectId}/solution-architects`, { solution_architects: solutionArchitects });
+
 // Budget detail & Purchase Orders
 export const getAllBudgets = () =>
   client.get(`/budgets`);

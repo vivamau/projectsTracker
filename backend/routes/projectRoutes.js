@@ -5,6 +5,7 @@ const healthStatusService = require('../services/healthStatusService');
 const completionService = require('../services/completionService');
 const budgetService = require('../services/budgetService');
 const projectManagerService = require('../services/projectManagerService');
+const solutionArchitectService = require('../services/solutionArchitectService');
 const vendorResourceService = require('../services/vendorResourceService');
 const { success, error, paginated } = require('../utilities/responseHelper');
 const { auditLog } = require('../utilities/auditHelper');
@@ -353,6 +354,37 @@ function createProjectRoutes(db, auditDb) {
       return success(res, { message: 'Project managers updated' });
     } catch (err) {
       return error(res, 'Failed to update project managers');
+    }
+  });
+
+  router.get('/:id/solution-architects', authenticate, async (req, res) => {
+    try {
+      const sas = await solutionArchitectService.getByProjectId(db, parseInt(req.params.id));
+      return success(res, sas);
+    } catch (err) {
+      return error(res, 'Failed to get solution architects');
+    }
+  });
+
+  router.put('/:id/solution-architects', authenticate, authorize('superadmin', 'admin'), async (req, res) => {
+    try {
+      const { solution_architects } = req.body;
+      if (!Array.isArray(solution_architects)) {
+        return error(res, 'solution_architects array is required', 400);
+      }
+      await solutionArchitectService.syncSolutionArchitects(db, parseInt(req.params.id), solution_architects);
+      await auditLog(auditDb, {
+        userId: req.user.id,
+        userEmail: req.user.email,
+        action: 'project.solution_architects.update',
+        entityType: 'solution_architect',
+        entityId: parseInt(req.params.id),
+        details: { data: req.body },
+        ip: req.ip
+      });
+      return success(res, { message: 'Solution architects updated' });
+    } catch (err) {
+      return error(res, 'Failed to update solution architects');
     }
   });
 

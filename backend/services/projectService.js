@@ -1,5 +1,6 @@
 const { runQuery, getOne, getAll } = require('../config/database');
 const projectManagerService = require('./projectManagerService');
+const solutionArchitectService = require('./solutionArchitectService');
 
 async function getAllProjects(db, { page = 1, limit = 20, search, division_id } = {}) {
   const offset = (page - 1) * limit;
@@ -93,6 +94,9 @@ async function getById(db, id) {
   // Get project managers
   const projectManagers = await projectManagerService.getByProjectId(db, id);
 
+  // Get solution architects
+  const solutionArchitects = await solutionArchitectService.getByProjectId(db, id);
+
   return {
     ...project,
     owner_name: project.user_name,
@@ -100,7 +104,8 @@ async function getById(db, id) {
     latest_health_status: healthStatus ? healthStatus.healthstatus_value : null,
     countries,
     supporting_divisions: supportingDivisions,
-    project_managers: projectManagers
+    project_managers: projectManagers,
+    solution_architects: solutionArchitects
   };
 }
 
@@ -150,6 +155,11 @@ async function create(db, data) {
   // Sync project managers if provided
   if (data.project_managers) {
     await projectManagerService.syncProjectManagers(db, result.lastID, data.project_managers);
+  }
+
+  // Sync solution architects if provided
+  if (data.solution_architects) {
+    await solutionArchitectService.syncSolutionArchitects(db, result.lastID, data.solution_architects);
   }
 
   return result;
@@ -260,6 +270,18 @@ async function update(db, id, data) {
   if (data.project_managers !== undefined) {
     await projectManagerService.syncProjectManagers(db, id, data.project_managers);
     if (fields.length === 0 && !data.country_codes) {
+      await runQuery(db,
+        'UPDATE projects SET project_update_date = ? WHERE id = ?',
+        [now, id]
+      );
+      result = { changes: 1 };
+    }
+  }
+
+  // Sync solution architects if provided
+  if (data.solution_architects !== undefined) {
+    await solutionArchitectService.syncSolutionArchitects(db, id, data.solution_architects);
+    if (fields.length === 0 && !data.country_codes && !data.project_managers) {
       await runQuery(db,
         'UPDATE projects SET project_update_date = ? WHERE id = ?',
         [now, id]

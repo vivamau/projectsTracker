@@ -247,48 +247,6 @@ export default function LogsPage() {
     return colors[action] || "bg-gray-100 text-gray-800";
   };
 
-  const renderValue = (value) => {
-    if (value === null || value === undefined)
-      return <span className="italic text-text-secondary">null</span>;
-    if (typeof value === "object" && !Array.isArray(value)) {
-      const entries = Object.entries(value);
-      if (entries.length === 0)
-        return <span className="italic text-text-secondary">{"{}"}</span>;
-      return (
-        <table className="w-full text-sm border border-border rounded">
-          <tbody>
-            {entries.map(([k, v], j) => (
-              <tr
-                key={k}
-                className={j % 2 === 0 ? "bg-surface" : "bg-surface-card"}
-              >
-                <td className="px-3 py-1 font-medium text-text-secondary whitespace-nowrap border-r border-border">
-                  {k}
-                </td>
-                <td className="px-3 py-1 text-text-primary break-all">
-                  {renderValue(v)}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      );
-    }
-    if (Array.isArray(value)) {
-      if (value.length === 0)
-        return <span className="italic text-text-secondary">{"[]"}</span>;
-      return (
-        <ul className="list-disc list-inside space-y-0.5">
-          {value.map((item, idx) => (
-            <li key={idx}>{renderValue(item)}</li>
-          ))}
-        </ul>
-      );
-    }
-    if (typeof value === "boolean") return String(value);
-    return String(value);
-  };
-
   const totalPages = Math.ceil(total / 50);
 
   return (
@@ -745,7 +703,7 @@ export default function LogsPage() {
           onClick={() => setDetailsModal((prev) => ({ ...prev, open: false }))}
         >
           <div
-            className="w-full max-w-lg rounded-lg bg-surface-card p-6 shadow-lg"
+            className="w-full max-w-2xl rounded-lg bg-surface-card p-6 shadow-lg"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mb-4 flex items-center justify-between">
@@ -759,34 +717,22 @@ export default function LogsPage() {
                 &times;
               </button>
             </div>
-            <div className="mb-4 rounded-lg border border-border overflow-hidden">
-              {!detailsModal.content ||
-              Object.keys(detailsModal.content).length === 0 ? (
+            <div className="rounded-lg border border-border overflow-hidden">
+              {!detailsModal.raw ? (
                 <div className="p-4 text-sm text-text-secondary italic">
                   No additional information
                 </div>
               ) : (
-                <table className="w-full text-sm">
-                  <tbody>
-                    {Object.entries(detailsModal.content).map(
-                      ([key, value], i) => (
-                        <tr
-                          key={key}
-                          className={
-                            i % 2 === 0 ? "bg-surface" : "bg-surface-card"
-                          }
-                        >
-                          <td className="px-4 py-2 font-medium text-text-secondary whitespace-nowrap align-top">
-                            {key}
-                          </td>
-                          <td className="px-4 py-2 text-text-primary break-all">
-                            {renderValue(value)}
-                          </td>
-                        </tr>
-                      ),
-                    )}
-                  </tbody>
-                </table>
+                <pre className="max-h-96 overflow-auto bg-surface p-4 text-xs text-text-primary leading-relaxed whitespace-pre-wrap break-all">
+                  {(() => {
+                    try {
+                      const parsed = JSON.parse(detailsModal.raw);
+                      return JSON.stringify(parsed, null, 2);
+                    } catch {
+                      return detailsModal.raw;
+                    }
+                  })()}
+                </pre>
               )}
             </div>
             <div className="mt-6 flex justify-end">

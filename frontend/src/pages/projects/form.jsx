@@ -22,7 +22,8 @@ export default function ProjectFormPage() {
     project_end_date: '',
     country_codes: [],
     supporting_division_ids: [],
-    project_managers: []
+    project_managers: [],
+    solution_architects: []
   });
   const [divisions, setDivisions] = useState([]);
   const [initiatives, setInitiatives] = useState([]);
@@ -59,7 +60,8 @@ export default function ProjectFormPage() {
             project_end_date: tsToInput(p.project_end_date),
             country_codes: p.countries ? p.countries.map(c => c.UN_country_code) : [],
             supporting_division_ids: p.supporting_divisions ? p.supporting_divisions.map(d => d.id) : [],
-            project_managers: p.project_managers ? p.project_managers.map(pm => ({ user_id: pm.user_id, division_id: pm.division_id || '' })) : []
+            project_managers: p.project_managers ? p.project_managers.map(pm => ({ user_id: pm.user_id, division_id: pm.division_id || '' })) : [],
+            solution_architects: p.solution_architects ? p.solution_architects.map(sa => ({ user_id: sa.user_id, division_id: sa.division_id || '' })) : []
           });
         })
       );
@@ -121,6 +123,27 @@ export default function ProjectFormPage() {
     }));
   };
 
+  const toggleSA = (userId) => {
+    setForm(f => {
+      const exists = f.solution_architects.find(sa => sa.user_id === userId);
+      return {
+        ...f,
+        solution_architects: exists
+          ? f.solution_architects.filter(sa => sa.user_id !== userId)
+          : [...f.solution_architects, { user_id: userId, division_id: '' }]
+      };
+    });
+  };
+
+  const updateSADivision = (userId, divisionId) => {
+    setForm(f => ({
+      ...f,
+      solution_architects: f.solution_architects.map(sa =>
+        sa.user_id === userId ? { ...sa, division_id: divisionId ? parseInt(divisionId) : null } : sa
+      )
+    }));
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
@@ -146,6 +169,10 @@ export default function ProjectFormPage() {
         project_managers: form.project_managers.map(pm => ({
           user_id: pm.user_id,
           division_id: pm.division_id || null
+        })),
+        solution_architects: form.solution_architects.map(sa => ({
+          user_id: sa.user_id,
+          division_id: sa.division_id || null
         }))
       };
 
@@ -291,6 +318,47 @@ export default function ProjectFormPage() {
                       type="checkbox"
                       checked={!!form.project_managers.find(pm => pm.user_id === u.id)}
                       onChange={() => togglePM(u.id)}
+                      className="rounded border-border-dark text-primary-500 focus:ring-primary-500"
+                    />
+                    <span>{u.user_name} {u.user_lastname}</span>
+                    <span className="text-text-secondary text-xs">({u.user_email})</span>
+                  </label>
+                ))}
+              </div>
+            </FormField>
+
+            {/* Solution Architects */}
+            <FormField label="Solution Architects">
+              {form.solution_architects.length > 0 && (
+                <div className="mb-2 space-y-2">
+                  {form.solution_architects.map(sa => {
+                    const u = users.find(usr => usr.id === sa.user_id);
+                    return (
+                      <div key={sa.user_id} className="flex items-center gap-2 rounded-lg border border-primary-200 bg-primary-50 px-3 py-2">
+                        <span className="text-sm font-medium text-primary-700 min-w-[140px]">
+                          {u ? `${u.user_name} ${u.user_lastname}` : `User #${sa.user_id}`}
+                        </span>
+                        <select
+                          value={sa.division_id || ''}
+                          onChange={e => updateSADivision(sa.user_id, e.target.value)}
+                          className="flex-1 rounded border border-border-dark px-2 py-1 text-xs outline-none focus:border-primary-500"
+                        >
+                          <option value="">No division</option>
+                          {divisions.map(d => <option key={d.id} value={d.id}>{d.division_name}</option>)}
+                        </select>
+                        <button type="button" onClick={() => toggleSA(sa.user_id)} className="text-error-400 hover:text-error-600 text-lg leading-none">&times;</button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+              <div className="max-h-40 overflow-y-auto rounded-lg border border-border">
+                {users.map(u => (
+                  <label key={u.id} className="flex items-center gap-2 px-3 py-1.5 hover:bg-surface cursor-pointer text-sm">
+                    <input
+                      type="checkbox"
+                      checked={!!form.solution_architects.find(sa => sa.user_id === u.id)}
+                      onChange={() => toggleSA(u.id)}
                       className="rounded border-border-dark text-primary-500 focus:ring-primary-500"
                     />
                     <span>{u.user_name} {u.user_lastname}</span>
