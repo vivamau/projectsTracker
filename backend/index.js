@@ -13,6 +13,7 @@ const { runMigrations } = require('./scripts/run_migrations');
 const { seedUserRoles } = require('./scripts/seed_userroles');
 const { seedUsers } = require('./scripts/seed_users');
 const { seedDummyData } = require('./scripts/seed_dummy_data');
+const { seedCountries } = require('./scripts/seed_countries');
 const createRoutes = require('./routes');
 
 const app = express();
@@ -53,6 +54,7 @@ async function startServer() {
     await seedUserRoles(db);
     await seedUsers(db);
     await seedDummyData(db);
+    await seedCountries(db);
 
     app.use('/api', createRoutes(db, auditDb));
 
