@@ -1,12 +1,14 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { Pencil, Trash2, Plus, MapPin, Calendar, User, Users, Target, DollarSign } from 'lucide-react';
+import { Pencil, Trash2, Plus, MapPin, Calendar, User, Users, Target, DollarSign, Settings2 } from 'lucide-react';
 import {
   getProject, deleteProject,
   getHealthStatuses, createHealthStatus,
   getCompletions, createCompletion, deleteCompletion,
   getBudgets, createBudget, deleteBudget,
-  getVendorResources, getActivities
+  getVendorResources, getActivities,
+  getTecStacks, syncTecStacks,
+  getProjectAssignments, syncProjectAssignments
 } from '../../api/projectsApi';
 import { getCurrencies } from '../../api/entitiesApi';
 import { useAuth } from '../../hooks/useAuth';
@@ -18,11 +20,12 @@ import Modal from '../../commoncomponents/Modal';
 import LoadingSpinner from '../../commoncomponents/LoadingSpinner';
 import MilestoneTimeline from './components/MilestoneTimeline';
 import ActivitiesChart from './components/ActivitiesChart';
+import Map from './components/Map';
 
 export default function ProjectDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { isAdmin } = useAuth();
+  const { isAdmin, user } = useAuth();
   const [project, setProject] = useState(null);
   const [healthStatuses, setHealthStatuses] = useState([]);
   const [completions, setCompletions] = useState([]);
@@ -30,6 +33,12 @@ export default function ProjectDetailPage() {
   const [currencies, setCurrencies] = useState([]);
   const [vendorResources, setVendorResources] = useState([]);
   const [activities, setActivities] = useState([]);
+  const [allTecStacks, setAllTecStacks] = useState([]);
+  const [tecStackModal, setTecStackModal] = useState(false);
+  const [selectedTecStackIds, setSelectedTecStackIds] = useState([]);
+  const [assignments, setAssignments] = useState([]);
+  const [assignmentModal, setAssignmentModal] = useState(false);
+  const [editingAssignments, setEditingAssignments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [healthModal, setHealthModal] = useState(false);
@@ -47,11 +56,43 @@ export default function ProjectDetailPage() {
       getBudgets(id).then(r => setBudgets(r.data.data)),
       getCurrencies().then(r => setCurrencies(r.data.data)),
       getVendorResources(id).then(r => setVendorResources(r.data.data)),
-      getActivities(id).then(r => setActivities(r.data.data)).catch(() => {})
+      getActivities(id).then(r => setActivities(r.data.data)).catch(() => {}),
+      getTecStacks().then(r => setAllTecStacks(r.data.data)).catch(() => {}),
+      getProjectAssignments(id).then(r => setAssignments(r.data.data)).catch(() => {})
     ])
       .catch(() => navigate('/projects'))
       .finally(() => setLoading(false));
   }, [id, navigate]);
+
+  const handleOpenAssignmentModal = () => {
+    setEditingAssignments(assignments.map(a => ({
+      vendorresource_id: a.vendorresource_id,
+      pvr_percentage: a.pvr_percentage,
+      pvr_active: a.pvr_active,
+      vendorresource_name: a.vendorresource_name,
+      vendorresource_lastname: a.vendorresource_lastname,
+      vendor_name: a.vendor_name
+    })));
+    setAssignmentModal(true);
+  };
+
+  const handleSaveAssignments = async () => {
+    await syncProjectAssignments(id, editingAssignments.map(a => ({
+      vendorresource_id: a.vendorresource_id,
+      pvr_percentage: a.pvr_percentage,
+      pvr_active: a.pvr_active
+    })));
+    const res = await getProjectAssignments(id);
+    setAssignments(res.data.data);
+    setAssignmentModal(false);
+  };
+
+  const handleSaveTecStacks = async () => {
+    await syncTecStacks(id, selectedTecStackIds);
+    const res = await getProject(id);
+    setProject(res.data.data);
+    setTecStackModal(false);
+  };
 
   const handleDelete = async () => {
     await deleteProject(id);
@@ -300,6 +341,97 @@ export default function ProjectDetailPage() {
               </div>
             )}
           </Card>
+
+          {/* Project Managers & Solution Architects */}
+          <div className="grid grid-cols-2 gap-6">
+            <Card title="Project Managers">
+              {(!project.project_managers || project.project_managers.length === 0) ? (
+                <p className="text-sm text-text-secondary">No project managers assigned</p>
+              ) : (
+                <div className="space-y-2">
+                  {project.project_managers.map(pm => (
+                    <div key={pm.id} className="flex items-center gap-2.5">
+                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-50 text-xs font-bold text-primary-600">
+                        {(pm.user_name?.[0] || '') + (pm.user_lastname?.[0] || '')}
+                      </span>
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-text-primary truncate">{pm.user_name} {pm.user_lastname}</p>
+                        <p className="text-xs text-text-secondary truncate">
+                          {pm.user_email}
+                          {pm.division_name && <span className="ml-1.5 text-primary-500">· {pm.division_name}</span>}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Card>
+
+            <Card title="Solution Architects">
+              {(!project.solution_architects || project.solution_architects.length === 0) ? (
+                <p className="text-sm text-text-secondary">No solution architects assigned</p>
+              ) : (
+                <div className="space-y-2">
+                  {project.solution_architects.map(sa => (
+                    <div key={sa.id} className="flex items-center gap-2.5">
+                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-50 text-xs font-bold text-primary-600">
+                        {(sa.user_name?.[0] || '') + (sa.user_lastname?.[0] || '')}
+                      </span>
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-text-primary truncate">{sa.user_name} {sa.user_lastname}</p>
+                        <p className="text-xs text-text-secondary truncate">
+                          {sa.user_email}
+                          {sa.division_name && <span className="ml-1.5 text-primary-500">· {sa.division_name}</span>}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Card>
+          </div>
+
+          {/* Vendor Resources */}
+          <Card
+            title="Vendor Resources"
+            extra={isAdmin ? (
+              <button
+                onClick={handleOpenAssignmentModal}
+                className="flex items-center gap-1 text-xs text-text-secondary hover:text-primary-500 transition-colors"
+              >
+                <Settings2 size={13} />
+                Edit
+              </button>
+            ) : null}
+          >
+            {(!assignments || assignments.length === 0) ? (
+              <p className="text-sm text-text-secondary">No vendor resources assigned</p>
+            ) : (
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                {assignments.map(a => (
+                  <div key={a.vendorresource_id} className="flex items-start gap-2 rounded-lg border border-border p-2.5">
+                    <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold ${a.pvr_active === 'Yes' ? 'bg-warning-50 text-warning-600' : 'bg-surface text-text-secondary border border-border'}`}>
+                      {(a.vendorresource_name?.[0] || '') + (a.vendorresource_lastname?.[0] || '')}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium text-text-primary truncate leading-tight">
+                        {a.vendorresource_name} {a.vendorresource_lastname}
+                        {a.pvr_active !== 'Yes' && <span className="ml-1 text-xs font-normal text-text-secondary">(inactive)</span>}
+                      </p>
+                      <p className="text-xs text-text-secondary truncate">
+                        {a.vendor_name}
+                      </p>
+                      {a.pvr_percentage < 100 && (
+                        <span className="mt-0.5 inline-block rounded-full bg-primary-50 px-1.5 py-0.5 text-xs text-primary-600 dark:bg-primary-900/30 dark:text-primary-300">
+                          {a.pvr_percentage}%
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
         </div>
 
         {/* Sidebar */}
@@ -357,96 +489,71 @@ export default function ProjectDetailPage() {
             )}
           </Card>
 
-          {/* Project Managers */}
-          <Card title="Project Managers">
-            {(!project.project_managers || project.project_managers.length === 0) ? (
-              <p className="text-sm text-text-secondary">No project managers assigned</p>
-            ) : (
-              <div className="space-y-2">
-                {project.project_managers.map(pm => (
-                  <div key={pm.id} className="flex items-center gap-2.5">
-                    <span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary-50 text-xs font-bold text-primary-600">
-                      {(pm.user_name?.[0] || '') + (pm.user_lastname?.[0] || '')}
-                    </span>
-                    <div>
-                      <p className="text-sm font-medium text-text-primary">{pm.user_name} {pm.user_lastname}</p>
-                      <p className="text-xs text-text-secondary">
-                        {pm.user_email}
-                        {pm.division_name && <span className="ml-1.5 text-primary-500">· {pm.division_name}</span>}
-                      </p>
-                    </div>
+          {/* Tech Stack */}
+          {(() => {
+            const typeConfig = {
+              fe:   { label: 'Frontend', color: 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' },
+              be:   { label: 'Backend',  color: 'bg-purple-50 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300' },
+              db:   { label: 'Database', color: 'bg-teal-50 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300' },
+              mob:  { label: 'Mobile',   color: 'bg-orange-50 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300' },
+              none: { label: 'Other',    color: 'bg-surface text-text-secondary border border-border' },
+            };
+            const canEdit = isAdmin || project.user_id === user?.id;
+            const stacks = project.tec_stacks || [];
+            const groups = stacks.reduce((acc, ts) => {
+              const key = ts.tec_stack_type || 'none';
+              if (!acc[key]) acc[key] = [];
+              acc[key].push(ts);
+              return acc;
+            }, {});
+            return (
+              <Card
+                title="Tech Stack"
+                extra={canEdit && (
+                  <button
+                    onClick={() => {
+                      setSelectedTecStackIds(stacks.map(ts => ts.id));
+                      setTecStackModal(true);
+                    }}
+                    className="inline-flex items-center gap-1 rounded-lg p-1.5 text-text-secondary hover:bg-surface hover:text-primary-500 transition-colors"
+                    title="Edit tech stack"
+                  >
+                    <Settings2 size={15} />
+                  </button>
+                )
+                }
+              >
+                {stacks.length === 0 ? (
+                  <p className="text-sm text-text-secondary">No tech stack available yet</p>
+                ) : (
+                  <div className="space-y-3">
+                    {Object.entries(groups).map(([type, items]) => {
+                      const { label, color } = typeConfig[type] || typeConfig.none;
+                      return (
+                        <div key={type}>
+                          <p className="mb-1.5 text-xs font-semibold uppercase text-text-secondary">{label}</p>
+                          <div className="flex flex-wrap gap-2">
+                            {items.map(ts => (
+                              <span key={ts.id} className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${color}`}>
+                                {ts.tec_stack_name}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
-                ))}
-              </div>
-            )}
-          </Card>
-
-          {/* Solution Architects */}
-          <Card title="Solution Architects">
-            {(!project.solution_architects || project.solution_architects.length === 0) ? (
-              <p className="text-sm text-text-secondary">No solution architects assigned</p>
-            ) : (
-              <div className="space-y-2">
-                {project.solution_architects.map(sa => (
-                  <div key={sa.id} className="flex items-center gap-2.5">
-                    <span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary-50 text-xs font-bold text-primary-600">
-                      {(sa.user_name?.[0] || '') + (sa.user_lastname?.[0] || '')}
-                    </span>
-                    <div>
-                      <p className="text-sm font-medium text-text-primary">{sa.user_name} {sa.user_lastname}</p>
-                      <p className="text-xs text-text-secondary">
-                        {sa.user_email}
-                        {sa.division_name && <span className="ml-1.5 text-primary-500">· {sa.division_name}</span>}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </Card>
-
-          {/* Vendor Resources */}
-          <Card title="Vendor Resources">
-            {(!vendorResources || vendorResources.length === 0) ? (
-              <p className="text-sm text-text-secondary">No vendor resources assigned</p>
-            ) : (
-              <div className="space-y-2">
-                {vendorResources.map(vr => (
-                  <div key={vr.vendorresource_id} className="flex items-start gap-2.5">
-                    <span className="flex h-8 w-8 items-center justify-center rounded-full bg-warning-50 text-xs font-bold text-warning-600">
-                      {(vr.vendorresource_name?.[0] || '') + (vr.vendorresource_lastname?.[0] || '')}
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium text-text-primary truncate">
-                        {vr.vendorresource_name} {vr.vendorresource_lastname}
-                      </p>
-                      <p className="text-xs text-text-secondary truncate">
-                        {vr.vendor_name}
-                        {vr.vendorcontractrole_name && <span className="ml-1 text-primary-500">· {vr.vendorcontractrole_name}</span>}
-                      </p>
-                      {vr.vendorresource_email && (
-                        <p className="text-xs text-text-secondary truncate">{vr.vendorresource_email}</p>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </Card>
+                )}
+              </Card>
+            );
+          })()}
 
           {/* Countries */}
           <Card title="Countries">
             {(!project.countries || project.countries.length === 0) ? (
               <p className="text-sm text-text-secondary">No countries linked</p>
             ) : (
-              <div className="flex flex-wrap gap-2">
-                {project.countries.map(c => (
-                  <span key={c.UN_country_code} className="inline-flex items-center gap-1 rounded-full bg-surface px-2.5 py-1 text-xs font-medium text-text-primary">
-                    <MapPin size={12} className="text-text-secondary" />
-                    {c.short_name}
-                  </span>
-                ))}
-              </div>
+              <Map countrylist={project.countries} />
             )}
           </Card>
 
@@ -649,6 +756,120 @@ export default function ProjectDetailPage() {
             </button>
           </div>
         </form>
+      </Modal>
+
+      {/* Assignments modal */}
+      <Modal open={assignmentModal} onClose={() => setAssignmentModal(false)} title="Edit Vendor Resource Assignments">
+        <div className="space-y-3 max-h-96 overflow-y-auto pr-1">
+          {editingAssignments.length === 0 && (
+            <p className="text-sm text-text-secondary">No assignments to edit.</p>
+          )}
+          {editingAssignments.map((a, idx) => (
+            <div key={a.vendorresource_id} className="flex items-center gap-3 rounded-lg border border-border p-3">
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium text-text-primary truncate">
+                  {a.vendorresource_name} {a.vendorresource_lastname}
+                </p>
+                <p className="text-xs text-text-secondary">{a.vendor_name}</p>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <input
+                  type="number"
+                  min="1"
+                  max="100"
+                  value={a.pvr_percentage}
+                  onChange={e => setEditingAssignments(prev => prev.map((x, i) => i === idx ? { ...x, pvr_percentage: parseInt(e.target.value) || 100 } : x))}
+                  className="w-16 rounded border border-border-dark bg-surface px-2 py-1 text-xs text-right outline-none focus:border-primary-500"
+                />
+                <span className="text-xs text-text-secondary">%</span>
+                <select
+                  value={a.pvr_active}
+                  onChange={e => setEditingAssignments(prev => prev.map((x, i) => i === idx ? { ...x, pvr_active: e.target.value } : x))}
+                  className="rounded border border-border-dark bg-surface px-2 py-1 text-xs outline-none focus:border-primary-500"
+                >
+                  <option value="Yes">Active</option>
+                  <option value="No">Inactive</option>
+                </select>
+                <button
+                  type="button"
+                  onClick={() => setEditingAssignments(prev => prev.filter((_, i) => i !== idx))}
+                  className="text-error-500 hover:text-error-600 transition-colors"
+                >
+                  <Trash2 size={14} />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="mt-4 flex justify-end gap-3">
+          <button
+            type="button"
+            onClick={() => setAssignmentModal(false)}
+            className="rounded-lg border border-border-dark px-4 py-2 text-sm font-medium hover:bg-surface transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={handleSaveAssignments}
+            className="rounded-lg bg-primary-500 px-4 py-2 text-sm font-semibold text-white hover:bg-primary-600 transition-colors"
+          >
+            Save
+          </button>
+        </div>
+      </Modal>
+
+      {/* Tech Stack picker modal */}
+      <Modal open={tecStackModal} onClose={() => setTecStackModal(false)} title="Edit Tech Stack">
+        <div className="space-y-4">
+          {['fe', 'be', 'db', 'mob', 'none'].map(type => {
+            const typeLabels = { fe: 'Frontend', be: 'Backend', db: 'Database', mob: 'Mobile', none: 'Other' };
+            const stacks = allTecStacks.filter(ts => (ts.tec_stack_type || 'none') === type);
+            if (stacks.length === 0) return null;
+            return (
+              <div key={type}>
+                <p className="mb-2 text-xs font-semibold uppercase text-text-secondary">{typeLabels[type]}</p>
+                <div className="flex flex-wrap gap-2">
+                  {stacks.map(ts => {
+                    const selected = selectedTecStackIds.includes(ts.id);
+                    return (
+                      <button
+                        key={ts.id}
+                        type="button"
+                        onClick={() => setSelectedTecStackIds(prev =>
+                          selected ? prev.filter(i => i !== ts.id) : [...prev, ts.id]
+                        )}
+                        className={`rounded-full px-3 py-1 text-xs font-medium transition-colors border ${
+                          selected
+                            ? 'bg-primary-500 text-white border-primary-500'
+                            : 'bg-surface text-text-secondary border-border hover:border-primary-500 hover:text-primary-500'
+                        }`}
+                      >
+                        {ts.tec_stack_name}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+          <div className="flex justify-end gap-2 pt-2">
+            <button
+              type="button"
+              onClick={() => setTecStackModal(false)}
+              className="rounded-lg border border-border px-4 py-2 text-sm font-medium hover:bg-surface transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleSaveTecStacks}
+              className="rounded-lg bg-primary-500 px-4 py-2 text-sm font-semibold text-white hover:bg-primary-600 transition-colors"
+            >
+              Save
+            </button>
+          </div>
+        </div>
       </Modal>
     </div>
   );

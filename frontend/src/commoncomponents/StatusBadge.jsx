@@ -1,6 +1,6 @@
 const statusConfig = {
   1: { label: 'At Risk', color: 'bg-error-50 text-error-600', dot: 'bg-error-500' },
-  2: { label: 'Needs Attention', color: 'bg-warning-50 text-warning-600', dot: 'bg-warning-500' },
+  2: { label: 'Needs Att.', color: 'bg-warning-50 text-warning-600', dot: 'bg-warning-500' },
   3: { label: 'On Track', color: 'bg-success-50 text-success-600', dot: 'bg-success-500' },
 };
 

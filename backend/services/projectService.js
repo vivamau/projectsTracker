@@ -100,6 +100,17 @@ async function getById(db, id) {
     [id]
   );
 
+  // Get technology stacks
+  const tecStacks = await getAll(db,
+    `SELECT ts.id, ts.tec_stack_name, ts.tec_stack_type, ts.tec_stack_support
+     FROM tec_stacks ts
+     JOIN projects_to_tec_stacks pts ON ts.id = pts.tec_stack_id
+     WHERE pts.project_id = ?
+       AND (ts.tec_stack_is_deleted = 0 OR ts.tec_stack_is_deleted IS NULL)
+     ORDER BY ts.tec_stack_type, ts.tec_stack_name`,
+    [id]
+  );
+
   // Get project managers
   const projectManagers = await projectManagerService.getByProjectId(db, id);
 
@@ -113,6 +124,7 @@ async function getById(db, id) {
     latest_health_status: healthStatus ? healthStatus.healthstatus_value : null,
     countries,
     supporting_divisions: supportingDivisions,
+    tec_stacks: tecStacks,
     project_managers: projectManagers,
     solution_architects: solutionArchitects
   };

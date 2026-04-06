@@ -61,6 +61,10 @@ async function startServer() {
 
     app.use('/api', createRoutes(db, auditDb));
 
+    app.get('/world', (req, res) => {
+      res.sendFile(path.join(__dirname, 'data', 'world.geojson'));
+    });
+
     app.get('/health', (req, res) => {
       res.json({ status: 'ok', timestamp: new Date().toISOString() });
     });

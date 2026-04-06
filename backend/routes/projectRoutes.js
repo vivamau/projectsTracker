@@ -8,6 +8,7 @@ const projectManagerService = require('../services/projectManagerService');
 const solutionArchitectService = require('../services/solutionArchitectService');
 const vendorResourceService = require('../services/vendorResourceService');
 const activityService = require('../services/activityService');
+const { runQuery } = require('../config/database');
 const { success, error, paginated } = require('../utilities/responseHelper');
 const { auditLog } = require('../utilities/auditHelper');
 
@@ -396,6 +397,55 @@ function createProjectRoutes(db, auditDb) {
       return success(res, resources);
     } catch (err) {
       return error(res, 'Failed to get vendor resources');
+    }
+  });
+
+  router.get('/:id/assignments', authenticate, async (req, res) => {
+    try {
+      const assignments = await vendorResourceService.getProjectAssignments(db, parseInt(req.params.id));
+      return success(res, assignments);
+    } catch (err) {
+      return error(res, 'Failed to get project assignments');
+    }
+  });
+
+  router.put('/:id/assignments', authenticate, authorize('superadmin', 'admin'), async (req, res) => {
+    try {
+      const projectId = parseInt(req.params.id);
+      const { assignments } = req.body;
+      if (!Array.isArray(assignments)) {
+        return error(res, 'assignments array is required', 400);
+      }
+      await vendorResourceService.syncProjectAssignments(db, projectId, assignments);
+      await auditLog(auditDb, {
+        userId: req.user.id,
+        userEmail: req.user.email,
+        action: 'project.assignments.update',
+        entityType: 'project_assignment',
+        entityId: projectId,
+        details: { data: req.body },
+        ip: req.ip
+      });
+      return success(res, { message: 'Assignments updated' });
+    } catch (err) {
+      return error(res, 'Failed to update assignments');
+    }
+  });
+
+  router.put('/:id/tec-stacks', authenticate, authorize('superadmin', 'admin'), async (req, res) => {
+    try {
+      const projectId = parseInt(req.params.id);
+      const { tec_stack_ids = [] } = req.body;
+      await runQuery(db, 'DELETE FROM projects_to_tec_stacks WHERE project_id = ?', [projectId]);
+      for (const tsId of tec_stack_ids) {
+        await runQuery(db,
+          'INSERT INTO projects_to_tec_stacks (project_id, tec_stack_id) VALUES (?, ?)',
+          [projectId, tsId]
+        );
+      }
+      return success(res, { message: 'Tech stacks updated' });
+    } catch (err) {
+      return error(res, 'Failed to update tec stacks');
     }
   });
 

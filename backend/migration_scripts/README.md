@@ -157,6 +157,59 @@ Projects covered:    71
 
 ---
 
+### Step 7 — Import technology stacks
+
+Populates `tec_stacks` (39 rows) and `projects_to_tec_stacks` (28 links across 10 projects).
+
+```bash
+sqlite3 backend/data/database.sqlite < backend/migration_scripts/import_tec_stacks.sql
+```
+
+Expected output:
+
+```
+tec_stacks imported:         39
+project-tec_stack links:     28
+projects with a tec stack:   10
+```
+
+---
+
+### Step 8 — Import project-to-vendor-resource assignments
+
+Populates the `projects_to_vendorresources` junction table from `external_resource.project_id` in the source database. IDs are preserved so no join key is needed — `external_resource.id` equals `vendorresources.id`.
+
+```bash
+sqlite3 backend/data/database.sqlite < backend/migration_scripts/import_project_assignments.sql
+```
+
+Expected output:
+
+```
+total_assignments | active | inactive
+319               | 207    | 112
+```
+
+---
+
+### Step 9 — Import focalpoints as guest users
+
+Creates one user per focalpoint with role `guest` and password `guestpassword`. Skips any focalpoint whose email already exists in the `users` table.
+
+```bash
+node backend/migration_scripts/import_focalpoints_as_users.js
+```
+
+Expected output:
+
+```
+Focalpoints processed : 89
+Users inserted        : 89
+Skipped (duplicate)   : 0
+```
+
+---
+
 ## Full run (copy-paste)
 
 ```bash
@@ -180,4 +233,13 @@ sqlite3 backend/data/database.sqlite < backend/migration_scripts/seed_healthstat
 
 # 6. Activities
 sqlite3 backend/data/database.sqlite < backend/migration_scripts/import_activities.sql
+
+# 7. Technology stacks
+sqlite3 backend/data/database.sqlite < backend/migration_scripts/import_tec_stacks.sql
+
+# 8. Project-vendor resource assignments
+sqlite3 backend/data/database.sqlite < backend/migration_scripts/import_project_assignments.sql
+
+# 9. Focalpoints as guest users
+node backend/migration_scripts/import_focalpoints_as_users.js
 ```

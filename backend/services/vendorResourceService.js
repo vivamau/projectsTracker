@@ -1,4 +1,4 @@
-const { getOne, getAll } = require('../config/database');
+const { getOne, getAll, runQuery } = require('../config/database');
 
 async function getById(db, id) {
   const result = await getOne(db,
@@ -78,4 +78,51 @@ async function getByProjectId(db, projectId) {
   );
 }
 
-module.exports = { getById, getProjects, getByProjectId };
+async function getProjectAssignments(db, projectId) {
+  return getAll(db,
+    `SELECT
+       pvr.id,
+       pvr.project_id,
+       pvr.vendorresource_id,
+       pvr.pvr_percentage,
+       pvr.pvr_active,
+       vr.vendorresource_name,
+       vr.vendorresource_lastname,
+       vr.vendorresource_email,
+       v.id as vendor_id,
+       v.vendor_name
+     FROM projects_to_vendorresources pvr
+     JOIN vendorresources vr ON pvr.vendorresource_id = vr.id
+     JOIN vendors v ON vr.vendor_id = v.id
+     WHERE pvr.project_id = ?
+       AND (pvr.pvr_is_deleted = 0 OR pvr.pvr_is_deleted IS NULL)
+     ORDER BY v.vendor_name, vr.vendorresource_lastname, vr.vendorresource_name`,
+    [projectId]
+  );
+}
+
+async function syncProjectAssignments(db, projectId, assignments) {
+  const now = Date.now();
+
+  // Soft-delete all existing assignments for this project
+  await runQuery(db,
+    'UPDATE projects_to_vendorresources SET pvr_is_deleted = 1 WHERE project_id = ?',
+    [projectId]
+  );
+
+  // Insert or restore each assignment
+  for (const { vendorresource_id, pvr_percentage = 100, pvr_active = 'Yes' } of assignments) {
+    await runQuery(db,
+      `INSERT INTO projects_to_vendorresources
+         (project_id, vendorresource_id, pvr_percentage, pvr_active, pvr_create_date, pvr_is_deleted)
+       VALUES (?, ?, ?, ?, ?, 0)
+       ON CONFLICT(project_id, vendorresource_id)
+       DO UPDATE SET pvr_percentage = excluded.pvr_percentage,
+                     pvr_active = excluded.pvr_active,
+                     pvr_is_deleted = 0`,
+      [projectId, vendorresource_id, pvr_percentage, pvr_active, now]
+    );
+  }
+}
+
+module.exports = { getById, getProjects, getByProjectId, getProjectAssignments, syncProjectAssignments };

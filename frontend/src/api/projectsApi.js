@@ -117,9 +117,21 @@ export const deleteConsumption = (budgetId, poId, itemId, consumptionId) =>
 export const getVendorResources = (projectId) =>
   client.get(`/projects/${projectId}/vendor-resources`);
 
+export const getProjectAssignments = (projectId) =>
+  client.get(`/projects/${projectId}/assignments`);
+
+export const syncProjectAssignments = (projectId, assignments) =>
+  client.put(`/projects/${projectId}/assignments`, { assignments });
+
 export const getProjectStatuses = () =>
   client.get('/project-statuses');
 
 export const getActivities = (projectId) =>
   client.get(`/projects/${projectId}/activities`);
+
+export const getTecStacks = () =>
+  client.get('/tec-stacks');
+
+export const syncTecStacks = (projectId, tec_stack_ids) =>
+  client.put(`/projects/${projectId}/tec-stacks`, { tec_stack_ids });
 
