@@ -252,3 +252,12 @@
   - [x] Header.jsx: Sun/Moon toggle button (lucide-react) next to user avatar
   - [x] main.jsx: ThemeProvider wrapping AuthProvider
   - [x] Frontend builds successfully
+- [x] Dark Theme Fixes <!-- id: 277 -->
+  - [x] Login page: replaced bg-white with bg-surface-card, border-border, text-text-primary, bg-surface for inputs; added Sun/Moon toggle button
+  - [x] index.css: added .dark input/select/textarea overrides (bg, color, border, placeholder, focus states)
+  - [x] Vendor detail page: replaced bg-white with bg-surface-card on sticky role cell
+  - [x] Frontend builds successfully
+- [x] Initiative Detail Health Status <!-- id: 278 -->
+  - [x] Added StatusBadge next to project name in initiatives/detail.jsx
+  - [x] Uses project.health_status from existing getProjects API (no new API call)
+  - [x] Frontend builds successfully
