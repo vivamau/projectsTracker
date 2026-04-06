@@ -2,7 +2,7 @@ const { runQuery, getOne, getAll } = require('../config/database');
 const projectManagerService = require('./projectManagerService');
 const solutionArchitectService = require('./solutionArchitectService');
 
-async function getAllProjects(db, { page = 1, limit = 20, search, division_id } = {}) {
+async function getAllProjects(db, { page = 1, limit = 20, search, division_id, status_id } = {}) {
   const offset = (page - 1) * limit;
   let where = 'WHERE (p.project_is_deleted = 0 OR p.project_is_deleted IS NULL)';
   const params = [];
@@ -18,6 +18,11 @@ async function getAllProjects(db, { page = 1, limit = 20, search, division_id } 
     params.push(division_id);
   }
 
+  if (status_id) {
+    where += ' AND p.project_status_id = ?';
+    params.push(status_id);
+  }
+
   const countRow = await getOne(db,
     `SELECT COUNT(*) as total FROM projects p ${where}`,
     params
@@ -31,12 +36,14 @@ async function getAllProjects(db, { page = 1, limit = 20, search, division_id } 
             p.deliverypath_id,
             d.division_name,
             u.user_name as owner_name, u.user_lastname as owner_lastname,
+            ps.id as project_status_id, ps.project_status_name,
             (SELECT hs.healthstatus_value FROM healthstatuses hs
              WHERE hs.project_id = p.id
              ORDER BY hs.healthstatus_create_date DESC, hs.id DESC LIMIT 1) as health_status
      FROM projects p
      LEFT JOIN divisions d ON p.division_id = d.id
      LEFT JOIN users u ON p.user_id = u.id
+     LEFT JOIN project_statuses ps ON ps.id = p.project_status_id
      ${where}
      ORDER BY p.project_create_date DESC
      LIMIT ? OFFSET ?`,
@@ -55,12 +62,14 @@ async function getAllProjects(db, { page = 1, limit = 20, search, division_id } 
 async function getById(db, id) {
   const project = await getOne(db,
     `SELECT p.*, d.division_name, u.user_name, u.user_lastname,
-            i.initiative_name, dp.deliverypath_name
+            i.initiative_name, dp.deliverypath_name,
+            ps.project_status_name
      FROM projects p
      LEFT JOIN divisions d ON p.division_id = d.id
      LEFT JOIN users u ON p.user_id = u.id
      LEFT JOIN initiatives i ON p.initiative_id = i.id
      LEFT JOIN deliverypaths dp ON p.deliverypath_id = dp.id
+     LEFT JOIN project_statuses ps ON ps.id = p.project_status_id
      WHERE p.id = ? AND (p.project_is_deleted = 0 OR p.project_is_deleted IS NULL)`,
     [id]
   );

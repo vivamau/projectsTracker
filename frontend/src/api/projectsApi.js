@@ -116,3 +116,10 @@ export const deleteConsumption = (budgetId, poId, itemId, consumptionId) =>
 
 export const getVendorResources = (projectId) =>
   client.get(`/projects/${projectId}/vendor-resources`);
+
+export const getProjectStatuses = () =>
+  client.get('/project-statuses');
+
+export const getActivities = (projectId) =>
+  client.get(`/projects/${projectId}/activities`);
+

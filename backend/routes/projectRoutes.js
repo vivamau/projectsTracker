@@ -7,6 +7,7 @@ const budgetService = require('../services/budgetService');
 const projectManagerService = require('../services/projectManagerService');
 const solutionArchitectService = require('../services/solutionArchitectService');
 const vendorResourceService = require('../services/vendorResourceService');
+const activityService = require('../services/activityService');
 const { success, error, paginated } = require('../utilities/responseHelper');
 const { auditLog } = require('../utilities/auditHelper');
 
@@ -28,8 +29,9 @@ function createProjectRoutes(db, auditDb) {
       const limit = parseInt(req.query.limit) || 20;
       const search = req.query.search || '';
       const division_id = req.query.division_id ? parseInt(req.query.division_id) : null;
+      const status_id = req.query.status_id ? parseInt(req.query.status_id) : null;
 
-      const result = await projectService.getAll(db, { page, limit, search, division_id });
+      const result = await projectService.getAll(db, { page, limit, search, division_id, status_id });
       return paginated(res, result.data, result.total, page, limit);
     } catch (err) {
       return error(res, 'Failed to list projects');
@@ -394,6 +396,15 @@ function createProjectRoutes(db, auditDb) {
       return success(res, resources);
     } catch (err) {
       return error(res, 'Failed to get vendor resources');
+    }
+  });
+
+  router.get('/:id/activities', authenticate, async (req, res) => {
+    try {
+      const activities = await activityService.getByProjectId(db, parseInt(req.params.id));
+      return success(res, activities);
+    } catch (err) {
+      return error(res, 'Failed to get activities');
     }
   });
 

@@ -69,7 +69,27 @@ On first run, the backend automatically:
 2. Runs all migrations from `backend/migrations/`
 3. Seeds default user roles
 4. Seeds default user accounts (if empty)
-5. Seeds sample data (if configured)
+5. Seeds countries (UN M49 list, 196 entries)
+6. Seeds sample/dummy data
+
+### Startup Modes
+
+| Command | Roles | Users | Countries | Dummy Data |
+|---------|-------|-------|-----------|------------|
+| `node index.js` | ✓ | ✓ | ✓ | ✓ |
+| `node index.js nodata` | ✓ | ✓ | ✓ | ✗ |
+
+Use `nodata` for clean production deployments where you want only the essential data without sample projects, budgets, vendors, and other demo content:
+
+```bash
+node index.js nodata
+```
+
+With PM2, pass it via the ecosystem config:
+```js
+// ecosystem.config.js
+args: 'nodata'
+```
 
 Default credentials can be found in [CLAUDE.md](./CLAUDE.md#default-credentials).
 

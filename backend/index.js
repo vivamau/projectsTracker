@@ -50,11 +50,14 @@ async function startServer() {
     console.log('Running migrations...');
     await runMigrations(db);
 
-    console.log('Seeding data...');
+    const noData = process.argv.includes('nodata');
+    console.log(noData ? 'Seeding minimal data (nodata mode)...' : 'Seeding data...');
     await seedUserRoles(db);
     await seedUsers(db);
-    await seedDummyData(db);
     await seedCountries(db);
+    if (!noData) {
+      await seedDummyData(db);
+    }
 
     app.use('/api', createRoutes(db, auditDb));
 

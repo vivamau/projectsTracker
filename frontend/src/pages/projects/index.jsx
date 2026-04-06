@@ -1,13 +1,14 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { Plus, Eye, Pencil, Trash2 } from 'lucide-react';
-import { getProjects, deleteProject, getBudgets } from '../../api/projectsApi';
+import { getProjects, deleteProject, getBudgets, getProjectStatuses } from '../../api/projectsApi';
 import { getDivisions } from '../../api/entitiesApi';
 import { useAuth } from '../../hooks/useAuth';
 import Card from '../../commoncomponents/Card';
 import SearchInput from '../../commoncomponents/SearchInput';
 import Pagination from '../../commoncomponents/Pagination';
 import StatusBadge from '../../commoncomponents/StatusBadge';
+import ProjectStatusBadge from '../../commoncomponents/ProjectStatusBadge';
 import ConfirmDialog from '../../commoncomponents/ConfirmDialog';
 import LoadingSpinner from '../../commoncomponents/LoadingSpinner';
 
@@ -15,12 +16,14 @@ export default function ProjectsPage() {
   const { isAdmin } = useAuth();
   const [projects, setProjects] = useState([]);
   const [divisions, setDivisions] = useState([]);
+  const [projectStatuses, setProjectStatuses] = useState([]);
   const [budgetsData, setBudgetsData] = useState({});
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState({});
   const [search, setSearch] = useState('');
   const [divisionFilter, setDivisionFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
   const [deleteTarget, setDeleteTarget] = useState(null);
 
   const fetchProjects = useCallback(async () => {
@@ -28,6 +31,7 @@ export default function ProjectsPage() {
     try {
       const params = { page, limit: 15, search };
       if (divisionFilter) params.division_id = divisionFilter;
+      if (statusFilter) params.status_id = statusFilter;
       const res = await getProjects(params);
       setProjects(res.data.data);
       setPagination(res.data.pagination);
@@ -52,7 +56,7 @@ export default function ProjectsPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, search, divisionFilter]);
+  }, [page, search, divisionFilter, statusFilter]);
 
   useEffect(() => {
     fetchProjects();
@@ -60,11 +64,12 @@ export default function ProjectsPage() {
 
   useEffect(() => {
     getDivisions().then(res => setDivisions(res.data.data)).catch(() => {});
+    getProjectStatuses().then(res => setProjectStatuses(res.data.data)).catch(() => {});
   }, []);
 
   useEffect(() => {
     setPage(1);
-  }, [search, divisionFilter]);
+  }, [search, divisionFilter, statusFilter]);
 
   const handleDelete = async () => {
     if (!deleteTarget) return;
@@ -123,6 +128,16 @@ export default function ProjectsPage() {
               <option key={d.id} value={d.id}>{d.division_name}</option>
             ))}
           </select>
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="rounded-lg border border-border-dark bg-surface px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 appearance-none"
+          >
+            <option value="">All Statuses</option>
+            {projectStatuses.map(s => (
+              <option key={s.id} value={s.id}>{s.project_status_name}</option>
+            ))}
+          </select>
         </div>
 
         {/* Table */}
@@ -134,6 +149,7 @@ export default function ProjectsPage() {
               <thead>
                 <tr className="border-b border-border bg-surface/50">
                   <th className="px-6 py-3 text-left font-medium text-text-secondary">Name</th>
+                  <th className="px-6 py-3 text-left font-medium text-text-secondary">Status</th>
                   <th className="px-6 py-3 text-left font-medium text-text-secondary">Division</th>
                   <th className="px-6 py-3 text-left font-medium text-text-secondary">Health</th>
                   <th className="px-6 py-3 text-left font-medium text-text-secondary">Current Budget</th>
@@ -145,7 +161,7 @@ export default function ProjectsPage() {
               <tbody>
                 {projects.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-6 py-12 text-center text-text-secondary">
+                    <td colSpan={8} className="px-6 py-12 text-center text-text-secondary">
                       No projects found
                     </td>
                   </tr>
@@ -156,6 +172,9 @@ export default function ProjectsPage() {
                         <Link to={`/projects/${p.id}`} className="font-medium text-primary-600 hover:text-primary-700">
                           {p.project_name}
                         </Link>
+                      </td>
+                      <td className="px-6 py-3">
+                        <ProjectStatusBadge status={p.project_status_name} />
                       </td>
                       <td className="px-6 py-3">
                         {p.division_id ? (

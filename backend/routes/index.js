@@ -12,6 +12,8 @@ const createVendorRoutes = require('./vendorRoutes');
 const createSeniorityRoutes = require('./seniorityRoutes');
 const createSettingsRoutes = require('./settingsRoutes');
 const createAuditLogRoutes = require('./auditLogRoutes');
+const createProjectStatusRoutes = require('./projectStatusRoutes');
+const createActivityRoutes = require('./activityRoutes');
 
 function createRoutes(db, auditDb) {
   const router = express.Router();
@@ -29,6 +31,7 @@ function createRoutes(db, auditDb) {
   router.use('/seniorities', createSeniorityRoutes(db, auditDb));
   router.use('/settings', createSettingsRoutes(db));
   router.use('/audit-logs', createAuditLogRoutes(db, auditDb));
+  router.use('/project-statuses', createProjectStatusRoutes(db));
 
   return router;
 }

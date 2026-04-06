@@ -6,16 +6,18 @@ import {
   getHealthStatuses, createHealthStatus,
   getCompletions, createCompletion, deleteCompletion,
   getBudgets, createBudget, deleteBudget,
-  getVendorResources
+  getVendorResources, getActivities
 } from '../../api/projectsApi';
 import { getCurrencies } from '../../api/entitiesApi';
 import { useAuth } from '../../hooks/useAuth';
 import Card from '../../commoncomponents/Card';
 import StatusBadge from '../../commoncomponents/StatusBadge';
+import ProjectStatusBadge from '../../commoncomponents/ProjectStatusBadge';
 import ConfirmDialog from '../../commoncomponents/ConfirmDialog';
 import Modal from '../../commoncomponents/Modal';
 import LoadingSpinner from '../../commoncomponents/LoadingSpinner';
 import MilestoneTimeline from './components/MilestoneTimeline';
+import ActivitiesChart from './components/ActivitiesChart';
 
 export default function ProjectDetailPage() {
   const { id } = useParams();
@@ -27,6 +29,7 @@ export default function ProjectDetailPage() {
   const [budgets, setBudgets] = useState([]);
   const [currencies, setCurrencies] = useState([]);
   const [vendorResources, setVendorResources] = useState([]);
+  const [activities, setActivities] = useState([]);
   const [loading, setLoading] = useState(true);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [healthModal, setHealthModal] = useState(false);
@@ -43,7 +46,8 @@ export default function ProjectDetailPage() {
       getCompletions(id).then(r => setCompletions(r.data.data)),
       getBudgets(id).then(r => setBudgets(r.data.data)),
       getCurrencies().then(r => setCurrencies(r.data.data)),
-      getVendorResources(id).then(r => setVendorResources(r.data.data))
+      getVendorResources(id).then(r => setVendorResources(r.data.data)),
+      getActivities(id).then(r => setActivities(r.data.data)).catch(() => {})
     ])
       .catch(() => navigate('/projects'))
       .finally(() => setLoading(false));
@@ -134,7 +138,8 @@ export default function ProjectDetailPage() {
       <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-xl font-bold text-text-primary">{project.project_name}</h1>
-          <div className="mt-1 flex items-center gap-3">
+          <div className="mt-1 flex flex-wrap items-center gap-2">
+            <ProjectStatusBadge status={project.project_status_name} />
             <StatusBadge value={project.latest_health_status} />
             {project.division_name && (
               <Link
@@ -167,6 +172,12 @@ export default function ProjectDetailPage() {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         {/* Main info */}
         <div className="lg:col-span-2 space-y-6">
+          {activities.length > 0 && (
+            <Card title="Activities">
+              <ActivitiesChart activities={activities} />
+            </Card>
+          )}
+
           <Card title="Project Details">
             <div className="space-y-4">
               {project.project_description && (
