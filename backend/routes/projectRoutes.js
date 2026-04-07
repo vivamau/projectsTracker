@@ -54,8 +54,10 @@ function createProjectRoutes(db, auditDb) {
       const search = req.query.search || '';
       const division_id = req.query.division_id ? parseInt(req.query.division_id) : null;
       const status_id = req.query.status_id ? parseInt(req.query.status_id) : null;
+      const initiative_id = req.query.initiative_id ? parseInt(req.query.initiative_id) : null;
+      const deliverypath_id = req.query.deliverypath_id ? parseInt(req.query.deliverypath_id) : null;
 
-      const result = await projectService.getAll(db, { page, limit, search, division_id, status_id });
+      const result = await projectService.getAll(db, { page, limit, search, division_id, status_id, initiative_id, deliverypath_id });
       return paginated(res, result.data, result.total, page, limit);
     } catch (err) {
       return error(res, 'Failed to list projects');

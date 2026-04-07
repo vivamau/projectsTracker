@@ -3,7 +3,7 @@ const projectManagerService = require('./projectManagerService');
 const solutionArchitectService = require('./solutionArchitectService');
 const { getRates, convertToUSD, getLastFetchedAt } = require('../utilities/exchangeRateService');
 
-async function getAllProjects(db, { page = 1, limit = 20, search, division_id, status_id } = {}) {
+async function getAllProjects(db, { page = 1, limit = 20, search, division_id, status_id, initiative_id, deliverypath_id } = {}) {
   const offset = (page - 1) * limit;
   let where = 'WHERE (p.project_is_deleted = 0 OR p.project_is_deleted IS NULL)';
   const params = [];
@@ -22,6 +22,16 @@ async function getAllProjects(db, { page = 1, limit = 20, search, division_id, s
   if (status_id) {
     where += ' AND p.project_status_id = ?';
     params.push(status_id);
+  }
+
+  if (initiative_id) {
+    where += ' AND p.initiative_id = ?';
+    params.push(initiative_id);
+  }
+
+  if (deliverypath_id) {
+    where += ' AND p.deliverypath_id = ?';
+    params.push(deliverypath_id);
   }
 
   const countRow = await getOne(db,

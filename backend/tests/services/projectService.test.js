@@ -113,6 +113,34 @@ describe('projectService', () => {
       });
     });
 
+    it('should filter by initiative_id', async () => {
+      const created = await projectService.create(db, {
+        project_name: 'Initiative Filter Project',
+        initiative_id: 1,
+        division_id: 1,
+        user_id: 1
+      });
+      const result = await projectService.getAll(db, { initiative_id: 1 });
+      expect(result.data.length).toBeGreaterThanOrEqual(1);
+      const found = result.data.find(p => p.id === created.lastID);
+      expect(found).toBeDefined();
+      result.data.forEach(p => expect(p.initiative_id).toBe(1));
+    });
+
+    it('should filter by deliverypath_id', async () => {
+      const created = await projectService.create(db, {
+        project_name: 'DeliveryPath Filter Project',
+        deliverypath_id: 1,
+        division_id: 1,
+        user_id: 1
+      });
+      const result = await projectService.getAll(db, { deliverypath_id: 1 });
+      expect(result.data.length).toBeGreaterThanOrEqual(1);
+      const found = result.data.find(p => p.id === created.lastID);
+      expect(found).toBeDefined();
+      result.data.forEach(p => expect(p.deliverypath_id).toBe(1));
+    });
+
     it('should not return deleted projects', async () => {
       const created = await projectService.create(db, {
         project_name: 'DeletedProject',
