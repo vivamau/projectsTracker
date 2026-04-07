@@ -22,7 +22,7 @@ import {
   BarChart3,
 } from "lucide-react";
 import Card from "../../commoncomponents/Card";
-import PieChart from "../../commoncomponents/PieChart";
+import RechartsDonutChart from "../../commoncomponents/RechartsDonutChart";
 import {
   getAuditLogs,
   getAuditLogFilters,
@@ -295,10 +295,14 @@ export default function LogsPage() {
                 </div>
               ) : stats && stats.byAction.length > 0 ? (
                 <div className="flex flex-col items-center">
-                  <PieChart
-                    data={stats.byAction}
-                    size={200}
+                  <RechartsDonutChart
+                    data={stats.byAction.map((item) => ({
+                      ...item,
+                      name: item.action,
+                    }))}
                     colors={ACTION_COLORS}
+                    dataKey="count"
+                    nameKey="action"
                   />
                   <div className="mt-4 grid grid-cols-2 gap-x-6 gap-y-2 w-full">
                     {stats.byAction.map((item, i) => {
@@ -354,10 +358,14 @@ export default function LogsPage() {
                 </div>
               ) : stats && stats.byEntityType.length > 0 ? (
                 <div className="flex flex-col items-center">
-                  <PieChart
-                    data={stats.byEntityType}
-                    size={200}
+                  <RechartsDonutChart
+                    data={stats.byEntityType.map((item) => ({
+                      ...item,
+                      name: item.entity_type,
+                    }))}
                     colors={ENTITY_COLORS}
+                    dataKey="count"
+                    nameKey="entity_type"
                   />
                   <div className="mt-4 grid grid-cols-2 gap-x-6 gap-y-2 w-full">
                     {stats.byEntityType.map((item, i) => (

@@ -15,6 +15,7 @@ const createAuditLogRoutes = require('./auditLogRoutes');
 const createProjectStatusRoutes = require('./projectStatusRoutes');
 const createActivityRoutes = require('./activityRoutes');
 const createTecStackRoutes = require('./tecStackRoutes');
+const createHealthStatusTypeRoutes = require('./healthStatusTypeRoutes');
 
 function createRoutes(db, auditDb) {
   const router = express.Router();
@@ -34,6 +35,7 @@ function createRoutes(db, auditDb) {
   router.use('/audit-logs', createAuditLogRoutes(db, auditDb));
   router.use('/project-statuses', createProjectStatusRoutes(db));
   router.use('/tec-stacks', createTecStackRoutes(db));
+  router.use('/healthstatus-types', createHealthStatusTypeRoutes(db));
 
   return router;
 }

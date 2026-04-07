@@ -37,7 +37,7 @@ export default function RecentProjects({ projects = [] }) {
                   </td>
                   <td className="px-6 py-3 text-text-secondary">{p.division_name || '-'}</td>
                   <td className="px-6 py-3">
-                    <StatusBadge value={p.health_status} />
+                    <StatusBadge value={p.health_status} name={p.health_status_name} />
                   </td>
                   <td className="px-6 py-3 text-text-secondary">{formatDate(p.project_create_date)}</td>
                 </tr>

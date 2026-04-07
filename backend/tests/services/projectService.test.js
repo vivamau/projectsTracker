@@ -1,6 +1,13 @@
 const { initTestDb, seedTestDb, closeTestDb } = require('../helpers/testDb');
 const { runQuery } = require('../../config/database');
 const projectService = require('../../services/projectService');
+const exchangeRateService = require('../../utilities/exchangeRateService');
+
+jest.mock('../../utilities/exchangeRateService', () => ({
+  getRates: jest.fn().mockResolvedValue({ USD: 1, EUR: 0.92, GBP: 0.79 }),
+  convertToUSD: jest.requireActual('../../utilities/exchangeRateService').convertToUSD,
+  getLastFetchedAt: jest.fn().mockReturnValue(Date.now()),
+}));
 
 let db;
 
@@ -366,38 +373,141 @@ describe('projectService', () => {
     it('should return dashboard statistics', async () => {
       const stats = await projectService.getStats(db);
       expect(stats.totalProjects).toBeGreaterThanOrEqual(1);
-      expect(stats.activeProjects).toBeDefined();
+      expect(typeof stats.totalPOAmount).toBe('number');
+      expect(typeof stats.totalPOSpent).toBe('number');
+      expect(typeof stats.totalVendors).toBe('number');
+      expect(typeof stats.totalResources).toBe('number');
+      expect(typeof stats.activityStats.openTickets).toBe('number');
+      expect(typeof stats.activityStats.closedTickets).toBe('number');
+      expect(typeof stats.activityStats.openBugs).toBe('number');
+      expect(typeof stats.activityStats.closedBugs).toBe('number');
+      expect(typeof stats.activityStats.projectsReporting).toBe('number');
+      expect(typeof stats.activityStats.projectsNotReporting).toBe('number');
+      expect(stats.groupCounts).toBeDefined();
+      expect(typeof stats.groupCounts.active).toBe('number');
+      expect(typeof stats.groupCounts.queued).toBe('number');
+      expect(typeof stats.groupCounts.discovery).toBe('number');
+      expect(typeof stats.groupCounts.ended).toBe('number');
       expect(stats.totalDivisions).toBeGreaterThanOrEqual(1);
-      expect(stats.healthDistribution).toBeDefined();
-      expect(typeof stats.healthDistribution).toBe('object');
-      expect(stats.recentProjects).toBeDefined();
-      expect(Array.isArray(stats.recentProjects)).toBe(true);
-      expect(stats.recentProjects.length).toBeLessThanOrEqual(5);
+      expect(Array.isArray(stats.healthDistribution)).toBe(true);
+      expect(Array.isArray(stats.projectManagers)).toBe(true);
+      expect(Array.isArray(stats.solutionArchitects)).toBe(true);
+      expect(Array.isArray(stats.owners)).toBe(true);
     });
 
-    it('should count active projects (started but not ended)', async () => {
-      const now = Date.now();
+    it('should count group projects using status name grouping', async () => {
+      const stats = await projectService.getStats(db);
+      const { queued, discovery, active, ended } = stats.groupCounts;
+      expect(queued + discovery + active + ended).toBe(stats.totalProjects);
+    });
+
+    it('should include health distribution with id, name, and count fields', async () => {
+      // Insert a health status with a known type (seeded as id=3 "On Track")
+      const projResult = await projectService.create(db, { project_name: 'Stats HS Project', division_id: 1, user_id: 1 });
+      const { runQuery } = require('../../config/database');
+      await runQuery(db,
+        'INSERT INTO healthstatuses (healthstatus_value, healthstatus_create_date, project_id) VALUES (?, ?, ?)',
+        [3, Date.now(), projResult.lastID]
+      );
+      const stats = await projectService.getStats(db);
+      expect(Array.isArray(stats.healthDistribution)).toBe(true);
+      const onTrack = stats.healthDistribution.find(h => h.id === 3);
+      expect(onTrack).toBeDefined();
+      expect(onTrack.name).toBe('On Track');
+      expect(onTrack.count).toBeGreaterThanOrEqual(1);
+    });
+
+    it('should count active projects (no queued/discovery/ended status)', async () => {
       await projectService.create(db, {
-        project_name: 'Active Project',
+        project_name: 'Active Group Project',
         division_id: 1,
         user_id: 1,
-        project_start_date: now
       });
       const stats = await projectService.getStats(db);
-      expect(stats.activeProjects).toBeGreaterThanOrEqual(1);
+      expect(stats.groupCounts.active).toBeGreaterThanOrEqual(1);
     });
 
-    it('should include health distribution', async () => {
-      // We already have at least one health status from getById tests
+    it('should include health distribution as array', async () => {
       const stats = await projectService.getStats(db);
-      expect(stats.healthDistribution).toBeDefined();
+      expect(Array.isArray(stats.healthDistribution)).toBe(true);
     });
 
-    it('should include recent projects with division name', async () => {
+    it('should return projectManagers array with user info and project_count', async () => {
+      // Seed a PM if needed
+      const userRes = await runQuery(db,
+        "INSERT INTO users (user_name, user_lastname, user_email, user_password_hash, user_create_date, userrole_id) VALUES (?, ?, ?, ?, ?, ?)",
+        ['PMFirst', 'PMLast', 'pm@test.com', 'hash', Date.now(), 1]
+      );
+      await runQuery(db,
+        "INSERT INTO projectmanagers (user_id) VALUES (?)",
+        [userRes.lastID]
+      );
       const stats = await projectService.getStats(db);
-      expect(stats.recentProjects.length).toBeGreaterThan(0);
-      const withDiv = stats.recentProjects.find(p => p.division_name);
-      expect(withDiv).toBeDefined();
+      expect(Array.isArray(stats.projectManagers)).toBe(true);
+      const pm = stats.projectManagers.find(p => p.user_email === 'pm@test.com');
+      expect(pm).toBeDefined();
+      expect(pm.user_name).toBe('PMFirst');
+      expect(pm.user_lastname).toBe('PMLast');
+      expect(typeof pm.project_count).toBe('number');
+    });
+
+    it('should include exchangeRates in stats', async () => {
+      const stats = await projectService.getStats(db);
+      expect(stats.exchangeRates).toBeDefined();
+      expect(stats.exchangeRates.USD).toBe(1);
+      expect(typeof stats.exchangeRatesUpdatedAt).toBe('number');
+    });
+
+    it('should convert PO amounts to USD using exchange rates', async () => {
+      // Seed a EUR currency and a PO item with that currency
+      const curRes = await runQuery(db,
+        "INSERT INTO currencies (currency_name, currency_create_date) VALUES (?, ?)",
+        ['EUR', Date.now()]
+      );
+      const poRes = await runQuery(db,
+        "INSERT INTO purchaseorders (purchaseorder_description, purchaseorder_create_date, purchaseorder_start_date) VALUES (?, ?, ?)",
+        ['Test PO', Date.now(), Date.now()]
+      );
+      await runQuery(db,
+        "INSERT INTO purchaseorderitems (purchaseorderitem_create_date, purchaseorderitem_start_date, purchaseorderitems_days, purchaseorderitems_discounted_rate, purchaseorder_id, currency_id) VALUES (?, ?, ?, ?, ?, ?)",
+        [Date.now(), Date.now(), 10, 100, poRes.lastID, curRes.lastID]
+      );
+      // EUR rate is 0.92 → 10×100 EUR = 1000 EUR = 1000/0.92 ≈ 1086.96 USD
+      const stats = await projectService.getStats(db);
+      expect(exchangeRateService.getRates).toHaveBeenCalled();
+      expect(typeof stats.totalPOAmount).toBe('number');
+    });
+
+    it('should return owners array with user info and project_count', async () => {
+      const stats = await projectService.getStats(db);
+      expect(Array.isArray(stats.owners)).toBe(true);
+      // At least one owner exists because projects were created with user_id=1 in earlier tests
+      expect(stats.owners.length).toBeGreaterThanOrEqual(1);
+      const owner = stats.owners[0];
+      expect(owner.user_id).toBeDefined();
+      expect(owner.user_name).toBeDefined();
+      expect(owner.user_lastname).toBeDefined();
+      expect(owner.user_email).toBeDefined();
+      expect(typeof owner.project_count).toBe('number');
+    });
+
+    it('should return solutionArchitects array with user info and project_count', async () => {
+      // Seed an SA if needed
+      const userRes = await runQuery(db,
+        "INSERT INTO users (user_name, user_lastname, user_email, user_password_hash, user_create_date, userrole_id) VALUES (?, ?, ?, ?, ?, ?)",
+        ['SAFirst', 'SALast', 'sa@test.com', 'hash', Date.now(), 1]
+      );
+      await runQuery(db,
+        "INSERT INTO solutionarchitects (user_id) VALUES (?)",
+        [userRes.lastID]
+      );
+      const stats = await projectService.getStats(db);
+      expect(Array.isArray(stats.solutionArchitects)).toBe(true);
+      const sa = stats.solutionArchitects.find(s => s.user_email === 'sa@test.com');
+      expect(sa).toBeDefined();
+      expect(sa.user_name).toBe('SAFirst');
+      expect(sa.user_lastname).toBe('SALast');
+      expect(typeof sa.project_count).toBe('number');
     });
   });
 

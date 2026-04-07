@@ -29,6 +29,15 @@ function createUserRoutes(db, auditDb) {
     }
   });
 
+  router.get('/:id/projects', authenticate, authorize('superadmin'), async (req, res) => {
+    try {
+      const projects = await userService.getProjectsByUserId(db, parseInt(req.params.id));
+      return success(res, projects);
+    } catch (err) {
+      return error(res, 'Failed to get user projects');
+    }
+  });
+
   router.post('/', authenticate, authorize('superadmin'), async (req, res) => {
     try {
       const { user_email, password, userrole_id } = req.body;

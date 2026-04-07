@@ -1,15 +1,25 @@
 const { runQuery, getOne, getAll } = require('../config/database');
 
+const JOIN_TYPES = `
+  LEFT JOIN healthstatus_types ht ON hs.healthstatus_value = ht.id AND ht.healthstatus_is_deleted = 0
+`;
+
 async function getByProjectId(db, projectId) {
   return getAll(db,
-    'SELECT * FROM healthstatuses WHERE project_id = ? ORDER BY healthstatus_create_date DESC, id DESC',
+    `SELECT hs.*, ht.healthstatus_name
+     FROM healthstatuses hs ${JOIN_TYPES}
+     WHERE hs.project_id = ?
+     ORDER BY hs.healthstatus_create_date DESC, hs.id DESC`,
     [projectId]
   );
 }
 
 async function getLatest(db, projectId) {
   return getOne(db,
-    'SELECT * FROM healthstatuses WHERE project_id = ? ORDER BY healthstatus_create_date DESC, id DESC LIMIT 1',
+    `SELECT hs.*, ht.healthstatus_name
+     FROM healthstatuses hs ${JOIN_TYPES}
+     WHERE hs.project_id = ?
+     ORDER BY hs.healthstatus_create_date DESC, hs.id DESC LIMIT 1`,
     [projectId]
   );
 }

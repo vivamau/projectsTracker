@@ -58,10 +58,12 @@ describe('GET /api/projects/stats', () => {
     expect(res.body.success).toBe(true);
     expect(res.body.data).toBeDefined();
     expect(typeof res.body.data.totalProjects).toBe('number');
-    expect(typeof res.body.data.activeProjects).toBe('number');
+    expect(typeof res.body.data.groupCounts).toBe('object');
+    expect(typeof res.body.data.groupCounts.active).toBe('number');
     expect(typeof res.body.data.totalDivisions).toBe('number');
-    expect(typeof res.body.data.healthDistribution).toBe('object');
-    expect(Array.isArray(res.body.data.recentProjects)).toBe(true);
+    expect(Array.isArray(res.body.data.healthDistribution)).toBe(true);
+    expect(Array.isArray(res.body.data.projectManagers)).toBe(true);
+    expect(Array.isArray(res.body.data.solutionArchitects)).toBe(true);
   });
 
   it('should return 401 when not authenticated', async () => {
@@ -217,13 +219,75 @@ describe('PUT /api/projects/:id', () => {
     expect(res.status).toBe(404);
   });
 
-  it('should return 403 when reader tries to update', async () => {
+  it('should return 403 when reader is not a PM or SA on the project', async () => {
     const res = await request(app)
       .put(`/api/projects/${projectId}`)
       .set('Cookie', ['token=' + readerToken()])
       .send({ project_name: 'Reader Update Attempt' });
 
     expect(res.status).toBe(403);
+  });
+
+  describe('contributor as project member', () => {
+    let memberProjectId;
+
+    beforeAll(async () => {
+      // Create a project
+      const projRes = await request(app)
+        .post('/api/projects')
+        .set('Cookie', ['token=' + adminToken()])
+        .send({ project_name: 'PM Edit Project' });
+      memberProjectId = projRes.body.data.id;
+
+      // Assign reader (user id=3) as PM on this project
+      await request(app)
+        .put(`/api/projects/${memberProjectId}/project-managers`)
+        .set('Cookie', ['token=' + adminToken()])
+        .send({ project_managers: [{ user_id: 3, division_id: 1 }] });
+    });
+
+    it('should allow a reader who is PM to update the project', async () => {
+      const res = await request(app)
+        .put(`/api/projects/${memberProjectId}`)
+        .set('Cookie', ['token=' + readerToken()])
+        .send({ project_name: 'PM Updated Name' });
+      expect(res.status).toBe(200);
+    });
+
+    it('should allow a reader who is SA to update the project', async () => {
+      // Assign reader (user id=3) as SA on another project
+      const projRes = await request(app)
+        .post('/api/projects')
+        .set('Cookie', ['token=' + adminToken()])
+        .send({ project_name: 'SA Edit Project' });
+      const saProjectId = projRes.body.data.id;
+
+      await request(app)
+        .put(`/api/projects/${saProjectId}/solution-architects`)
+        .set('Cookie', ['token=' + adminToken()])
+        .send({ solution_architects: [{ user_id: 3, division_id: 1 }] });
+
+      const res = await request(app)
+        .put(`/api/projects/${saProjectId}`)
+        .set('Cookie', ['token=' + readerToken()])
+        .send({ project_name: 'SA Updated Name' });
+      expect(res.status).toBe(200);
+    });
+
+    it('should allow a reader who is PM to add a health status', async () => {
+      const res = await request(app)
+        .post(`/api/projects/${memberProjectId}/health-statuses`)
+        .set('Cookie', ['token=' + readerToken()])
+        .send({ healthstatus_value: 4, healthstatus_comment: 'Looking good' });
+      expect(res.status).toBe(201);
+    });
+
+    it('should still return 403 for DELETE even when reader is PM', async () => {
+      const res = await request(app)
+        .delete(`/api/projects/${memberProjectId}`)
+        .set('Cookie', ['token=' + readerToken()]);
+      expect(res.status).toBe(403);
+    });
   });
 });
 

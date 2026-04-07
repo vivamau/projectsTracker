@@ -285,3 +285,46 @@
   - [x] projectService.js: SA included in getById, create, update
   - [x] Frontend: form.jsx SA picker, detail.jsx SA card, projectsApi.js API calls
   - [x] All 748 tests passing
+- [x] User Detail Page (Superadmin View) <!-- id: 286 -->
+  - [x] userService.js: getProjectsByUserId() UNION query (3 role types: Owner, PM, SA)
+  - [x] userRoutes.js: GET /api/users/:id/projects endpoint (superadmin only)
+  - [x] entitiesApi.js: getUserById(), getUserProjects() API functions
+  - [x] detail.jsx: full detail page (profile, projects table, activity log, metadata)
+  - [x] index.jsx: clickable rows navigate to /users/:id
+  - [x] App.jsx: route registration for /users/:id
+  - [x] TDD: 5 service tests + 7 route tests (all 780 tests passing, >85% coverage)
+  - [x] Features: role-based access, color-coded badges, pagination, pre-filtered audit logs
+- [x] PM/SA Dates & Percentage Feature <!-- id: 287 -->
+  - [x] Migration 023: percentage column on projects_to_projectmanagers and projects_to_solutionarchitects
+  - [x] projectManagerService.js: start_date, end_date, percentage in getByProjectId SELECT + linkToProject INSERT + syncProjectManagers
+  - [x] solutionArchitectService.js: same pattern for SA
+  - [x] userService.js: getProjectsByUserId UNION returns role_end_date + role_percentage for PM and SA legs
+  - [x] form.jsx: extended PM/SA state shape, date/percentage inputs per row, payload includes new fields
+  - [x] projects/detail.jsx: PM/SA cards show From/To and % below email; canEditProject allows PM/SA to edit
+  - [x] users/detail.jsx: From/To column with end date, % column; role badge inline next to name; metadata inline
+  - [x] projectRoutes.js: authorizeProjectMember middleware for write routes (PM/SA can edit, not delete)
+  - [x] rolematrix.md: created with full permissions table, updated for PM/SA editor access
+  - [x] All 780+ tests passing
+- [x] Project Status Management (Settings) <!-- id: 288 -->
+  - [x] Migration 019: project_statuses table (already existed)
+  - [x] projectStatusRoutes.js: GET (any auth), POST/PUT/DELETE (superadmin only), soft delete
+  - [x] projectsApi.js: createProjectStatus, updateProjectStatus, deleteProjectStatus
+  - [x] ProjectStatusManagementModal.jsx: list/create/edit/delete UI matching SeniorityManagementModal pattern
+  - [x] settings/index.jsx: Project Management card with Project Statuses row
+  - [x] TDD: 13 route tests all passing
+- [x] Health Status Types Management (Settings) <!-- id: 289 -->
+  - [x] Migration 024: healthstatus_types table (id, healthstatus_name, healthstatus_description, is_deleted, create_date)
+  - [x] Migration 025: seeds 3 default types (id=1 At Risk, id=2 Needs Attention, id=3 On Track) matching existing healthstatus_value integers
+  - [x] healthStatusTypeRoutes.js: GET (any auth), POST/PUT/DELETE (superadmin only), soft delete
+  - [x] routes/index.js: registered at /api/healthstatus-types
+  - [x] entitiesApi.js: getHealthStatusTypes, createHealthStatusType, updateHealthStatusType, deleteHealthStatusType
+  - [x] healthStatusService.js: getByProjectId + getLatest now JOIN healthstatus_types returning healthstatus_name
+  - [x] HealthStatusManagementModal.jsx: list/create/edit/delete UI
+  - [x] settings/index.jsx: Health Status Types row added to Project Management card
+  - [x] StatusBadge.jsx: accepts optional name prop (from JOIN), falls back to hardcoded label; unknown types get gray style
+  - [x] projects/detail.jsx: passes name={hs.healthstatus_name} to StatusBadge; select options loaded dynamically from API
+  - [x] TDD: 13 route tests + 3 new service tests (healthstatus_name in JOIN, null for unknown values); all 818 tests passing
+- [x] Label Abbreviations <!-- id: 290 -->
+  - [x] ProjectStatusBadge.jsx: "Support Ended" renders as "S.Ended" via displayLabel map
+  - [x] StatusBadge.jsx: "Needs Att." changed to "N.Att"
+  - [x] HealthChart.jsx: "Needs Attention" changed to "N.Att"

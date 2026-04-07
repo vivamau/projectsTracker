@@ -239,6 +239,16 @@ Alternative rejected: Adding recharts/chart.js would add ~50-200KB to bundle for
 
 **Status:** Implemented (PieChart.jsx with `describeArc()` helper, hover effects, empty state handling).
 
+## healthstatus_types as a separate type-definition table
+**Date:** 2026-04-07
+**Decision:** The existing `healthstatuses` table is a per-project history log (has project_id, stores append-only entries). A new `healthstatus_types` table was created as the type-definition table. `healthstatuses.healthstatus_value` acts as a FK referencing `healthstatus_types.id`. Seeds ensure id=1/2/3 match the existing integer codes already in production data.
+**Status:** Implemented (migrations 024 + 025, healthStatusTypeRoutes.js, healthStatusService JOIN).
+
+## authorizeProjectMember middleware for contributor PM/SA edit
+**Date:** 2026-04-07
+**Decision:** Contributors who are PM or SA on a project can edit it (all writes except create/delete). Implemented as a custom async middleware `authorizeProjectMember` inside `createProjectRoutes` where `db` is in scope — the existing `authorize()` middleware is role-string only and has no DB access. The middleware allows superadmin/admin unconditionally, otherwise SQL-checks the PM/SA junction tables.
+**Status:** Implemented (projectRoutes.js, rolematrix.md updated).
+
 ## Dark Theme via CSS Custom Properties + .dark Class
 **Date:** 2026-04-03
 **Decision:** Implement dark mode by overriding Tailwind v4 `@theme` CSS variables under a `.dark` class on `<html>`. Reasons:

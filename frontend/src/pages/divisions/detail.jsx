@@ -241,7 +241,7 @@ export default function DivisionDetailPage() {
                           <p className="mt-0.5 text-xs text-text-secondary line-clamp-1">{p.project_description}</p>
                         )}
                       </td>
-                      <td className="px-6 py-3"><StatusBadge value={p.health_status} /></td>
+                      <td className="px-6 py-3"><StatusBadge value={p.health_status} name={p.health_status_name} /></td>
                       <td className="px-6 py-3 text-text-secondary">
                         {p.owner_name ? `${p.owner_name} ${p.owner_lastname || ''}`.trim() : '-'}
                       </td>

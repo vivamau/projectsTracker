@@ -14,12 +14,17 @@ const statusConfig = {
 
 const fallback = { bg: '#f3f4f6', text: '#374151', darkBg: '#1f2937', darkText: '#d1d5db' };
 
+const displayLabel = {
+  'support ended': 'S.Ended',
+};
+
 export default function ProjectStatusBadge({ status }) {
   const { theme } = useTheme();
   if (!status) return <span className="text-text-secondary text-sm">—</span>;
 
   const config = statusConfig[status.toLowerCase()] || fallback;
   const isDark = theme === 'dark';
+  const label = displayLabel[status.toLowerCase()] ?? status;
 
   return (
     <span
@@ -29,7 +34,7 @@ export default function ProjectStatusBadge({ status }) {
       }}
       className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium capitalize"
     >
-      {status}
+      {label}
     </span>
   );
 }

@@ -59,6 +59,8 @@ export const getCurrencies = () => client.get('/currencies');
 export const getSeniorities = () => client.get('/seniorities');
 
 export const getUsers = (params) => client.get('/users', { params });
+export const getUserById = (id) => client.get(`/users/${id}`);
+export const getUserProjects = (id) => client.get(`/users/${id}/projects`);
 export const createUser = (data) => client.post('/users', data);
 export const updateUser = (id, data) => client.put(`/users/${id}`, data);
 export const deleteUser = (id) => client.delete(`/users/${id}`);
@@ -67,3 +69,8 @@ export const getAuditLogs = (params) => client.get('/audit-logs', { params });
 export const getAuditLogFilters = () => client.get('/audit-logs/filters');
 export const getAuditLogStats = () => client.get('/audit-logs/stats');
 export const cleanupAuditLogs = (data) => client.post('/audit-logs/cleanup', data);
+
+export const getHealthStatusTypes = () => client.get('/healthstatus-types');
+export const createHealthStatusType = (data) => client.post('/healthstatus-types', data);
+export const updateHealthStatusType = (id, data) => client.put(`/healthstatus-types/${id}`, data);
+export const deleteHealthStatusType = (id) => client.delete(`/healthstatus-types/${id}`);

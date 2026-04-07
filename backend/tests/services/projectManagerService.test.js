@@ -151,4 +151,30 @@ describe('projectManagerService.syncProjectManagers', () => {
     const pms = await projectManagerService.getByProjectId(db, projectId);
     expect(pms.length).toBe(0);
   });
+
+  it('should persist start_date, end_date, and percentage when syncing', async () => {
+    const startDate = new Date('2024-01-15').getTime();
+    const endDate = new Date('2024-12-31').getTime();
+    await projectManagerService.syncProjectManagers(db, projectId, [
+      { user_id: 1, division_id: 1, start_date: startDate, end_date: endDate, percentage: 75 }
+    ]);
+    const pms = await projectManagerService.getByProjectId(db, projectId);
+    expect(pms.length).toBe(1);
+    expect(pms[0].project_to_projectmanager_start_date).toBe(startDate);
+    expect(pms[0].project_to_projectmanager_end_date).toBe(endDate);
+    expect(pms[0].project_to_projectmanager_percentage).toBe(75);
+  });
+
+  it('should default start_date to now when not provided', async () => {
+    const before = Date.now();
+    await projectManagerService.syncProjectManagers(db, projectId, [
+      { user_id: 2, division_id: 1 }
+    ]);
+    const after = Date.now();
+    const pms = await projectManagerService.getByProjectId(db, projectId);
+    expect(pms[0].project_to_projectmanager_start_date).toBeGreaterThanOrEqual(before);
+    expect(pms[0].project_to_projectmanager_start_date).toBeLessThanOrEqual(after);
+    expect(pms[0].project_to_projectmanager_end_date).toBeNull();
+    expect(pms[0].project_to_projectmanager_percentage).toBeNull();
+  });
 });

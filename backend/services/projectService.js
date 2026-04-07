@@ -1,6 +1,7 @@
 const { runQuery, getOne, getAll } = require('../config/database');
 const projectManagerService = require('./projectManagerService');
 const solutionArchitectService = require('./solutionArchitectService');
+const { getRates, convertToUSD, getLastFetchedAt } = require('../utilities/exchangeRateService');
 
 async function getAllProjects(db, { page = 1, limit = 20, search, division_id, status_id } = {}) {
   const offset = (page - 1) * limit;
@@ -39,7 +40,11 @@ async function getAllProjects(db, { page = 1, limit = 20, search, division_id, s
             ps.id as project_status_id, ps.project_status_name,
             (SELECT hs.healthstatus_value FROM healthstatuses hs
              WHERE hs.project_id = p.id
-             ORDER BY hs.healthstatus_create_date DESC, hs.id DESC LIMIT 1) as health_status
+             ORDER BY hs.healthstatus_create_date DESC, hs.id DESC LIMIT 1) as health_status,
+            (SELECT hst.healthstatus_name FROM healthstatuses hs
+             LEFT JOIN healthstatus_types hst ON hst.id = hs.healthstatus_value AND hst.healthstatus_is_deleted = 0
+             WHERE hs.project_id = p.id
+             ORDER BY hs.healthstatus_create_date DESC, hs.id DESC LIMIT 1) as health_status_name
      FROM projects p
      LEFT JOIN divisions d ON p.division_id = d.id
      LEFT JOIN users u ON p.user_id = u.id
@@ -94,9 +99,11 @@ async function getById(db, id) {
 
   // Get latest health status
   const healthStatus = await getOne(db,
-    `SELECT * FROM healthstatuses
-     WHERE project_id = ?
-     ORDER BY healthstatus_create_date DESC LIMIT 1`,
+    `SELECT hs.*, hst.healthstatus_name
+     FROM healthstatuses hs
+     LEFT JOIN healthstatus_types hst ON hst.id = hs.healthstatus_value AND hst.healthstatus_is_deleted = 0
+     WHERE hs.project_id = ?
+     ORDER BY hs.healthstatus_create_date DESC LIMIT 1`,
     [id]
   );
 
@@ -122,6 +129,7 @@ async function getById(db, id) {
     owner_name: project.user_name,
     owner_lastname: project.user_lastname,
     latest_health_status: healthStatus ? healthStatus.healthstatus_value : null,
+    latest_health_status_name: healthStatus ? healthStatus.healthstatus_name : null,
     countries,
     supporting_divisions: supportingDivisions,
     tec_stacks: tecStacks,
@@ -326,18 +334,70 @@ async function getStats(db) {
     'SELECT COUNT(*) as count FROM projects WHERE project_is_deleted = 0 OR project_is_deleted IS NULL'
   );
 
-  const activeProjects = await getOne(db,
-    `SELECT COUNT(*) as count FROM projects
-     WHERE (project_is_deleted = 0 OR project_is_deleted IS NULL)
-     AND project_start_date IS NOT NULL AND project_end_date IS NULL`
+  const groupCounts = await getOne(db,
+    `SELECT
+       COUNT(CASE WHEN LOWER(ps.project_status_name) = 'queued' THEN 1 END) as queued,
+       COUNT(CASE WHEN LOWER(ps.project_status_name) = 'discovery' THEN 1 END) as discovery,
+       COUNT(CASE WHEN LOWER(ps.project_status_name) IN ('discontinued','ended','support ended') THEN 1 END) as ended,
+       COUNT(CASE WHEN
+         ps.project_status_name IS NULL OR
+         LOWER(ps.project_status_name) NOT IN ('queued','discovery','discontinued','ended','support ended')
+       THEN 1 END) as active
+     FROM projects p
+     LEFT JOIN project_statuses ps ON ps.id = p.project_status_id AND ps.project_status_is_deleted = 0
+     WHERE (p.project_is_deleted = 0 OR p.project_is_deleted IS NULL)`
   );
 
   const totalDivisions = await getOne(db,
     'SELECT COUNT(*) as count FROM divisions WHERE division_is_deleted = 0 OR division_is_deleted IS NULL'
   );
 
+  const activityStats = await getOne(db,
+    `SELECT
+       COALESCE(SUM(activity_planned_tickets), 0)    as total_tickets,
+       COALESCE(SUM(activity_closed_tickets), 0)     as closed_tickets,
+       COALESCE(SUM(activity_bug_tickets), 0)        as total_bugs,
+       COALESCE(SUM(activity_bug_closed_tickets), 0) as closed_bugs,
+       COUNT(DISTINCT project_id)                    as projects_reporting
+     FROM activities
+     WHERE activity_is_deleted = 0 OR activity_is_deleted IS NULL`
+  );
+
+  const vendorCounts = await getOne(db,
+    `SELECT
+       COUNT(DISTINCT v.id) as vendors,
+       COUNT(vr.id) as resources
+     FROM vendors v
+     LEFT JOIN vendorresources vr ON vr.vendor_id = v.id
+     WHERE v.vendor_is_deleted = 0 OR v.vendor_is_deleted IS NULL`
+  );
+
+  const poAmountByCurrency = await getAll(db,
+    `SELECT COALESCE(SUM(i.purchaseorderitems_days * i.purchaseorderitems_discounted_rate), 0) as subtotal,
+            COALESCE(cur.currency_name, 'USD') as currency
+     FROM purchaseorderitems i
+     LEFT JOIN currencies cur ON cur.id = i.currency_id
+     WHERE i.purchaseorderitem_is_deleted = 0 OR i.purchaseorderitem_is_deleted IS NULL
+     GROUP BY i.currency_id`
+  );
+
+  const poSpentByCurrency = await getAll(db,
+    `SELECT COALESCE(SUM(c.consumption_days * i.purchaseorderitems_discounted_rate), 0) as subtotal,
+            COALESCE(cur.currency_name, 'USD') as currency
+     FROM poitem_consumptions c
+     JOIN purchaseorderitems i ON i.id = c.purchaseorderitem_id
+     LEFT JOIN currencies cur ON cur.id = i.currency_id
+     WHERE (c.consumption_is_deleted = 0 OR c.consumption_is_deleted IS NULL)
+       AND (i.purchaseorderitem_is_deleted = 0 OR i.purchaseorderitem_is_deleted IS NULL)
+     GROUP BY i.currency_id`
+  );
+
+  const exchangeRates = await getRates();
+  const totalPOAmount = { total: poAmountByCurrency.reduce((sum, row) => sum + convertToUSD(row.subtotal, row.currency, exchangeRates), 0) };
+  const totalPOSpent  = { total: poSpentByCurrency.reduce((sum, row)  => sum + convertToUSD(row.subtotal, row.currency, exchangeRates), 0) };
+
   const healthDistribution = await getAll(db,
-    `SELECT hs.healthstatus_value, COUNT(*) as count
+    `SELECT hs.healthstatus_value as id, hst.healthstatus_name as name, COUNT(*) as count
      FROM healthstatuses hs
      INNER JOIN (
        SELECT project_id, MAX(healthstatus_create_date) as max_date
@@ -345,31 +405,77 @@ async function getStats(db) {
        GROUP BY project_id
      ) latest ON hs.project_id = latest.project_id AND hs.healthstatus_create_date = latest.max_date
      INNER JOIN projects p ON hs.project_id = p.id
+     LEFT JOIN healthstatus_types hst ON hst.id = hs.healthstatus_value AND hst.healthstatus_is_deleted = 0
      WHERE p.project_is_deleted = 0 OR p.project_is_deleted IS NULL
      GROUP BY hs.healthstatus_value`
   );
 
-  const recentProjects = await getAll(db,
-    `SELECT p.id, p.project_name, p.project_create_date, d.division_name
-     FROM projects p
-     LEFT JOIN divisions d ON p.division_id = d.id
-     WHERE p.project_is_deleted = 0 OR p.project_is_deleted IS NULL
-     ORDER BY p.project_create_date DESC
-     LIMIT 5`
+  const projectManagers = await getAll(db,
+    `SELECT u.id as user_id, u.user_name, u.user_lastname, u.user_email,
+            COUNT(DISTINCT ppm.project_id) as project_count
+     FROM projectmanagers pm
+     JOIN users u ON pm.user_id = u.id
+     LEFT JOIN projects_to_projectmanagers ppm ON ppm.projectmanager_id = pm.id
+     LEFT JOIN projects p ON p.id = ppm.project_id
+       AND (p.project_is_deleted = 0 OR p.project_is_deleted IS NULL)
+     GROUP BY pm.id
+     ORDER BY u.user_name`
   );
 
-  // Convert healthDistribution array to object { "3": 5, "2": 2, "1": 1 }
-  const healthMap = {};
-  for (const row of healthDistribution) {
-    healthMap[row.healthstatus_value] = row.count;
-  }
+  const solutionArchitects = await getAll(db,
+    `SELECT u.id as user_id, u.user_name, u.user_lastname, u.user_email,
+            COUNT(DISTINCT psa.project_id) as project_count
+     FROM solutionarchitects sa
+     JOIN users u ON sa.user_id = u.id
+     LEFT JOIN projects_to_solutionarchitects psa ON psa.solutionarchitect_id = sa.id
+     LEFT JOIN projects p ON p.id = psa.project_id
+       AND (p.project_is_deleted = 0 OR p.project_is_deleted IS NULL)
+     GROUP BY sa.id
+     ORDER BY u.user_name`
+  );
+
+  const owners = await getAll(db,
+    `SELECT u.id as user_id, u.user_name, u.user_lastname, u.user_email,
+            COUNT(DISTINCT p.id) as project_count
+     FROM users u
+     JOIN projects p ON p.user_id = u.id
+     WHERE (p.project_is_deleted = 0 OR p.project_is_deleted IS NULL)
+     GROUP BY u.id
+     ORDER BY u.user_name`
+  );
+
+  const projectManagersCount = await projectManagerService.getCount(db);
+  const solutionArchitectsCount = await solutionArchitectService.getCount(db);
 
   return {
     totalProjects: totalProjects.count,
-    activeProjects: activeProjects.count,
+    totalPOAmount: totalPOAmount.total || 0,
+    totalPOSpent: totalPOSpent.total || 0,
+    totalVendors: vendorCounts.vendors || 0,
+    totalResources: vendorCounts.resources || 0,
+    activityStats: {
+      openTickets:       (activityStats.total_tickets - activityStats.closed_tickets) || 0,
+      closedTickets:      activityStats.closed_tickets || 0,
+      openBugs:          (activityStats.total_bugs    - activityStats.closed_bugs)    || 0,
+      closedBugs:         activityStats.closed_bugs   || 0,
+      projectsReporting:  activityStats.projects_reporting || 0,
+      projectsNotReporting: Math.max(0, (totalProjects.count || 0) - (activityStats.projects_reporting || 0)),
+    },
+    groupCounts: {
+      queued: groupCounts.queued || 0,
+      discovery: groupCounts.discovery || 0,
+      active: groupCounts.active || 0,
+      ended: groupCounts.ended || 0,
+    },
     totalDivisions: totalDivisions.count,
-    healthDistribution: healthMap,
-    recentProjects
+    exchangeRates: exchangeRates,
+    exchangeRatesUpdatedAt: getLastFetchedAt(),
+    healthDistribution: healthDistribution,
+    projectManagers: projectManagers,
+    solutionArchitects: solutionArchitects,
+    owners: owners,
+    projectManagersCount,
+    solutionArchitectsCount
   };
 }
 

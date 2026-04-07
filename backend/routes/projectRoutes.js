@@ -8,12 +8,35 @@ const projectManagerService = require('../services/projectManagerService');
 const solutionArchitectService = require('../services/solutionArchitectService');
 const vendorResourceService = require('../services/vendorResourceService');
 const activityService = require('../services/activityService');
-const { runQuery } = require('../config/database');
+const { runQuery, getOne } = require('../config/database');
 const { success, error, paginated } = require('../utilities/responseHelper');
 const { auditLog } = require('../utilities/auditHelper');
 
 function createProjectRoutes(db, auditDb) {
   const router = express.Router();
+
+  // Allows superadmin/admin unconditionally; allows other roles only if they
+  // are an assigned PM or SA on the project identified by req.params.id.
+  const authorizeProjectMember = async (req, res, next) => {
+    if (!req.user) return res.status(401).json({ error: 'Authentication required' });
+    if (req.user.role === 'superadmin' || req.user.role === 'admin') return next();
+
+    const projectId = parseInt(req.params.id);
+    const userId = req.user.id;
+    const member = await getOne(db,
+      `SELECT 1 FROM projectmanagers pm
+       INNER JOIN projects_to_projectmanagers ppm ON pm.id = ppm.projectmanager_id
+       WHERE ppm.project_id = ? AND pm.user_id = ?
+       UNION
+       SELECT 1 FROM solutionarchitects sa
+       INNER JOIN projects_to_solutionarchitects psa ON sa.id = psa.solutionarchitect_id
+       WHERE psa.project_id = ? AND sa.user_id = ?
+       LIMIT 1`,
+      [projectId, userId, projectId, userId]
+    );
+    if (member) return next();
+    return res.status(403).json({ error: 'Insufficient permissions' });
+  };
 
   router.get('/stats', authenticate, async (req, res) => {
     try {
@@ -74,7 +97,7 @@ function createProjectRoutes(db, auditDb) {
     }
   });
 
-  router.put('/:id', authenticate, authorize('superadmin', 'admin'), async (req, res) => {
+  router.put('/:id', authenticate, authorizeProjectMember, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const existing = await projectService.getById(db, id);
@@ -129,7 +152,7 @@ function createProjectRoutes(db, auditDb) {
     }
   });
 
-  router.post('/:id/health-statuses', authenticate, authorize('superadmin', 'admin'), async (req, res) => {
+  router.post('/:id/health-statuses', authenticate, authorizeProjectMember, async (req, res) => {
     try {
       const { healthstatus_value, healthstatus_comment } = req.body;
       if (!healthstatus_value) {
@@ -165,7 +188,7 @@ function createProjectRoutes(db, auditDb) {
     }
   });
 
-  router.post('/:id/completions', authenticate, authorize('superadmin', 'admin'), async (req, res) => {
+  router.post('/:id/completions', authenticate, authorizeProjectMember, async (req, res) => {
     try {
       const { completion_value, completion_comment, completion_start_date, completion_end_date } = req.body;
       if (completion_value === undefined || completion_value === null) {
@@ -198,7 +221,7 @@ function createProjectRoutes(db, auditDb) {
     }
   });
 
-  router.put('/:id/completions/:completionId', authenticate, authorize('superadmin', 'admin'), async (req, res) => {
+  router.put('/:id/completions/:completionId', authenticate, authorizeProjectMember, async (req, res) => {
     try {
       const result = await completionService.update(db, parseInt(req.params.completionId), req.body);
       if (result.changes === 0) {
@@ -219,7 +242,7 @@ function createProjectRoutes(db, auditDb) {
     }
   });
 
-  router.delete('/:id/completions/:completionId', authenticate, authorize('superadmin', 'admin'), async (req, res) => {
+  router.delete('/:id/completions/:completionId', authenticate, authorizeProjectMember, async (req, res) => {
     try {
       const result = await completionService.softDelete(db, parseInt(req.params.completionId));
       if (result.changes === 0) {
@@ -258,7 +281,7 @@ function createProjectRoutes(db, auditDb) {
     }
   });
 
-  router.post('/:id/budgets', authenticate, authorize('superadmin', 'admin'), async (req, res) => {
+  router.post('/:id/budgets', authenticate, authorizeProjectMember, async (req, res) => {
     try {
       const { budget_amount } = req.body;
       if (budget_amount === undefined || budget_amount === null) {
@@ -285,7 +308,7 @@ function createProjectRoutes(db, auditDb) {
     }
   });
 
-  router.put('/:id/budgets/:budgetId', authenticate, authorize('superadmin', 'admin'), async (req, res) => {
+  router.put('/:id/budgets/:budgetId', authenticate, authorizeProjectMember, async (req, res) => {
     try {
       const result = await budgetService.update(db, parseInt(req.params.budgetId), req.body);
       if (result.changes === 0) {
@@ -306,7 +329,7 @@ function createProjectRoutes(db, auditDb) {
     }
   });
 
-  router.delete('/:id/budgets/:budgetId', authenticate, authorize('superadmin', 'admin'), async (req, res) => {
+  router.delete('/:id/budgets/:budgetId', authenticate, authorizeProjectMember, async (req, res) => {
     try {
       const budgetId = parseInt(req.params.budgetId);
       const result = await budgetService.softDelete(db, budgetId);
@@ -338,7 +361,7 @@ function createProjectRoutes(db, auditDb) {
     }
   });
 
-  router.put('/:id/project-managers', authenticate, authorize('superadmin', 'admin'), async (req, res) => {
+  router.put('/:id/project-managers', authenticate, authorizeProjectMember, async (req, res) => {
     try {
       const { project_managers } = req.body;
       if (!Array.isArray(project_managers)) {
@@ -369,7 +392,7 @@ function createProjectRoutes(db, auditDb) {
     }
   });
 
-  router.put('/:id/solution-architects', authenticate, authorize('superadmin', 'admin'), async (req, res) => {
+  router.put('/:id/solution-architects', authenticate, authorizeProjectMember, async (req, res) => {
     try {
       const { solution_architects } = req.body;
       if (!Array.isArray(solution_architects)) {
@@ -409,7 +432,7 @@ function createProjectRoutes(db, auditDb) {
     }
   });
 
-  router.put('/:id/assignments', authenticate, authorize('superadmin', 'admin'), async (req, res) => {
+  router.put('/:id/assignments', authenticate, authorizeProjectMember, async (req, res) => {
     try {
       const projectId = parseInt(req.params.id);
       const { assignments } = req.body;
@@ -432,7 +455,7 @@ function createProjectRoutes(db, auditDb) {
     }
   });
 
-  router.put('/:id/tec-stacks', authenticate, authorize('superadmin', 'admin'), async (req, res) => {
+  router.put('/:id/tec-stacks', authenticate, authorizeProjectMember, async (req, res) => {
     try {
       const projectId = parseInt(req.params.id);
       const { tec_stack_ids = [] } = req.body;

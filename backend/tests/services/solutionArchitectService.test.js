@@ -101,6 +101,32 @@ describe('solutionArchitectService.syncSolutionArchitects', () => {
     expect(sas.length).toBe(0);
   });
 
+  it('should persist start_date, end_date, and percentage when syncing', async () => {
+    const startDate = new Date('2024-03-01').getTime();
+    const endDate = new Date('2024-11-30').getTime();
+    await solutionArchitectService.syncSolutionArchitects(db, projectId, [
+      { user_id: 1, division_id: 1, start_date: startDate, end_date: endDate, percentage: 50 }
+    ]);
+    const sas = await solutionArchitectService.getByProjectId(db, projectId);
+    expect(sas.length).toBe(1);
+    expect(sas[0].project_to_solutionarchitect_start_date).toBe(startDate);
+    expect(sas[0].project_to_solutionarchitect_end_date).toBe(endDate);
+    expect(sas[0].project_to_solutionarchitect_percentage).toBe(50);
+  });
+
+  it('should default start_date to now and null end_date/percentage when not provided', async () => {
+    const before = Date.now();
+    await solutionArchitectService.syncSolutionArchitects(db, projectId, [
+      { user_id: 2, division_id: 1 }
+    ]);
+    const after = Date.now();
+    const sas = await solutionArchitectService.getByProjectId(db, projectId);
+    expect(sas[0].project_to_solutionarchitect_start_date).toBeGreaterThanOrEqual(before);
+    expect(sas[0].project_to_solutionarchitect_start_date).toBeLessThanOrEqual(after);
+    expect(sas[0].project_to_solutionarchitect_end_date).toBeNull();
+    expect(sas[0].project_to_solutionarchitect_percentage).toBeNull();
+  });
+
   it('should reuse existing SA record for the same user', async () => {
     await solutionArchitectService.syncSolutionArchitects(db, projectId, [
       { user_id: 1, division_id: 1 }

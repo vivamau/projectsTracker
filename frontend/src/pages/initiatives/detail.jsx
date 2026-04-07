@@ -167,7 +167,7 @@ export default function InitiativeDetailPage() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <p className="font-medium text-primary-600 hover:text-primary-700 truncate">{project.project_name}</p>
-                        <StatusBadge value={project.health_status} />
+                        <StatusBadge value={project.health_status} name={project.health_status_name} />
                       </div>
                       <div className="flex flex-col gap-2 mt-2">
                         <div className="flex flex-col gap-1 text-xs text-text-secondary">

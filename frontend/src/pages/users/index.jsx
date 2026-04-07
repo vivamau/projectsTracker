@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Plus, Pencil, Trash2 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Plus, Pencil, Trash2, Users } from 'lucide-react';
 import { getUsers, createUser, updateUser, deleteUser } from '../../api/entitiesApi';
+import { getProjectStats } from '../../api/projectsApi';
 import { useAuth } from '../../hooks/useAuth';
 import Card from '../../commoncomponents/Card';
 import Modal from '../../commoncomponents/Modal';
@@ -17,6 +19,7 @@ const ROLES = [
 ];
 
 export default function UsersPage() {
+  const navigate = useNavigate();
   const { role } = useAuth();
   const isSuperAdmin = role === 'superadmin';
   const [users, setUsers] = useState([]);
@@ -29,6 +32,7 @@ export default function UsersPage() {
   const [form, setForm] = useState({ user_email: '', user_name: '', user_lastname: '', password: '', userrole_id: 3 });
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [error, setError] = useState('');
+  const [stats, setStats] = useState(null);
 
   const fetchData = () => {
     setLoading(true);
@@ -40,6 +44,13 @@ export default function UsersPage() {
 
   useEffect(() => { fetchData(); }, [page, search]);
   useEffect(() => { setPage(1); }, [search]);
+  useEffect(() => {
+    if (isSuperAdmin) {
+      getProjectStats()
+        .then(r => setStats(r.data.data))
+        .catch(() => setStats(null));
+    }
+  }, [isSuperAdmin]);
 
   const openCreate = () => {
     setEditItem(null);
@@ -97,7 +108,8 @@ export default function UsersPage() {
         )}
       </div>
 
-      <Card noPadding>
+      <div className="flex gap-6 items-start">
+        <Card noPadding className="flex-1">
         <div className="border-b border-border px-6 py-4">
           <div className="w-64"><SearchInput value={search} onChange={setSearch} placeholder="Search users..." /></div>
         </div>
@@ -116,16 +128,16 @@ export default function UsersPage() {
               {users.length === 0 ? (
                 <tr><td colSpan={4} className="px-6 py-12 text-center text-text-secondary">No users</td></tr>
               ) : users.map(u => (
-                <tr key={u.id} className="border-b border-border last:border-0 hover:bg-surface/30 transition-colors">
+                <tr key={u.id} className="border-b border-border last:border-0 hover:bg-surface/30 transition-colors cursor-pointer" onClick={() => isSuperAdmin && navigate(`/users/${u.id}`)}>
                   <td className="px-6 py-3 font-medium">{u.user_name} {u.user_lastname}</td>
                   <td className="px-6 py-3 text-text-secondary">{u.user_email}</td>
                   <td className="px-6 py-3">
-                    <span className="rounded-full bg-primary-50 px-2.5 py-0.5 text-xs font-medium text-primary-700 capitalize">
+                    <span className="rounded-full bg-primary-600 px-2.5 py-0.5 text-xs font-medium text-white capitalize">
                       {u.role || u.userrole_name}
                     </span>
                   </td>
                   {isSuperAdmin && (
-                    <td className="px-6 py-3">
+                    <td className="px-6 py-3" onClick={(e) => e.stopPropagation()}>
                       <div className="flex justify-end gap-1">
                         <button onClick={() => openEdit(u)} className="rounded-lg p-1.5 text-text-secondary hover:bg-surface hover:text-primary-500 transition-colors"><Pencil size={16} /></button>
                         <button onClick={() => setDeleteTarget(u)} className="rounded-lg p-1.5 text-text-secondary hover:bg-error-50 hover:text-error-500 transition-colors"><Trash2 size={16} /></button>
@@ -139,6 +151,23 @@ export default function UsersPage() {
         )}
         <Pagination page={pagination.page || 1} totalPages={pagination.totalPages || 1} total={pagination.total || 0} onPageChange={setPage} />
       </Card>
+
+        {isSuperAdmin && stats && (
+          <Card className="p-4">
+            <h3 className="text-sm font-semibold text-text-secondary mb-3">Defined Resources</h3>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between py-2 border-b border-border/50">
+                <span className="text-sm text-text-secondary">Project Managers</span>
+                <span className="text-lg font-bold text-primary-600">{stats.projectManagersCount}</span>
+              </div>
+              <div className="flex items-center justify-between py-2">
+                <span className="text-sm text-text-secondary">Solution Architects</span>
+                <span className="text-lg font-bold text-primary-600">{stats.solutionArchitectsCount}</span>
+              </div>
+            </div>
+          </Card>
+        )}
+      </div>
 
       <Modal open={modal} onClose={() => setModal(false)} title={editItem ? 'Edit User' : 'New User'} maxWidth="max-w-md">
         <form onSubmit={handleSave} className="space-y-4">

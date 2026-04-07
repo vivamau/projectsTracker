@@ -35,5 +35,11 @@ When fetching API data for React dropdowns, the response structure varies:
 ## Consumption balance calculation belongs in SQL, not frontend
 When displaying derived data like "days balance" (allocated - consumed) for a list of items, compute the aggregate via SQL LEFT JOIN subquery rather than N+1 API calls from the frontend. The `getByPoId` query joins a `SUM(consumption_days)` subquery, returning `total_days_consumed` alongside each item. This avoids extra network round-trips per item.
 
+## TDD discipline: write service tests before service changes
+When modifying an existing service (e.g., adding a JOIN to healthStatusService), write the failing test first — even if the change seems trivial. Without a failing test first, the implementation-then-test order means you never see red, which undermines confidence in the test. The route-level TDD was correct (13 tests red → green); the service JOIN change was implemented before adding tests — a gap to avoid.
+
+## healthstatus_types seeds with explicit IDs for FK compatibility
+The existing healthstatuses.healthstatus_value column stores 1/2/3 as integer codes. To connect it to healthstatus_types, seeds must use INSERT OR IGNORE with explicit id=1/2/3. Without explicit IDs, AUTOINCREMENT would assign different IDs and break the FK relationship.
+
 ## Duplicate API call lines can silently corrupt data flow
 When editing JSX files, be careful not to leave duplicate lines (e.g., `getConsumptions(...)` called twice in a useEffect). The first call's promise is orphaned and never awaited, causing silent failures. Always diff carefully after edits.

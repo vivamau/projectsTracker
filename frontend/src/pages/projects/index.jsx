@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { Plus, Eye, Pencil, Trash2 } from 'lucide-react';
+import { Plus, Eye, Pencil, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import { getProjects, deleteProject, getBudgets, getProjectStatuses } from '../../api/projectsApi';
 import { getDivisions } from '../../api/entitiesApi';
@@ -15,6 +15,8 @@ const QUEUED_STATUSES    = new Set(['queued']);
 const DISCOVERY_STATUSES = new Set(['discovery']);
 const ENDED_STATUSES     = new Set(['discontinued', 'ended', 'support ended']);
 
+const PAGE_SIZE = 10;
+
 function groupProjects(projects) {
   const queued = [], discovery = [], active = [], ended = [];
   for (const p of projects) {
@@ -24,7 +26,8 @@ function groupProjects(projects) {
     else if (ENDED_STATUSES.has(status))     ended.push(p);
     else                                     active.push(p);
   }
-  return { queued, discovery, active, ended };
+  const alpha = arr => [...arr].sort((a, b) => a.project_name.localeCompare(b.project_name));
+  return { queued: alpha(queued), discovery: alpha(discovery), active: alpha(active), ended: alpha(ended) };
 }
 
 function projectsByYear(projects) {
@@ -79,7 +82,7 @@ function SectionTable({ projects, budgetsData, isAdmin, onDelete, formatDate, fo
                   <span className="text-text-secondary">-</span>
                 )}
               </td>
-              <td className="px-6 py-3"><StatusBadge value={p.health_status} /></td>
+              <td className="px-6 py-3"><StatusBadge value={p.health_status} name={p.health_status_name} /></td>
               <td className="px-6 py-3 truncate">
                 {budgetsData[p.id]?.budgets?.length > 0 ? (
                   <span className="font-medium text-text-primary">
@@ -116,13 +119,34 @@ function SectionTable({ projects, budgetsData, isAdmin, onDelete, formatDate, fo
   );
 }
 
-function SectionHeader({ label, count }) {
+function SectionHeader({ label, count, page, totalPages, onPrev, onNext }) {
   return (
-    <div className="flex items-center gap-3 border-b border-border px-6 py-3 bg-surface/50">
-      <span className="text-sm font-semibold text-text-primary">{label}</span>
-      <span className="rounded-full bg-surface px-2 py-0.5 text-xs font-medium text-text-secondary border border-border">
-        {count}
-      </span>
+    <div className="flex items-center justify-between border-b border-border px-6 py-3 bg-surface/50">
+      <div className="flex items-center gap-3">
+        <span className="text-sm font-semibold text-text-primary">{label}</span>
+        <span className="rounded-full bg-surface px-2 py-0.5 text-xs font-medium text-text-secondary border border-border">
+          {count}
+        </span>
+      </div>
+      {totalPages > 1 && (
+        <div className="flex items-center gap-1 text-xs text-text-secondary">
+          <button
+            onClick={onPrev}
+            disabled={page === 1}
+            className="rounded p-1 hover:bg-surface disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+          >
+            <ChevronLeft size={14} />
+          </button>
+          <span className="px-1">{page} / {totalPages}</span>
+          <button
+            onClick={onNext}
+            disabled={page === totalPages}
+            className="rounded p-1 hover:bg-surface disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+          >
+            <ChevronRight size={14} />
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -157,6 +181,7 @@ export default function ProjectsPage() {
   const [divisionFilter, setDivisionFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [groupPages, setGroupPages] = useState({ queued: 1, discovery: 1, active: 1, ended: 1 });
 
   const fetchProjects = useCallback(async () => {
     setLoading(true);
@@ -189,7 +214,10 @@ export default function ProjectsPage() {
     }
   }, [search, divisionFilter, statusFilter]);
 
-  useEffect(() => { fetchProjects(); }, [fetchProjects]);
+  useEffect(() => {
+    fetchProjects();
+    setGroupPages({ queued: 1, discovery: 1, active: 1, ended: 1 });
+  }, [fetchProjects]);
 
   useEffect(() => {
     getDivisions().then(res => setDivisions(res.data.data)).catch(() => {});
@@ -222,6 +250,10 @@ export default function ProjectsPage() {
   const { queued, discovery, active, ended } = groupProjects(projects);
   const yearData = projectsByYear(projects);
   const tableProps = { budgetsData, isAdmin, onDelete: setDeleteTarget, formatDate, formatCurrency };
+
+  const totalPages = (arr) => Math.max(1, Math.ceil(arr.length / PAGE_SIZE));
+  const paginate = (arr, key) => arr.slice((groupPages[key] - 1) * PAGE_SIZE, groupPages[key] * PAGE_SIZE);
+  const setPage = (key, page) => setGroupPages(prev => ({ ...prev, [key]: page }));
 
   const byStatus = projects.reduce((acc, p) => {
     const name = p.project_status_name || 'Unknown';
@@ -287,26 +319,38 @@ export default function ProjectsPage() {
               <div className="rounded-lg border border-border bg-surface-card overflow-hidden divide-y divide-border">
                 {queued.length > 0 && (
                   <div>
-                    <SectionHeader label="Queued" count={queued.length} />
-                    <SectionTable projects={queued} {...tableProps} />
+                    <SectionHeader label="Queued" count={queued.length}
+                      page={groupPages.queued} totalPages={totalPages(queued)}
+                      onPrev={() => setPage('queued', groupPages.queued - 1)}
+                      onNext={() => setPage('queued', groupPages.queued + 1)} />
+                    <SectionTable projects={paginate(queued, 'queued')} {...tableProps} />
                   </div>
                 )}
                 {discovery.length > 0 && (
                   <div>
-                    <SectionHeader label="Discovery" count={discovery.length} />
-                    <SectionTable projects={discovery} {...tableProps} />
+                    <SectionHeader label="Discovery" count={discovery.length}
+                      page={groupPages.discovery} totalPages={totalPages(discovery)}
+                      onPrev={() => setPage('discovery', groupPages.discovery - 1)}
+                      onNext={() => setPage('discovery', groupPages.discovery + 1)} />
+                    <SectionTable projects={paginate(discovery, 'discovery')} {...tableProps} />
                   </div>
                 )}
                 {active.length > 0 && (
                   <div>
-                    <SectionHeader label="Active" count={active.length} />
-                    <SectionTable projects={active} {...tableProps} />
+                    <SectionHeader label="Active" count={active.length}
+                      page={groupPages.active} totalPages={totalPages(active)}
+                      onPrev={() => setPage('active', groupPages.active - 1)}
+                      onNext={() => setPage('active', groupPages.active + 1)} />
+                    <SectionTable projects={paginate(active, 'active')} {...tableProps} />
                   </div>
                 )}
                 {ended.length > 0 && (
                   <div>
-                    <SectionHeader label="Ended" count={ended.length} />
-                    <SectionTable projects={ended} {...tableProps} />
+                    <SectionHeader label="Ended" count={ended.length}
+                      page={groupPages.ended} totalPages={totalPages(ended)}
+                      onPrev={() => setPage('ended', groupPages.ended - 1)}
+                      onNext={() => setPage('ended', groupPages.ended + 1)} />
+                    <SectionTable projects={paginate(ended, 'ended')} {...tableProps} />
                   </div>
                 )}
               </div>

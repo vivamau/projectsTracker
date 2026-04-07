@@ -76,19 +76,41 @@ describe('healthStatusService', () => {
       const statuses = await healthStatusService.getByProjectId(db, 9999);
       expect(statuses).toEqual([]);
     });
+
+    it('should return healthstatus_name from joined healthstatus_types', async () => {
+      const statuses = await healthStatusService.getByProjectId(db, testProjectId);
+      const atRisk = statuses.find(s => s.healthstatus_value === 1);
+      expect(atRisk).toBeDefined();
+      expect(atRisk.healthstatus_name).toBe('At Risk');
+    });
+
+    it('should return null healthstatus_name when no matching type exists', async () => {
+      // Insert a status with a value that has no matching type
+      await healthStatusService.create(db, { project_id: testProjectId, healthstatus_value: 99 });
+      const statuses = await healthStatusService.getByProjectId(db, testProjectId);
+      const unknown = statuses.find(s => s.healthstatus_value === 99);
+      expect(unknown).toBeDefined();
+      expect(unknown.healthstatus_name).toBeNull();
+    });
   });
 
   describe('getLatest', () => {
     it('should return the latest health status', async () => {
       const latest = await healthStatusService.getLatest(db, testProjectId);
       expect(latest).not.toBeNull();
-      // The last one we created was Green (3) without comment
-      expect(latest.healthstatus_value).toBe(3);
+      expect(latest.healthstatus_value).toBe(99);
     });
 
     it('should return null for project with no statuses', async () => {
       const latest = await healthStatusService.getLatest(db, 9999);
       expect(latest).toBeNull();
+    });
+
+    it('should include healthstatus_name in latest result', async () => {
+      // Insert a known-type status last so it becomes latest
+      await healthStatusService.create(db, { project_id: testProjectId, healthstatus_value: 3 });
+      const latest = await healthStatusService.getLatest(db, testProjectId);
+      expect(latest.healthstatus_name).toBe('On Track');
     });
   });
 });

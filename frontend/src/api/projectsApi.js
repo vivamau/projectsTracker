@@ -126,6 +126,15 @@ export const syncProjectAssignments = (projectId, assignments) =>
 export const getProjectStatuses = () =>
   client.get('/project-statuses');
 
+export const createProjectStatus = (data) =>
+  client.post('/project-statuses', data);
+
+export const updateProjectStatus = (id, data) =>
+  client.put(`/project-statuses/${id}`, data);
+
+export const deleteProjectStatus = (id) =>
+  client.delete(`/project-statuses/${id}`);
+
 export const getActivities = (projectId) =>
   client.get(`/projects/${projectId}/activities`);
 

@@ -10,7 +10,7 @@ import {
   getTecStacks, syncTecStacks,
   getProjectAssignments, syncProjectAssignments
 } from '../../api/projectsApi';
-import { getCurrencies } from '../../api/entitiesApi';
+import { getCurrencies, getHealthStatusTypes } from '../../api/entitiesApi';
 import { useAuth } from '../../hooks/useAuth';
 import Card from '../../commoncomponents/Card';
 import StatusBadge from '../../commoncomponents/StatusBadge';
@@ -27,10 +27,18 @@ export default function ProjectDetailPage() {
   const navigate = useNavigate();
   const { isAdmin, user } = useAuth();
   const [project, setProject] = useState(null);
+  // true for admin/superadmin AND for contributors who are PM or SA on this project
+  const canEditProject = isAdmin || (
+    project !== null && (
+      project.project_managers?.some(pm => pm.user_id === user?.id) ||
+      project.solution_architects?.some(sa => sa.user_id === user?.id)
+    )
+  );
   const [healthStatuses, setHealthStatuses] = useState([]);
   const [completions, setCompletions] = useState([]);
   const [budgets, setBudgets] = useState([]);
   const [currencies, setCurrencies] = useState([]);
+  const [healthStatusTypes, setHealthStatusTypes] = useState([]);
   const [vendorResources, setVendorResources] = useState([]);
   const [activities, setActivities] = useState([]);
   const [allTecStacks, setAllTecStacks] = useState([]);
@@ -58,7 +66,8 @@ export default function ProjectDetailPage() {
       getVendorResources(id).then(r => setVendorResources(r.data.data)),
       getActivities(id).then(r => setActivities(r.data.data)).catch(() => {}),
       getTecStacks().then(r => setAllTecStacks(r.data.data)).catch(() => {}),
-      getProjectAssignments(id).then(r => setAssignments(r.data.data)).catch(() => {})
+      getProjectAssignments(id).then(r => setAssignments(r.data.data)).catch(() => {}),
+      getHealthStatusTypes().then(r => setHealthStatusTypes(r.data.data)).catch(() => {})
     ])
       .catch(() => navigate('/projects'))
       .finally(() => setLoading(false));
@@ -181,7 +190,7 @@ export default function ProjectDetailPage() {
           <h1 className="text-xl font-bold text-text-primary">{project.project_name}</h1>
           <div className="mt-1 flex flex-wrap items-center gap-2">
             <ProjectStatusBadge status={project.project_status_name} />
-            <StatusBadge value={project.latest_health_status} />
+            <StatusBadge value={project.latest_health_status} name={project.latest_health_status_name} />
             {project.division_name && (
               <Link
                 to={`/divisions/${project.division_id}`}
@@ -192,20 +201,24 @@ export default function ProjectDetailPage() {
             )}
           </div>
         </div>
-        {isAdmin && (
+        {(canEditProject || isAdmin) && (
           <div className="flex gap-2">
-            <Link
-              to={`/projects/${id}/edit`}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-border-dark px-3 py-2 text-sm font-medium hover:bg-surface transition-colors"
-            >
-              <Pencil size={15} /> Edit
-            </Link>
-            <button
-              onClick={() => setConfirmDelete(true)}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-error-500 px-3 py-2 text-sm font-medium text-error-500 hover:bg-error-50 transition-colors"
-            >
-              <Trash2 size={15} /> Delete
-            </button>
+            {canEditProject && (
+              <Link
+                to={`/projects/${id}/edit`}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-border-dark px-3 py-2 text-sm font-medium hover:bg-surface transition-colors"
+              >
+                <Pencil size={15} /> Edit
+              </Link>
+            )}
+            {isAdmin && (
+              <button
+                onClick={() => setConfirmDelete(true)}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-error-500 px-3 py-2 text-sm font-medium text-error-500 hover:bg-error-50 transition-colors"
+              >
+                <Trash2 size={15} /> Delete
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -266,7 +279,7 @@ export default function ProjectDetailPage() {
           <Card
             title="Milestones"
             extra={
-              isAdmin && (
+              canEditProject && (
                 <button
                   onClick={() => setCompletionModal(true)}
                   className="inline-flex items-center gap-1 rounded-lg bg-primary-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-primary-600 transition-colors"
@@ -297,7 +310,7 @@ export default function ProjectDetailPage() {
 
             <MilestoneTimeline
               completions={completions}
-              isAdmin={isAdmin}
+              isAdmin={canEditProject}
               onDelete={handleDeleteCompletion}
               formatDate={formatDate}
             />
@@ -307,7 +320,7 @@ export default function ProjectDetailPage() {
           <Card
             title="Health Status History"
             extra={
-              isAdmin && (
+              canEditProject && (
                 <button
                   onClick={() => setHealthModal(true)}
                   className="inline-flex items-center gap-1 rounded-lg bg-primary-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-primary-600 transition-colors"
@@ -329,7 +342,7 @@ export default function ProjectDetailPage() {
                     </div>
                     <div className="pb-3">
                       <div className="flex items-center gap-2">
-                        <StatusBadge value={hs.healthstatus_value} />
+                        <StatusBadge value={hs.healthstatus_value} name={hs.healthstatus_name} />
                         <span className="text-xs text-text-secondary">{formatDate(hs.healthstatus_create_date)}</span>
                       </div>
                       {hs.healthstatus_comment && (
@@ -360,6 +373,17 @@ export default function ProjectDetailPage() {
                           {pm.user_email}
                           {pm.division_name && <span className="ml-1.5 text-primary-500">· {pm.division_name}</span>}
                         </p>
+                        <p className="text-xs text-text-secondary">
+                          {pm.project_to_projectmanager_start_date && (
+                            <span>From {new Date(pm.project_to_projectmanager_start_date).toLocaleDateString()}</span>
+                          )}
+                          {pm.project_to_projectmanager_end_date && (
+                            <span> · To {new Date(pm.project_to_projectmanager_end_date).toLocaleDateString()}</span>
+                          )}
+                          {pm.project_to_projectmanager_percentage != null && (
+                            <span>{pm.project_to_projectmanager_start_date || pm.project_to_projectmanager_end_date ? ' · ' : ''}{pm.project_to_projectmanager_percentage}%</span>
+                          )}
+                        </p>
                       </div>
                     </div>
                   ))}
@@ -383,6 +407,17 @@ export default function ProjectDetailPage() {
                           {sa.user_email}
                           {sa.division_name && <span className="ml-1.5 text-primary-500">· {sa.division_name}</span>}
                         </p>
+                        <p className="text-xs text-text-secondary">
+                          {sa.project_to_solutionarchitect_start_date && (
+                            <span>From {new Date(sa.project_to_solutionarchitect_start_date).toLocaleDateString()}</span>
+                          )}
+                          {sa.project_to_solutionarchitect_end_date && (
+                            <span> · To {new Date(sa.project_to_solutionarchitect_end_date).toLocaleDateString()}</span>
+                          )}
+                          {sa.project_to_solutionarchitect_percentage != null && (
+                            <span>{sa.project_to_solutionarchitect_start_date || sa.project_to_solutionarchitect_end_date ? ' · ' : ''}{sa.project_to_solutionarchitect_percentage}%</span>
+                          )}
+                        </p>
                       </div>
                     </div>
                   ))}
@@ -394,7 +429,7 @@ export default function ProjectDetailPage() {
           {/* Vendor Resources */}
           <Card
             title="Vendor Resources"
-            extra={isAdmin ? (
+            extra={canEditProject ? (
               <button
                 onClick={handleOpenAssignmentModal}
                 className="flex items-center gap-1 text-xs text-text-secondary hover:text-primary-500 transition-colors"
@@ -440,7 +475,7 @@ export default function ProjectDetailPage() {
           <Card
             title="Budgets"
             extra={
-              isAdmin && (
+              canEditProject && (
                 <button
                   onClick={() => setBudgetModal(true)}
                   className="inline-flex items-center gap-1 rounded-lg bg-primary-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-primary-600 transition-colors"
@@ -468,7 +503,7 @@ export default function ProjectDetailPage() {
                         }
                       </p>
                     </div>
-                    {isAdmin && (
+                    {canEditProject && (
                       <button
                         onClick={() => handleDeleteBudget(b.id)}
                         className="text-text-secondary hover:text-error-500 transition-colors p-1"
@@ -498,7 +533,7 @@ export default function ProjectDetailPage() {
               mob:  { label: 'Mobile',   color: 'bg-orange-50 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300' },
               none: { label: 'Other',    color: 'bg-surface text-text-secondary border border-border' },
             };
-            const canEdit = isAdmin || project.user_id === user?.id;
+            const canEdit = canEditProject;
             const stacks = project.tec_stacks || [];
             const groups = stacks.reduce((acc, ts) => {
               const key = ts.tec_stack_type || 'none';
@@ -615,9 +650,16 @@ export default function ProjectDetailPage() {
               onChange={e => setHealthForm(f => ({ ...f, healthstatus_value: e.target.value }))}
               className="w-full rounded-lg border border-border-dark bg-surface px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 appearance-none"
             >
-              <option value={3}>On Track</option>
-              <option value={2}>Needs Attention</option>
-              <option value={1}>At Risk</option>
+              {healthStatusTypes.length > 0
+                ? healthStatusTypes.map(t => (
+                    <option key={t.id} value={t.id}>{t.healthstatus_name}</option>
+                  ))
+                : <>
+                    <option value={3}>On Track</option>
+                    <option value={2}>Needs Attention</option>
+                    <option value={1}>At Risk</option>
+                  </>
+              }
             </select>
           </div>
           <div>
