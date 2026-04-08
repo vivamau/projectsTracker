@@ -115,7 +115,7 @@ export default function LogsPage() {
   });
   const [stats, setStats] = useState(null);
   const [statsLoading, setStatsLoading] = useState(true);
-  const [showStats, setShowStats] = useState(true);
+  const [showStats, setShowStats] = useState(false);
   const [funMessageIndex] = useState(
     Math.floor(Math.random() * FUN_MESSAGES.length),
   );
