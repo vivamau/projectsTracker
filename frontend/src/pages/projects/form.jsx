@@ -1,15 +1,27 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { UserPlus } from 'lucide-react';
 import { getProject, createProject, updateProject, getProjectRoles } from '../../api/projectsApi';
-import { getDivisions, getInitiatives, getDeliveryPaths, getCountries, getUsers } from '../../api/entitiesApi';
+import { getDivisions, getInitiatives, getDeliveryPaths, getCountries, getUsers, createUser } from '../../api/entitiesApi';
+import { useAuth } from '../../hooks/useAuth';
 import Card from '../../commoncomponents/Card';
+import Modal from '../../commoncomponents/Modal';
 import UserAvatar from '../../commoncomponents/UserAvatar';
 import LoadingSpinner from '../../commoncomponents/LoadingSpinner';
+
+const USER_ROLES = [
+  { id: 1, name: 'superadmin' },
+  { id: 2, name: 'admin' },
+  { id: 3, name: 'contributor' },
+  { id: 4, name: 'guest' },
+];
 
 export default function ProjectFormPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const isEdit = !!id;
+  const { role } = useAuth();
+  const isSuperAdmin = role === 'superadmin';
 
   const [form, setForm] = useState({
     project_name: '',
@@ -31,6 +43,11 @@ export default function ProjectFormPage() {
   const [countries, setCountries] = useState([]);
   const [users, setUsers] = useState([]);
   const [projectRoles, setProjectRoles] = useState([]);
+  const [roleSearch, setRoleSearch] = useState({});
+  const [addUserModal, setAddUserModal] = useState(false);
+  const [addUserForm, setAddUserForm] = useState({ user_name: '', user_lastname: '', user_email: '', password: '', userrole_id: 3 });
+  const [addUserError, setAddUserError] = useState('');
+  const [pendingRoleId, setPendingRoleId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -108,6 +125,48 @@ export default function ProjectFormPage() {
         ? f.supporting_division_ids.filter(d => d !== divId)
         : [...f.supporting_division_ids, divId]
     }));
+  };
+
+  const filteredUsers = (roleId) => {
+    const q = (roleSearch[roleId] || '').toLowerCase();
+    if (!q) return users;
+    return users.filter(u =>
+      `${u.user_name} ${u.user_lastname} ${u.user_email}`.toLowerCase().includes(q)
+    );
+  };
+
+  const openAddUser = (roleId) => {
+    setPendingRoleId(roleId);
+    setAddUserForm({ user_name: '', user_lastname: '', user_email: '', password: '', userrole_id: 3 });
+    setAddUserError('');
+    setAddUserModal(true);
+  };
+
+  const handleAddUser = async (e) => {
+    e.preventDefault();
+    setAddUserError('');
+    if (!addUserForm.user_email || !addUserForm.password) {
+      setAddUserError('Email and password are required');
+      return;
+    }
+    try {
+      const res = await createUser(addUserForm);
+      const newUser = res.data.data ?? res.data;
+      const newUsers = await getUsers({ limit: 100 });
+      setUsers(newUsers.data.data ?? newUsers.data);
+      if (pendingRoleId) {
+        setForm(f => ({
+          ...f,
+          role_assignments: [
+            ...f.role_assignments,
+            { user_id: newUser.id, project_role_id: pendingRoleId, division_id: '', start_date: '', end_date: '', percentage: '' }
+          ]
+        }));
+      }
+      setAddUserModal(false);
+    } catch (err) {
+      setAddUserError(err.response?.data?.error || 'Failed to create user');
+    }
   };
 
   const toggleRoleAssignment = (userId, roleId) => {
@@ -314,19 +373,42 @@ export default function ProjectFormPage() {
                     })}
                   </div>
                 )}
-                <div className="max-h-40 overflow-y-auto rounded-lg border border-border">
-                  {users.map(u => (
-                    <label key={u.id} className="flex items-center gap-2 px-3 py-1.5 hover:bg-surface cursor-pointer text-sm">
-                      <input
-                        type="checkbox"
-                        checked={!!form.role_assignments.find(ra => ra.user_id === u.id && ra.project_role_id === role.id)}
-                        onChange={() => toggleRoleAssignment(u.id, role.id)}
-                        className="rounded border-border-dark text-primary-500 focus:ring-primary-500"
-                      />
-                      <span>{u.user_name} {u.user_lastname}</span>
-                      <span className="text-text-secondary text-xs">({u.user_email})</span>
-                    </label>
-                  ))}
+                <div className="rounded-lg border border-border">
+                  <div className="flex items-center gap-2 px-3 py-2 border-b border-border">
+                    <input
+                      type="text"
+                      placeholder="Filter users..."
+                      value={roleSearch[role.id] || ''}
+                      onChange={e => setRoleSearch(prev => ({ ...prev, [role.id]: e.target.value }))}
+                      className="flex-1 rounded border border-border-dark bg-white px-2 py-1 text-xs outline-none focus:border-primary-500"
+                    />
+                    {isSuperAdmin && (
+                      <button
+                        type="button"
+                        onClick={() => openAddUser(role.id)}
+                        className="flex items-center gap-1 rounded border border-primary-400 px-2 py-1 text-xs text-primary-600 hover:bg-primary-50 transition-colors shrink-0"
+                      >
+                        <UserPlus size={12} /> New User
+                      </button>
+                    )}
+                  </div>
+                  <div className="max-h-40 overflow-y-auto">
+                    {filteredUsers(role.id).length === 0 && (
+                      <p className="px-3 py-2 text-xs text-text-secondary">No users match.</p>
+                    )}
+                    {filteredUsers(role.id).map(u => (
+                      <label key={u.id} className="flex items-center gap-2 px-3 py-1.5 hover:bg-surface cursor-pointer text-sm">
+                        <input
+                          type="checkbox"
+                          checked={!!form.role_assignments.find(ra => ra.user_id === u.id && ra.project_role_id === role.id)}
+                          onChange={() => toggleRoleAssignment(u.id, role.id)}
+                          className="rounded border-border-dark text-primary-500 focus:ring-primary-500"
+                        />
+                        <span>{u.user_name} {u.user_lastname}</span>
+                        <span className="text-text-secondary text-xs">({u.user_email})</span>
+                      </label>
+                    ))}
+                  </div>
                 </div>
               </FormField>
             ))}
@@ -437,6 +519,40 @@ export default function ProjectFormPage() {
           </div>
         </Card>
       </form>
+
+      <Modal open={addUserModal} onClose={() => setAddUserModal(false)} title="New User" maxWidth="max-w-md">
+        <form onSubmit={handleAddUser} className="space-y-4">
+          {addUserError && <div className="rounded-lg bg-error-50 px-4 py-3 text-sm text-error-600">{addUserError}</div>}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="mb-1 block text-sm font-medium">First Name</label>
+              <input type="text" value={addUserForm.user_name} onChange={e => setAddUserForm(f => ({ ...f, user_name: e.target.value }))} className="w-full rounded-lg border border-border-dark bg-surface px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 appearance-none" />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium">Last Name</label>
+              <input type="text" value={addUserForm.user_lastname} onChange={e => setAddUserForm(f => ({ ...f, user_lastname: e.target.value }))} className="w-full rounded-lg border border-border-dark bg-surface px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 appearance-none" />
+            </div>
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium">Email</label>
+            <input type="email" value={addUserForm.user_email} onChange={e => setAddUserForm(f => ({ ...f, user_email: e.target.value }))} className="w-full rounded-lg border border-border-dark bg-surface px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 appearance-none" required />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium">Password</label>
+            <input type="password" value={addUserForm.password} onChange={e => setAddUserForm(f => ({ ...f, password: e.target.value }))} className="w-full rounded-lg border border-border-dark bg-surface px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 appearance-none" required />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium">Role</label>
+            <select value={addUserForm.userrole_id} onChange={e => setAddUserForm(f => ({ ...f, userrole_id: parseInt(e.target.value) }))} className="w-full rounded-lg border border-border-dark bg-surface px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 appearance-none">
+              {USER_ROLES.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+            </select>
+          </div>
+          <div className="flex justify-end gap-3">
+            <button type="button" onClick={() => setAddUserModal(false)} className="rounded-lg border border-border-dark px-4 py-2 text-sm font-medium hover:bg-surface transition-colors">Cancel</button>
+            <button type="submit" className="rounded-lg bg-primary-500 px-4 py-2 text-sm font-medium text-white hover:bg-primary-600 transition-colors">Create</button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }
