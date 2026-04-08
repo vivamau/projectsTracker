@@ -53,18 +53,28 @@ export const updateBudget = (projectId, budgetId, data) =>
 export const deleteBudget = (projectId, budgetId) =>
   client.delete(`/projects/${projectId}/budgets/${budgetId}`);
 
-// Project Managers
-export const getProjectManagers = (projectId) =>
-  client.get(`/projects/${projectId}/project-managers`);
+// Role Assignments (project managers, solution architects, etc.)
+export const getRoleAssignments = (projectId) =>
+  client.get(`/projects/${projectId}/role-assignments`);
 
-export const syncProjectManagers = (projectId, projectManagers) =>
-  client.put(`/projects/${projectId}/project-managers`, { project_managers: projectManagers });
+export const syncRoleAssignments = (projectId, roleAssignments) =>
+  client.put(`/projects/${projectId}/role-assignments`, { role_assignments: roleAssignments });
 
-export const getSolutionArchitects = (projectId) =>
-  client.get(`/projects/${projectId}/solution-architects`);
+// Project Roles
+export const getProjectRoles = () =>
+  client.get('/project-roles');
 
-export const syncSolutionArchitects = (projectId, solutionArchitects) =>
-  client.put(`/projects/${projectId}/solution-architects`, { solution_architects: solutionArchitects });
+export const getProjectRole = (id) =>
+  client.get(`/project-roles/${id}`);
+
+export const createProjectRole = (data) =>
+  client.post('/project-roles', data);
+
+export const updateProjectRole = (id, data) =>
+  client.put(`/project-roles/${id}`, data);
+
+export const deleteProjectRole = (id) =>
+  client.delete(`/project-roles/${id}`);
 
 // Budget detail & Purchase Orders
 export const getAllBudgets = () =>

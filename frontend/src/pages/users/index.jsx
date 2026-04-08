@@ -129,10 +129,12 @@ export default function UsersPage() {
               {users.length === 0 ? (
                 <tr><td colSpan={5} className="px-6 py-12 text-center text-text-secondary">No users</td></tr>
               ) : users.map(u => {
-                const isPM = stats?.projectManagers?.some(p => p.user_id === u.id);
-                const isSA = stats?.solutionArchitects?.some(p => p.user_id === u.id);
+                const userRoles = (stats?.roleAssignments || [])
+                  .filter(ra => ra.user_id === u.id)
+                  .map(ra => ra.role_name)
+                  .filter((v, i, a) => a.indexOf(v) === i);
                 const isOwner = stats?.owners?.some(p => p.user_id === u.id);
-                const actAs = [isPM && 'PM', isSA && 'SA', isOwner && 'Owner'].filter(Boolean).join(' · ') || '-';
+                const actAs = [...userRoles, isOwner && 'Owner'].filter(Boolean).join(' · ') || '-';
                 return (
                 <tr key={u.id} className="border-b border-border last:border-0 hover:bg-surface/30 transition-colors cursor-pointer" onClick={() => isSuperAdmin && navigate(`/users/${u.id}`)}>
                   <td className="px-6 py-3 font-medium">

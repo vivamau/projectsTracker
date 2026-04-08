@@ -5,7 +5,7 @@ import {
   getDivision, deleteDivision,
   getDivisionProjects, getDivisionSupportingProjects, getDivisionFocalPoints,
   addDivisionFocalPoint, removeDivisionFocalPoint,
-  getDivisionProjectManagers, getUsers
+  getDivisionRoleAssignments, getUsers
 } from '../../api/entitiesApi';
 import { getBudgets, getPurchaseOrders, getPurchaseOrderItems } from '../../api/projectsApi';
 import { useAuth } from '../../hooks/useAuth';
@@ -24,7 +24,7 @@ export default function DivisionDetailPage() {
   const [supportingProjects, setSupportingProjects] = useState([]);
   const [projectBudgets, setProjectBudgets] = useState({});
   const [focalPoints, setFocalPoints] = useState([]);
-  const [projectManagers, setProjectManagers] = useState([]);
+  const [roleAssignments, setRoleAssignments] = useState([]);
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -39,7 +39,7 @@ export default function DivisionDetailPage() {
         getDivisionProjects(id),
         getDivisionSupportingProjects(id),
         getDivisionFocalPoints(id),
-        getDivisionProjectManagers(id),
+        getDivisionRoleAssignments(id),
         getUsers({ limit: 100 }).catch(() => ({ data: { data: [] } }))
       ]);
 
@@ -48,7 +48,7 @@ export default function DivisionDetailPage() {
       setProjects(projectsList);
       setSupportingProjects(suppProjRes.data.data || []);
       setFocalPoints(fpRes.data.data);
-      setProjectManagers(pmRes.data.data);
+      setRoleAssignments(pmRes.data.data);
       setUsers(usersRes.data.data);
 
       // Fetch budget data for each project
@@ -300,39 +300,46 @@ export default function DivisionDetailPage() {
             )}
           </Card>
 
-          {/* Project Managers */}
-          {projectManagers.length > 0 && (
-            <Card title="Project Managers">
-              <div className="space-y-3">
-                {Object.values(
-                  projectManagers.reduce((acc, pm) => {
-                    if (!acc[pm.user_id]) {
-                      acc[pm.user_id] = { ...pm, projects: [] };
-                    }
-                    acc[pm.user_id].projects.push({ id: pm.project_id, name: pm.project_name });
-                    return acc;
-                  }, {})
-                ).map(pm => (
-                  <div key={pm.user_id} className="flex items-start gap-2.5">
-                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-50 text-xs font-bold text-primary-600">
-                      {(pm.user_name?.[0] || '') + (pm.user_lastname?.[0] || '')}
-                    </span>
-                    <div>
-                      <p className="text-sm font-medium text-text-primary">{pm.user_name} {pm.user_lastname}</p>
-                      <p className="text-xs text-text-secondary">{pm.user_email}</p>
-                      <div className="mt-1 flex flex-wrap gap-1">
-                        {pm.projects.map(p => (
-                          <Link key={p.id} to={`/projects/${p.id}`} className="text-xs text-primary-500 hover:underline">
-                            {p.name}
-                          </Link>
-                        ))}
+          {/* Role Assignments (Project Managers, Solution Architects, etc.) */}
+          {roleAssignments.length > 0 && (() => {
+            const byRole = {};
+            roleAssignments.forEach(ra => {
+              if (!byRole[ra.role_name]) byRole[ra.role_name] = [];
+              byRole[ra.role_name].push(ra);
+            });
+            return Object.entries(byRole).map(([roleName, items]) => (
+              <Card key={roleName} title={roleName + 's'}>
+                <div className="space-y-3">
+                  {Object.values(
+                    items.reduce((acc, ra) => {
+                      if (!acc[ra.user_id]) {
+                        acc[ra.user_id] = { ...ra, projects: [] };
+                      }
+                      acc[ra.user_id].projects.push({ id: ra.project_id, name: ra.project_name });
+                      return acc;
+                    }, {})
+                  ).map(person => (
+                    <div key={person.user_id} className="flex items-start gap-2.5">
+                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-50 text-xs font-bold text-primary-600">
+                        {(person.user_name?.[0] || '') + (person.user_lastname?.[0] || '')}
+                      </span>
+                      <div>
+                        <p className="text-sm font-medium text-text-primary">{person.user_name} {person.user_lastname}</p>
+                        <p className="text-xs text-text-secondary">{person.user_email}</p>
+                        <div className="mt-1 flex flex-wrap gap-1">
+                          {person.projects.map(p => (
+                            <Link key={p.id} to={`/projects/${p.id}`} className="text-xs text-primary-500 hover:underline">
+                              {p.name}
+                            </Link>
+                          ))}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
-              </div>
-            </Card>
-          )}
+                  ))}
+                </div>
+              </Card>
+            ));
+          })()}
 
           {/* Supporting Projects */}
           {supportingProjects.length > 0 && (

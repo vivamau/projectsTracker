@@ -418,9 +418,9 @@ describe('projectService', () => {
       expect(typeof stats.groupCounts.ended).toBe('number');
       expect(stats.totalDivisions).toBeGreaterThanOrEqual(1);
       expect(Array.isArray(stats.healthDistribution)).toBe(true);
-      expect(Array.isArray(stats.projectManagers)).toBe(true);
-      expect(Array.isArray(stats.solutionArchitects)).toBe(true);
+      expect(Array.isArray(stats.roleAssignments)).toBe(true);
       expect(Array.isArray(stats.owners)).toBe(true);
+      expect(Array.isArray(stats.roleAssignmentCounts)).toBe(true);
     });
 
     it('should count group projects using status name grouping', async () => {
@@ -460,23 +460,25 @@ describe('projectService', () => {
       expect(Array.isArray(stats.healthDistribution)).toBe(true);
     });
 
-    it('should return projectManagers array with user info and project_count', async () => {
-      // Seed a PM if needed
+    it('should return roleAssignments array with user info, role, and project_count', async () => {
+      // Create a user and assign them as PM on a project
       const userRes = await runQuery(db,
         "INSERT INTO users (user_name, user_lastname, user_email, user_password_hash, user_create_date, userrole_id) VALUES (?, ?, ?, ?, ?, ?)",
         ['PMFirst', 'PMLast', 'pm@test.com', 'hash', Date.now(), 1]
       );
+      const projRes = await projectService.create(db, { project_name: 'PM Stats Project', division_id: 1, user_id: 1 });
       await runQuery(db,
-        "INSERT INTO projectmanagers (user_id) VALUES (?)",
-        [userRes.lastID]
+        "INSERT INTO project_assignments (project_id, user_id, project_role_id, assignment_create_date, assignment_update_date) VALUES (?, ?, ?, ?, ?)",
+        [projRes.lastID, userRes.lastID, 1, Date.now(), Date.now()]
       );
       const stats = await projectService.getStats(db);
-      expect(Array.isArray(stats.projectManagers)).toBe(true);
-      const pm = stats.projectManagers.find(p => p.user_email === 'pm@test.com');
+      expect(Array.isArray(stats.roleAssignments)).toBe(true);
+      const pm = stats.roleAssignments.find(r => r.user_email === 'pm@test.com' && r.role_name === 'Project Manager');
       expect(pm).toBeDefined();
       expect(pm.user_name).toBe('PMFirst');
       expect(pm.user_lastname).toBe('PMLast');
       expect(typeof pm.project_count).toBe('number');
+      expect(pm.project_count).toBeGreaterThanOrEqual(1);
     });
 
     it('should include exchangeRates in stats', async () => {
@@ -519,23 +521,13 @@ describe('projectService', () => {
       expect(typeof owner.project_count).toBe('number');
     });
 
-    it('should return solutionArchitects array with user info and project_count', async () => {
-      // Seed an SA if needed
-      const userRes = await runQuery(db,
-        "INSERT INTO users (user_name, user_lastname, user_email, user_password_hash, user_create_date, userrole_id) VALUES (?, ?, ?, ?, ?, ?)",
-        ['SAFirst', 'SALast', 'sa@test.com', 'hash', Date.now(), 1]
-      );
-      await runQuery(db,
-        "INSERT INTO solutionarchitects (user_id) VALUES (?)",
-        [userRes.lastID]
-      );
+    it('should return roleAssignmentCounts grouped by role', async () => {
       const stats = await projectService.getStats(db);
-      expect(Array.isArray(stats.solutionArchitects)).toBe(true);
-      const sa = stats.solutionArchitects.find(s => s.user_email === 'sa@test.com');
-      expect(sa).toBeDefined();
-      expect(sa.user_name).toBe('SAFirst');
-      expect(sa.user_lastname).toBe('SALast');
-      expect(typeof sa.project_count).toBe('number');
+      expect(Array.isArray(stats.roleAssignmentCounts)).toBe(true);
+      // Should have at least PM and SA roles
+      const pmCount = stats.roleAssignmentCounts.find(r => r.role_name === 'Project Manager');
+      expect(pmCount).toBeDefined();
+      expect(typeof pmCount.count).toBe('number');
     });
   });
 

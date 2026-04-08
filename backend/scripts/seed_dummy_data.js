@@ -316,28 +316,25 @@ async function seedDummyData(db) {
       );
     }
 
-    // Assign 1-2 project managers from existing users
+    // Assign 1-2 project managers (role_id=1) from existing users
     const numPMs = randomInt(1, 2);
     const usedPMUsers = new Set();
     for (let i = 0; i < numPMs; i++) {
       const pmUserId = randomInt(1, 4);
       if (usedPMUsers.has(pmUserId)) continue;
       usedPMUsers.add(pmUserId);
-      // Find or create projectmanager record
-      const existing = await getOne(db, 'SELECT id FROM projectmanagers WHERE user_id = ?', [pmUserId]);
-      let pmId;
-      if (existing) {
-        pmId = existing.id;
-      } else {
-        const pmResult = await runQuery(db,
-          'INSERT INTO projectmanagers (user_id, division_id) VALUES (?, ?)',
-          [pmUserId, divisionId]
-        );
-        pmId = pmResult.lastID;
-      }
       await runQuery(db,
-        'INSERT INTO projects_to_projectmanagers (project_id, projectmanager_id, division_id, project_to_projectmanager_create_date, project_to_projectmanager_start_date) VALUES (?, ?, ?, ?, ?)',
-        [projectId, pmId, divisionId, daysAgo(randomInt(7, 60)), daysAgo(randomInt(0, 30))]
+        'INSERT INTO project_assignments (project_id, user_id, project_role_id, division_id, assignment_create_date, assignment_start_date, assignment_update_date) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        [projectId, pmUserId, 1, divisionId, daysAgo(randomInt(7, 60)), daysAgo(randomInt(0, 30)), now]
+      );
+    }
+
+    // Assign 0-1 solution architects (role_id=2)
+    const saUserId = randomInt(1, 4);
+    if (!usedPMUsers.has(saUserId) || Math.random() > 0.5) {
+      await runQuery(db,
+        'INSERT INTO project_assignments (project_id, user_id, project_role_id, division_id, assignment_create_date, assignment_start_date, assignment_update_date) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        [projectId, saUserId, 2, divisionId, daysAgo(randomInt(7, 60)), daysAgo(randomInt(0, 30)), now]
       );
     }
 

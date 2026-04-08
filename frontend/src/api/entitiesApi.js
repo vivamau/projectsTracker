@@ -12,7 +12,7 @@ export const getDivisionFocalPoints = (id) => client.get(`/divisions/${id}/focal
 export const addDivisionFocalPoint = (id, data) => client.post(`/divisions/${id}/focal-points`, data);
 export const removeDivisionFocalPoint = (divisionId, fpId) => client.delete(`/divisions/${divisionId}/focal-points/${fpId}`);
 export const syncDivisionFocalPoints = (id, userIds) => client.put(`/divisions/${id}/focal-points`, { user_ids: userIds });
-export const getDivisionProjectManagers = (id) => client.get(`/divisions/${id}/project-managers`);
+export const getDivisionRoleAssignments = (id) => client.get(`/divisions/${id}/role-assignments`);
 
 export const getVendors = () => client.get('/vendors');
 export const getVendor = (id) => client.get(`/vendors/${id}`);

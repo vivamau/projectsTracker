@@ -128,33 +128,19 @@ async function getProjectsByUserId(db, userId) {
      UNION ALL
 
      SELECT p.id, p.project_name, p.project_description, p.project_start_date, p.project_end_date,
-            d.division_name, ps.project_status_name, 'Project Manager' AS user_role,
-            ppm.project_to_projectmanager_start_date AS role_since_date,
-            ppm.project_to_projectmanager_end_date AS role_end_date,
-            ppm.project_to_projectmanager_percentage AS role_percentage
+            d.division_name, ps.project_status_name, pr.role_name AS user_role,
+            pa.assignment_start_date AS role_since_date,
+            pa.assignment_end_date AS role_end_date,
+            pa.assignment_percentage AS role_percentage
      FROM projects p
-     INNER JOIN projects_to_projectmanagers ppm ON p.id = ppm.project_id
-     INNER JOIN projectmanagers pm ON ppm.projectmanager_id = pm.id
+     INNER JOIN project_assignments pa ON p.id = pa.project_id
+     INNER JOIN project_roles pr ON pa.project_role_id = pr.id
      LEFT JOIN divisions d ON p.division_id = d.id
      LEFT JOIN project_statuses ps ON ps.id = p.project_status_id
-     WHERE pm.user_id = ? AND (p.project_is_deleted = 0 OR p.project_is_deleted IS NULL)
-
-     UNION ALL
-
-     SELECT p.id, p.project_name, p.project_description, p.project_start_date, p.project_end_date,
-            d.division_name, ps.project_status_name, 'Solution Architect' AS user_role,
-            psa.project_to_solutionarchitect_start_date AS role_since_date,
-            psa.project_to_solutionarchitect_end_date AS role_end_date,
-            psa.project_to_solutionarchitect_percentage AS role_percentage
-     FROM projects p
-     INNER JOIN projects_to_solutionarchitects psa ON p.id = psa.project_id
-     INNER JOIN solutionarchitects sa ON psa.solutionarchitect_id = sa.id
-     LEFT JOIN divisions d ON p.division_id = d.id
-     LEFT JOIN project_statuses ps ON ps.id = p.project_status_id
-     WHERE sa.user_id = ? AND (p.project_is_deleted = 0 OR p.project_is_deleted IS NULL)
+     WHERE pa.user_id = ? AND (p.project_is_deleted = 0 OR p.project_is_deleted IS NULL)
 
      ORDER BY project_name`,
-    [userId, userId, userId]
+    [userId, userId]
   );
 }
 

@@ -10,7 +10,8 @@ import {
   Store,
   DollarSign,
   FileText,
-  ChevronLeft
+  ChevronLeft,
+  Shield
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 
@@ -23,6 +24,7 @@ const navItems = [
   { label: 'Budgets', path: '/budgets', icon: DollarSign },
   { label: 'Vendors', path: '/vendors', icon: Store },
   { label: 'Users', path: '/users', icon: Users, roles: ['superadmin', 'admin'] },
+  { label: 'Project Roles', path: '/project-roles', icon: Shield, roles: ['superadmin'] },
   { label: 'Logs', path: '/logs', icon: FileText, roles: ['superadmin'] },
   { label: 'Settings', path: '/settings', icon: Settings },
 ];

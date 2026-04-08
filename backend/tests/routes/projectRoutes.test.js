@@ -62,8 +62,8 @@ describe('GET /api/projects/stats', () => {
     expect(typeof res.body.data.groupCounts.active).toBe('number');
     expect(typeof res.body.data.totalDivisions).toBe('number');
     expect(Array.isArray(res.body.data.healthDistribution)).toBe(true);
-    expect(Array.isArray(res.body.data.projectManagers)).toBe(true);
-    expect(Array.isArray(res.body.data.solutionArchitects)).toBe(true);
+    expect(Array.isArray(res.body.data.roleAssignments)).toBe(true);
+    expect(Array.isArray(res.body.data.owners)).toBe(true);
   });
 
   it('should return 401 when not authenticated', async () => {
@@ -239,11 +239,11 @@ describe('PUT /api/projects/:id', () => {
         .send({ project_name: 'PM Edit Project' });
       memberProjectId = projRes.body.data.id;
 
-      // Assign reader (user id=3) as PM on this project
+      // Assign reader (user id=3) as PM (role_id=1) on this project via role-assignments
       await request(app)
-        .put(`/api/projects/${memberProjectId}/project-managers`)
+        .put(`/api/projects/${memberProjectId}/role-assignments`)
         .set('Cookie', ['token=' + adminToken()])
-        .send({ project_managers: [{ user_id: 3, division_id: 1 }] });
+        .send({ role_assignments: [{ user_id: 3, project_role_id: 1, division_id: 1 }] });
     });
 
     it('should allow a reader who is PM to update the project', async () => {
@@ -255,7 +255,7 @@ describe('PUT /api/projects/:id', () => {
     });
 
     it('should allow a reader who is SA to update the project', async () => {
-      // Assign reader (user id=3) as SA on another project
+      // Assign reader (user id=3) as SA (role_id=2) on another project
       const projRes = await request(app)
         .post('/api/projects')
         .set('Cookie', ['token=' + adminToken()])
@@ -263,9 +263,9 @@ describe('PUT /api/projects/:id', () => {
       const saProjectId = projRes.body.data.id;
 
       await request(app)
-        .put(`/api/projects/${saProjectId}/solution-architects`)
+        .put(`/api/projects/${saProjectId}/role-assignments`)
         .set('Cookie', ['token=' + adminToken()])
-        .send({ solution_architects: [{ user_id: 3, division_id: 1 }] });
+        .send({ role_assignments: [{ user_id: 3, project_role_id: 2, division_id: 1 }] });
 
       const res = await request(app)
         .put(`/api/projects/${saProjectId}`)

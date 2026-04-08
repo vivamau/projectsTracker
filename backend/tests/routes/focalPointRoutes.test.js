@@ -161,7 +161,7 @@ describe('GET /api/divisions/:id/projects', () => {
   });
 });
 
-describe('GET /api/divisions/:id/project-managers', () => {
+describe('GET /api/divisions/:id/role-assignments', () => {
   beforeAll(async () => {
     // Create a project with a PM assigned to division 1
     await request(app)
@@ -170,29 +170,30 @@ describe('GET /api/divisions/:id/project-managers', () => {
       .send({
         project_name: 'PM Division Project',
         division_id: 1,
-        project_managers: [{ user_id: 1, division_id: 1 }]
+        role_assignments: [{ user_id: 1, project_role_id: 1, division_id: 1 }]
       });
   });
 
-  it('should return project managers for a division', async () => {
+  it('should return role assignments for a division', async () => {
     const res = await request(app)
-      .get('/api/divisions/1/project-managers')
+      .get('/api/divisions/1/role-assignments')
       .set('Cookie', ['token=' + adminToken()]);
 
     expect(res.status).toBe(200);
     expect(res.body.data.length).toBeGreaterThanOrEqual(1);
     expect(res.body.data[0].user_name).toBeDefined();
     expect(res.body.data[0].project_name).toBeDefined();
+    expect(res.body.data[0].role_name).toBeDefined();
   });
 
-  it('should return empty array for division with no PMs', async () => {
+  it('should return empty array for division with no assignments', async () => {
     const divRes = await request(app)
       .post('/api/divisions')
       .set('Cookie', ['token=' + adminToken()])
-      .send({ division_name: 'No PM Division' });
+      .send({ division_name: 'No Assignment Division' });
 
     const res = await request(app)
-      .get(`/api/divisions/${divRes.body.data.id}/project-managers`)
+      .get(`/api/divisions/${divRes.body.data.id}/role-assignments`)
       .set('Cookie', ['token=' + adminToken()]);
 
     expect(res.status).toBe(200);

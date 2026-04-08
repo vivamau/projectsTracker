@@ -4,8 +4,7 @@ const projectService = require('../services/projectService');
 const healthStatusService = require('../services/healthStatusService');
 const completionService = require('../services/completionService');
 const budgetService = require('../services/budgetService');
-const projectManagerService = require('../services/projectManagerService');
-const solutionArchitectService = require('../services/solutionArchitectService');
+const projectAssignmentService = require('../services/projectAssignmentService');
 const vendorResourceService = require('../services/vendorResourceService');
 const activityService = require('../services/activityService');
 const { runQuery, getOne } = require('../config/database');
@@ -16,7 +15,7 @@ function createProjectRoutes(db, auditDb) {
   const router = express.Router();
 
   // Allows superadmin/admin unconditionally; allows other roles only if they
-  // are an assigned PM or SA on the project identified by req.params.id.
+  // are assigned to the project via project_assignments.
   const authorizeProjectMember = async (req, res, next) => {
     if (!req.user) return res.status(401).json({ error: 'Authentication required' });
     if (req.user.role === 'superadmin' || req.user.role === 'admin') return next();
@@ -24,15 +23,10 @@ function createProjectRoutes(db, auditDb) {
     const projectId = parseInt(req.params.id);
     const userId = req.user.id;
     const member = await getOne(db,
-      `SELECT 1 FROM projectmanagers pm
-       INNER JOIN projects_to_projectmanagers ppm ON pm.id = ppm.projectmanager_id
-       WHERE ppm.project_id = ? AND pm.user_id = ?
-       UNION
-       SELECT 1 FROM solutionarchitects sa
-       INNER JOIN projects_to_solutionarchitects psa ON sa.id = psa.solutionarchitect_id
-       WHERE psa.project_id = ? AND sa.user_id = ?
+      `SELECT 1 FROM project_assignments
+       WHERE project_id = ? AND user_id = ?
        LIMIT 1`,
-      [projectId, userId, projectId, userId]
+      [projectId, userId]
     );
     if (member) return next();
     return res.status(403).json({ error: 'Insufficient permissions' });
@@ -354,65 +348,34 @@ function createProjectRoutes(db, auditDb) {
     }
   });
 
-  router.get('/:id/project-managers', authenticate, async (req, res) => {
+  router.get('/:id/role-assignments', authenticate, async (req, res) => {
     try {
-      const pms = await projectManagerService.getByProjectId(db, parseInt(req.params.id));
-      return success(res, pms);
+      const assignments = await projectAssignmentService.getByProjectId(db, parseInt(req.params.id));
+      return success(res, assignments);
     } catch (err) {
-      return error(res, 'Failed to get project managers');
+      return error(res, 'Failed to get role assignments');
     }
   });
 
-  router.put('/:id/project-managers', authenticate, authorizeProjectMember, async (req, res) => {
+  router.put('/:id/role-assignments', authenticate, authorizeProjectMember, async (req, res) => {
     try {
-      const { project_managers } = req.body;
-      if (!Array.isArray(project_managers)) {
-        return error(res, 'project_managers array is required', 400);
+      const { role_assignments } = req.body;
+      if (!Array.isArray(role_assignments)) {
+        return error(res, 'role_assignments array is required', 400);
       }
-      await projectManagerService.syncProjectManagers(db, parseInt(req.params.id), project_managers);
+      await projectAssignmentService.syncForProject(db, parseInt(req.params.id), role_assignments);
       await auditLog(auditDb, {
         userId: req.user.id,
         userEmail: req.user.email,
-        action: 'project.project_managers.update',
-        entityType: 'project_manager',
+        action: 'project.role_assignments.update',
+        entityType: 'project_assignment',
         entityId: parseInt(req.params.id),
         details: { data: req.body },
         ip: req.ip
       });
-      return success(res, { message: 'Project managers updated' });
+      return success(res, { message: 'Role assignments updated' });
     } catch (err) {
-      return error(res, 'Failed to update project managers');
-    }
-  });
-
-  router.get('/:id/solution-architects', authenticate, async (req, res) => {
-    try {
-      const sas = await solutionArchitectService.getByProjectId(db, parseInt(req.params.id));
-      return success(res, sas);
-    } catch (err) {
-      return error(res, 'Failed to get solution architects');
-    }
-  });
-
-  router.put('/:id/solution-architects', authenticate, authorizeProjectMember, async (req, res) => {
-    try {
-      const { solution_architects } = req.body;
-      if (!Array.isArray(solution_architects)) {
-        return error(res, 'solution_architects array is required', 400);
-      }
-      await solutionArchitectService.syncSolutionArchitects(db, parseInt(req.params.id), solution_architects);
-      await auditLog(auditDb, {
-        userId: req.user.id,
-        userEmail: req.user.email,
-        action: 'project.solution_architects.update',
-        entityType: 'solution_architect',
-        entityId: parseInt(req.params.id),
-        details: { data: req.body },
-        ip: req.ip
-      });
-      return success(res, { message: 'Solution architects updated' });
-    } catch (err) {
-      return error(res, 'Failed to update solution architects');
+      return error(res, 'Failed to update role assignments');
     }
   });
 

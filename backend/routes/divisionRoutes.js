@@ -185,41 +185,23 @@ function createDivisionRoutes(db, auditDb) {
     }
   });
 
-  router.get('/:id/project-managers', authenticate, async (req, res) => {
+  router.get('/:id/role-assignments', authenticate, async (req, res) => {
     try {
-      const pms = await getAll(db,
-        `SELECT DISTINCT pm.id, pm.user_id, u.user_name, u.user_lastname, u.user_email,
+      const assignments = await getAll(db,
+        `SELECT DISTINCT pa.id, pa.user_id, u.user_name, u.user_lastname, u.user_email,
+                pr.id as role_id, pr.role_name,
                 p.id as project_id, p.project_name
-         FROM projectmanagers pm
-         INNER JOIN projects_to_projectmanagers ppm ON pm.id = ppm.projectmanager_id
-         INNER JOIN projects p ON ppm.project_id = p.id
-         LEFT JOIN users u ON pm.user_id = u.id
-         WHERE ppm.division_id = ? AND (p.project_is_deleted = 0 OR p.project_is_deleted IS NULL)
-         ORDER BY u.user_name, p.project_name`,
+         FROM project_assignments pa
+         JOIN users u ON pa.user_id = u.id
+         JOIN project_roles pr ON pa.project_role_id = pr.id
+         JOIN projects p ON pa.project_id = p.id
+         WHERE pa.division_id = ? AND (p.project_is_deleted = 0 OR p.project_is_deleted IS NULL)
+         ORDER BY pr.role_name, u.user_name, p.project_name`,
         [parseInt(req.params.id)]
       );
-      return success(res, pms);
+      return success(res, assignments);
     } catch (err) {
-      return error(res, 'Failed to get division project managers');
-    }
-  });
-
-  router.get('/:id/solution-architects', authenticate, async (req, res) => {
-    try {
-      const sas = await getAll(db,
-        `SELECT DISTINCT sa.id, sa.user_id, u.user_name, u.user_lastname, u.user_email,
-                p.id as project_id, p.project_name
-         FROM solutionarchitects sa
-         INNER JOIN projects_to_solutionarchitects psa ON sa.id = psa.solutionarchitect_id
-         INNER JOIN projects p ON psa.project_id = p.id
-         LEFT JOIN users u ON sa.user_id = u.id
-         WHERE psa.division_id = ? AND (p.project_is_deleted = 0 OR p.project_is_deleted IS NULL)
-         ORDER BY u.user_name, p.project_name`,
-        [parseInt(req.params.id)]
-      );
-      return success(res, sas);
-    } catch (err) {
-      return error(res, 'Failed to get division solution architects');
+      return error(res, 'Failed to get division role assignments');
     }
   });
 

@@ -20,6 +20,7 @@ import VendorResourceDetailPage from './pages/vendors/resourceDetail';
 import UsersPage from './pages/users/index';
 import UserDetailPage from './pages/users/detail';
 import LogsPage from './pages/logs/index';
+import ProjectRolesPage from './pages/projectRoles/index';
 import SettingsPage from './pages/settings/index';
 
 export default function App() {
@@ -52,6 +53,7 @@ export default function App() {
         <Route path="/vendors/:vendorId/resources/:resourceId" element={<VendorResourceDetailPage />} />
         <Route path="/users" element={<UsersPage />} />
         <Route path="/users/:id" element={<UserDetailPage />} />
+        <Route path="/project-roles" element={<ProjectRolesPage />} />
         <Route path="/logs" element={<LogsPage />} />
         <Route path="/settings" element={<SettingsPage />} />
       </Route>

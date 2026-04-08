@@ -249,6 +249,15 @@ Alternative rejected: Adding recharts/chart.js would add ~50-200KB to bundle for
 **Decision:** Contributors who are PM or SA on a project can edit it (all writes except create/delete). Implemented as a custom async middleware `authorizeProjectMember` inside `createProjectRoutes` where `db` is in scope — the existing `authorize()` middleware is role-string only and has no DB access. The middleware allows superadmin/admin unconditionally, otherwise SQL-checks the PM/SA junction tables.
 **Status:** Implemented (projectRoutes.js, rolematrix.md updated).
 
+## Project Role Assignments — Database Redesign
+**Date:** 2026-04-08
+**Decision:** Replace the two separate role-specific table pairs (`projectmanagers`/`projects_to_projectmanagers` and `solutionarchitects`/`projects_to_solutionarchitects`) with a generic model:
+- `project_roles` — lookup table of named roles, managed by superadmin only, seeded with "Project Manager" (id=1) and "Solution Architect" (id=2)
+- `project_assignments` — single junction table: project_id + user_id + project_role_id + division_id + dates + percentage
+
+This makes adding new roles (Product Owner, Service Designer, etc.) a pure data operation with no code changes required. Existing PM/SA data migrated via migration 026. Old tables dropped after migration.
+**Status:** Planned (migration 026, new services: projectRoleService + projectAssignmentService, new route: projectRoleRoutes).
+
 ## Dark Theme via CSS Custom Properties + .dark Class
 **Date:** 2026-04-03
 **Decision:** Implement dark mode by overriding Tailwind v4 `@theme` CSS variables under a `.dark` class on `<html>`. Reasons:

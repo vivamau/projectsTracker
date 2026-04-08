@@ -30,8 +30,7 @@ export default function ProjectDetailPage() {
   // true for admin/superadmin AND for contributors who are PM or SA on this project
   const canEditProject = isAdmin || (
     project !== null && (
-      project.project_managers?.some(pm => pm.user_id === user?.id) ||
-      project.solution_architects?.some(sa => sa.user_id === user?.id)
+      project.role_assignments?.some(ra => ra.user_id === user?.id)
     )
   );
   const [healthStatuses, setHealthStatuses] = useState([]);
@@ -355,76 +354,51 @@ export default function ProjectDetailPage() {
             )}
           </Card>
 
-          {/* Project Managers & Solution Architects */}
-          <div className="grid grid-cols-2 gap-6">
-            <Card title="Project Managers">
-              {(!project.project_managers || project.project_managers.length === 0) ? (
-                <p className="text-sm text-text-secondary">No project managers assigned</p>
-              ) : (
-                <div className="space-y-2">
-                  {project.project_managers.map(pm => (
-                    <div key={pm.id} className="flex items-center gap-2.5">
-                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-50 text-xs font-bold text-primary-600">
-                        {(pm.user_name?.[0] || '') + (pm.user_lastname?.[0] || '')}
-                      </span>
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium text-text-primary truncate">{pm.user_name} {pm.user_lastname}</p>
-                        <p className="text-xs text-text-secondary truncate">
-                          {pm.user_email}
-                          {pm.division_name && <span className="ml-1.5 text-primary-500">· {pm.division_name}</span>}
-                        </p>
-                        <p className="text-xs text-text-secondary">
-                          {pm.project_to_projectmanager_start_date && (
-                            <span>From {new Date(pm.project_to_projectmanager_start_date).toLocaleDateString()}</span>
-                          )}
-                          {pm.project_to_projectmanager_end_date && (
-                            <span> · To {new Date(pm.project_to_projectmanager_end_date).toLocaleDateString()}</span>
-                          )}
-                          {pm.project_to_projectmanager_percentage != null && (
-                            <span>{pm.project_to_projectmanager_start_date || pm.project_to_projectmanager_end_date ? ' · ' : ''}{pm.project_to_projectmanager_percentage}%</span>
-                          )}
-                        </p>
-                      </div>
+          {/* Role Assignments (Project Managers, Solution Architects, etc.) */}
+          {(() => {
+            const byRole = {};
+            (project.role_assignments || []).forEach(ra => {
+              if (!byRole[ra.role_name]) byRole[ra.role_name] = [];
+              byRole[ra.role_name].push(ra);
+            });
+            const roleNames = Object.keys(byRole);
+            if (roleNames.length === 0) return null;
+            return (
+              <div className={`grid gap-6 ${roleNames.length === 1 ? 'grid-cols-1' : 'grid-cols-2'}`}>
+                {roleNames.map(roleName => (
+                  <Card key={roleName} title={roleName + 's'}>
+                    <div className="space-y-2">
+                      {byRole[roleName].map(ra => (
+                        <div key={ra.id} className="flex items-center gap-2.5">
+                          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-50 text-xs font-bold text-primary-600">
+                            {(ra.user_name?.[0] || '') + (ra.user_lastname?.[0] || '')}
+                          </span>
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium text-text-primary truncate">{ra.user_name} {ra.user_lastname}</p>
+                            <p className="text-xs text-text-secondary truncate">
+                              {ra.user_email}
+                              {ra.division_name && <span className="ml-1.5 text-primary-500">· {ra.division_name}</span>}
+                            </p>
+                            <p className="text-xs text-text-secondary">
+                              {ra.assignment_start_date && (
+                                <span>From {new Date(ra.assignment_start_date).toLocaleDateString()}</span>
+                              )}
+                              {ra.assignment_end_date && (
+                                <span> · To {new Date(ra.assignment_end_date).toLocaleDateString()}</span>
+                              )}
+                              {ra.assignment_percentage != null && (
+                                <span>{ra.assignment_start_date || ra.assignment_end_date ? ' · ' : ''}{ra.assignment_percentage}%</span>
+                              )}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
-              )}
-            </Card>
-
-            <Card title="Solution Architects">
-              {(!project.solution_architects || project.solution_architects.length === 0) ? (
-                <p className="text-sm text-text-secondary">No solution architects assigned</p>
-              ) : (
-                <div className="space-y-2">
-                  {project.solution_architects.map(sa => (
-                    <div key={sa.id} className="flex items-center gap-2.5">
-                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-50 text-xs font-bold text-primary-600">
-                        {(sa.user_name?.[0] || '') + (sa.user_lastname?.[0] || '')}
-                      </span>
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium text-text-primary truncate">{sa.user_name} {sa.user_lastname}</p>
-                        <p className="text-xs text-text-secondary truncate">
-                          {sa.user_email}
-                          {sa.division_name && <span className="ml-1.5 text-primary-500">· {sa.division_name}</span>}
-                        </p>
-                        <p className="text-xs text-text-secondary">
-                          {sa.project_to_solutionarchitect_start_date && (
-                            <span>From {new Date(sa.project_to_solutionarchitect_start_date).toLocaleDateString()}</span>
-                          )}
-                          {sa.project_to_solutionarchitect_end_date && (
-                            <span> · To {new Date(sa.project_to_solutionarchitect_end_date).toLocaleDateString()}</span>
-                          )}
-                          {sa.project_to_solutionarchitect_percentage != null && (
-                            <span>{sa.project_to_solutionarchitect_start_date || sa.project_to_solutionarchitect_end_date ? ' · ' : ''}{sa.project_to_solutionarchitect_percentage}%</span>
-                          )}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </Card>
-          </div>
+                  </Card>
+                ))}
+              </div>
+            );
+          })()}
 
           {/* Vendor Resources */}
           <Card

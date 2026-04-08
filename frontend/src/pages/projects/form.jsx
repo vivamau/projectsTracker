@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getProject, createProject, updateProject } from '../../api/projectsApi';
+import { getProject, createProject, updateProject, getProjectRoles } from '../../api/projectsApi';
 import { getDivisions, getInitiatives, getDeliveryPaths, getCountries, getUsers } from '../../api/entitiesApi';
 import Card from '../../commoncomponents/Card';
 import LoadingSpinner from '../../commoncomponents/LoadingSpinner';
@@ -22,14 +22,14 @@ export default function ProjectFormPage() {
     project_end_date: '',
     country_codes: [],
     supporting_division_ids: [],
-    project_managers: [],
-    solution_architects: []
+    role_assignments: []
   });
   const [divisions, setDivisions] = useState([]);
   const [initiatives, setInitiatives] = useState([]);
   const [deliveryPaths, setDeliveryPaths] = useState([]);
   const [countries, setCountries] = useState([]);
   const [users, setUsers] = useState([]);
+  const [projectRoles, setProjectRoles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -42,6 +42,7 @@ export default function ProjectFormPage() {
       getDeliveryPaths().then(r => setDeliveryPaths(r.data.data)),
       getCountries().then(r => setCountries(r.data.data)),
       getUsers({ limit: 100 }).then(r => setUsers(r.data.data)).catch(() => {}),
+      getProjectRoles().then(r => setProjectRoles(r.data.data)).catch(() => {}),
     ];
 
     if (isEdit) {
@@ -60,19 +61,13 @@ export default function ProjectFormPage() {
             project_end_date: tsToInput(p.project_end_date),
             country_codes: p.countries ? p.countries.map(c => c.UN_country_code) : [],
             supporting_division_ids: p.supporting_divisions ? p.supporting_divisions.map(d => d.id) : [],
-            project_managers: p.project_managers ? p.project_managers.map(pm => ({
-              user_id: pm.user_id,
-              division_id: pm.division_id || '',
-              start_date: tsToInput(pm.project_to_projectmanager_start_date),
-              end_date: tsToInput(pm.project_to_projectmanager_end_date),
-              percentage: pm.project_to_projectmanager_percentage ?? ''
-            })) : [],
-            solution_architects: p.solution_architects ? p.solution_architects.map(sa => ({
-              user_id: sa.user_id,
-              division_id: sa.division_id || '',
-              start_date: tsToInput(sa.project_to_solutionarchitect_start_date),
-              end_date: tsToInput(sa.project_to_solutionarchitect_end_date),
-              percentage: sa.project_to_solutionarchitect_percentage ?? ''
+            role_assignments: p.role_assignments ? p.role_assignments.map(ra => ({
+              user_id: ra.user_id,
+              project_role_id: ra.project_role_id,
+              division_id: ra.division_id || '',
+              start_date: tsToInput(ra.assignment_start_date),
+              end_date: tsToInput(ra.assignment_end_date),
+              percentage: ra.assignment_percentage ?? ''
             })) : []
           });
         })
@@ -114,62 +109,23 @@ export default function ProjectFormPage() {
     }));
   };
 
-  const togglePM = (userId) => {
+  const toggleRoleAssignment = (userId, roleId) => {
     setForm(f => {
-      const exists = f.project_managers.find(pm => pm.user_id === userId);
+      const exists = f.role_assignments.find(ra => ra.user_id === userId && ra.project_role_id === roleId);
       return {
         ...f,
-        project_managers: exists
-          ? f.project_managers.filter(pm => pm.user_id !== userId)
-          : [...f.project_managers, { user_id: userId, division_id: '', start_date: '', end_date: '', percentage: '' }]
+        role_assignments: exists
+          ? f.role_assignments.filter(ra => !(ra.user_id === userId && ra.project_role_id === roleId))
+          : [...f.role_assignments, { user_id: userId, project_role_id: roleId, division_id: '', start_date: '', end_date: '', percentage: '' }]
       };
     });
   };
 
-  const updatePMDivision = (userId, divisionId) => {
+  const updateAssignmentField = (userId, roleId, field, value) => {
     setForm(f => ({
       ...f,
-      project_managers: f.project_managers.map(pm =>
-        pm.user_id === userId ? { ...pm, division_id: divisionId ? parseInt(divisionId) : null } : pm
-      )
-    }));
-  };
-
-  const updatePMField = (userId, field, value) => {
-    setForm(f => ({
-      ...f,
-      project_managers: f.project_managers.map(pm =>
-        pm.user_id === userId ? { ...pm, [field]: value } : pm
-      )
-    }));
-  };
-
-  const toggleSA = (userId) => {
-    setForm(f => {
-      const exists = f.solution_architects.find(sa => sa.user_id === userId);
-      return {
-        ...f,
-        solution_architects: exists
-          ? f.solution_architects.filter(sa => sa.user_id !== userId)
-          : [...f.solution_architects, { user_id: userId, division_id: '', start_date: '', end_date: '', percentage: '' }]
-      };
-    });
-  };
-
-  const updateSADivision = (userId, divisionId) => {
-    setForm(f => ({
-      ...f,
-      solution_architects: f.solution_architects.map(sa =>
-        sa.user_id === userId ? { ...sa, division_id: divisionId ? parseInt(divisionId) : null } : sa
-      )
-    }));
-  };
-
-  const updateSAField = (userId, field, value) => {
-    setForm(f => ({
-      ...f,
-      solution_architects: f.solution_architects.map(sa =>
-        sa.user_id === userId ? { ...sa, [field]: value } : sa
+      role_assignments: f.role_assignments.map(ra =>
+        ra.user_id === userId && ra.project_role_id === roleId ? { ...ra, [field]: field === 'division_id' ? (value ? parseInt(value) : null) : value } : ra
       )
     }));
   };
@@ -196,19 +152,13 @@ export default function ProjectFormPage() {
         project_end_date: inputToTs(form.project_end_date),
         country_codes: form.country_codes,
         supporting_division_ids: form.supporting_division_ids,
-        project_managers: form.project_managers.map(pm => ({
-          user_id: pm.user_id,
-          division_id: pm.division_id || null,
-          start_date: inputToTs(pm.start_date),
-          end_date: inputToTs(pm.end_date),
-          percentage: pm.percentage !== '' ? parseInt(pm.percentage) : null
-        })),
-        solution_architects: form.solution_architects.map(sa => ({
-          user_id: sa.user_id,
-          division_id: sa.division_id || null,
-          start_date: inputToTs(sa.start_date),
-          end_date: inputToTs(sa.end_date),
-          percentage: sa.percentage !== '' ? parseInt(sa.percentage) : null
+        role_assignments: form.role_assignments.map(ra => ({
+          user_id: ra.user_id,
+          project_role_id: ra.project_role_id,
+          division_id: ra.division_id || null,
+          start_date: inputToTs(ra.start_date),
+          end_date: inputToTs(ra.end_date),
+          percentage: ra.percentage !== '' ? parseInt(ra.percentage) : null
         }))
       };
 
@@ -322,115 +272,62 @@ export default function ProjectFormPage() {
               </FormField>
             </div>
 
-            {/* Project Managers */}
-            <FormField label="Project Managers">
-              {form.project_managers.length > 0 && (
-                <div className="mb-2 space-y-2">
-                  {form.project_managers.map(pm => {
-                    const u = users.find(usr => usr.id === pm.user_id);
-                    return (
-                      <div key={pm.user_id} className="rounded-lg border border-primary-200 bg-primary-50 px-3 py-2 space-y-2">
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-medium text-primary-700 min-w-[140px]">
-                            {u ? `${u.user_name} ${u.user_lastname}` : `User #${pm.user_id}`}
-                          </span>
-                          <select
-                            value={pm.division_id || ''}
-                            onChange={e => updatePMDivision(pm.user_id, e.target.value)}
-                            className="flex-1 rounded border border-border-dark px-2 py-1 text-xs outline-none focus:border-primary-500"
-                          >
-                            <option value="">No division</option>
-                            {divisions.map(d => <option key={d.id} value={d.id}>{d.division_name}</option>)}
-                          </select>
-                          <button type="button" onClick={() => togglePM(pm.user_id)} className="text-error-400 hover:text-error-600 text-lg leading-none">&times;</button>
+            {/* Team — Role Assignments */}
+            {projectRoles.map(role => (
+              <FormField key={role.id} label={role.role_name + 's'}>
+                {form.role_assignments.filter(ra => ra.project_role_id === role.id).length > 0 && (
+                  <div className="mb-2 space-y-2">
+                    {form.role_assignments.filter(ra => ra.project_role_id === role.id).map(ra => {
+                      const u = users.find(usr => usr.id === ra.user_id);
+                      return (
+                        <div key={`${ra.user_id}-${ra.project_role_id}`} className="rounded-lg border border-primary-200 bg-primary-50 px-3 py-2 space-y-2">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium text-primary-700 min-w-[140px]">
+                              {u ? `${u.user_name} ${u.user_lastname}` : `User #${ra.user_id}`}
+                            </span>
+                            <select
+                              value={ra.division_id || ''}
+                              onChange={e => updateAssignmentField(ra.user_id, role.id, 'division_id', e.target.value)}
+                              className="flex-1 rounded border border-border-dark px-2 py-1 text-xs outline-none focus:border-primary-500"
+                            >
+                              <option value="">No division</option>
+                              {divisions.map(d => <option key={d.id} value={d.id}>{d.division_name}</option>)}
+                            </select>
+                            <button type="button" onClick={() => toggleRoleAssignment(ra.user_id, role.id)} className="text-error-400 hover:text-error-600 text-lg leading-none">&times;</button>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <label className="text-xs text-text-secondary w-8 shrink-0">From</label>
+                            <input type="date" value={ra.start_date || ''} onChange={e => updateAssignmentField(ra.user_id, role.id, 'start_date', e.target.value)}
+                              className="flex-1 rounded border border-border-dark bg-white px-2 py-1 text-xs outline-none focus:border-primary-500 appearance-none" />
+                            <label className="text-xs text-text-secondary w-4 shrink-0">To</label>
+                            <input type="date" value={ra.end_date || ''} onChange={e => updateAssignmentField(ra.user_id, role.id, 'end_date', e.target.value)}
+                              className="flex-1 rounded border border-border-dark bg-white px-2 py-1 text-xs outline-none focus:border-primary-500 appearance-none" />
+                            <label className="text-xs text-text-secondary w-4 shrink-0">%</label>
+                            <input type="number" min="0" max="100" value={ra.percentage ?? ''} onChange={e => updateAssignmentField(ra.user_id, role.id, 'percentage', e.target.value)}
+                              placeholder="0–100"
+                              className="w-16 rounded border border-border-dark bg-white px-2 py-1 text-xs outline-none focus:border-primary-500" />
+                          </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <label className="text-xs text-text-secondary w-8 shrink-0">From</label>
-                          <input type="date" value={pm.start_date || ''} onChange={e => updatePMField(pm.user_id, 'start_date', e.target.value)}
-                            className="flex-1 rounded border border-border-dark bg-white px-2 py-1 text-xs outline-none focus:border-primary-500 appearance-none" />
-                          <label className="text-xs text-text-secondary w-4 shrink-0">To</label>
-                          <input type="date" value={pm.end_date || ''} onChange={e => updatePMField(pm.user_id, 'end_date', e.target.value)}
-                            className="flex-1 rounded border border-border-dark bg-white px-2 py-1 text-xs outline-none focus:border-primary-500 appearance-none" />
-                          <label className="text-xs text-text-secondary w-4 shrink-0">%</label>
-                          <input type="number" min="0" max="100" value={pm.percentage ?? ''} onChange={e => updatePMField(pm.user_id, 'percentage', e.target.value)}
-                            placeholder="0–100"
-                            className="w-16 rounded border border-border-dark bg-white px-2 py-1 text-xs outline-none focus:border-primary-500" />
-                        </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
+                  </div>
+                )}
+                <div className="max-h-40 overflow-y-auto rounded-lg border border-border">
+                  {users.map(u => (
+                    <label key={u.id} className="flex items-center gap-2 px-3 py-1.5 hover:bg-surface cursor-pointer text-sm">
+                      <input
+                        type="checkbox"
+                        checked={!!form.role_assignments.find(ra => ra.user_id === u.id && ra.project_role_id === role.id)}
+                        onChange={() => toggleRoleAssignment(u.id, role.id)}
+                        className="rounded border-border-dark text-primary-500 focus:ring-primary-500"
+                      />
+                      <span>{u.user_name} {u.user_lastname}</span>
+                      <span className="text-text-secondary text-xs">({u.user_email})</span>
+                    </label>
+                  ))}
                 </div>
-              )}
-              <div className="max-h-40 overflow-y-auto rounded-lg border border-border">
-                {users.map(u => (
-                  <label key={u.id} className="flex items-center gap-2 px-3 py-1.5 hover:bg-surface cursor-pointer text-sm">
-                    <input
-                      type="checkbox"
-                      checked={!!form.project_managers.find(pm => pm.user_id === u.id)}
-                      onChange={() => togglePM(u.id)}
-                      className="rounded border-border-dark text-primary-500 focus:ring-primary-500"
-                    />
-                    <span>{u.user_name} {u.user_lastname}</span>
-                    <span className="text-text-secondary text-xs">({u.user_email})</span>
-                  </label>
-                ))}
-              </div>
-            </FormField>
-
-            {/* Solution Architects */}
-            <FormField label="Solution Architects">
-              {form.solution_architects.length > 0 && (
-                <div className="mb-2 space-y-2">
-                  {form.solution_architects.map(sa => {
-                    const u = users.find(usr => usr.id === sa.user_id);
-                    return (
-                      <div key={sa.user_id} className="rounded-lg border border-primary-200 bg-primary-50 px-3 py-2 space-y-2">
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-medium text-primary-700 min-w-[140px]">
-                            {u ? `${u.user_name} ${u.user_lastname}` : `User #${sa.user_id}`}
-                          </span>
-                          <select
-                            value={sa.division_id || ''}
-                            onChange={e => updateSADivision(sa.user_id, e.target.value)}
-                            className="flex-1 rounded border border-border-dark px-2 py-1 text-xs outline-none focus:border-primary-500"
-                          >
-                            <option value="">No division</option>
-                            {divisions.map(d => <option key={d.id} value={d.id}>{d.division_name}</option>)}
-                          </select>
-                          <button type="button" onClick={() => toggleSA(sa.user_id)} className="text-error-400 hover:text-error-600 text-lg leading-none">&times;</button>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <label className="text-xs text-text-secondary w-8 shrink-0">From</label>
-                          <input type="date" value={sa.start_date || ''} onChange={e => updateSAField(sa.user_id, 'start_date', e.target.value)}
-                            className="flex-1 rounded border border-border-dark bg-white px-2 py-1 text-xs outline-none focus:border-primary-500 appearance-none" />
-                          <label className="text-xs text-text-secondary w-4 shrink-0">To</label>
-                          <input type="date" value={sa.end_date || ''} onChange={e => updateSAField(sa.user_id, 'end_date', e.target.value)}
-                            className="flex-1 rounded border border-border-dark bg-white px-2 py-1 text-xs outline-none focus:border-primary-500 appearance-none" />
-                          <label className="text-xs text-text-secondary w-4 shrink-0">%</label>
-                          <input type="number" min="0" max="100" value={sa.percentage ?? ''} onChange={e => updateSAField(sa.user_id, 'percentage', e.target.value)}
-                            placeholder="0–100"
-                            className="w-16 rounded border border-border-dark bg-white px-2 py-1 text-xs outline-none focus:border-primary-500" />
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-              <div className="max-h-40 overflow-y-auto rounded-lg border border-border">
-                {users.map(u => (
-                  <label key={u.id} className="flex items-center gap-2 px-3 py-1.5 hover:bg-surface cursor-pointer text-sm">
-                    <input
-                      type="checkbox"
-                      checked={!!form.solution_architects.find(sa => sa.user_id === u.id)}
-                      onChange={() => toggleSA(u.id)}
-                      className="rounded border-border-dark text-primary-500 focus:ring-primary-500"
-                    />
-                    <span>{u.user_name} {u.user_lastname}</span>
-                    <span className="text-text-secondary text-xs">({u.user_email})</span>
-                  </label>
-                ))}
-              </div>
-            </FormField>
+              </FormField>
+            ))}
 
             {/* Dates row */}
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">

@@ -1,6 +1,5 @@
 const { runQuery, getOne, getAll } = require('../config/database');
-const projectManagerService = require('./projectManagerService');
-const solutionArchitectService = require('./solutionArchitectService');
+const projectAssignmentService = require('./projectAssignmentService');
 const { getRates, convertToUSD, getLastFetchedAt } = require('../utilities/exchangeRateService');
 
 async function getAllProjects(db, { page = 1, limit = 20, search, division_id, status_id, initiative_id, deliverypath_id } = {}) {
@@ -128,11 +127,8 @@ async function getById(db, id) {
     [id]
   );
 
-  // Get project managers
-  const projectManagers = await projectManagerService.getByProjectId(db, id);
-
-  // Get solution architects
-  const solutionArchitects = await solutionArchitectService.getByProjectId(db, id);
+  // Get role assignments (project managers, solution architects, etc.)
+  const roleAssignments = await projectAssignmentService.getByProjectId(db, id);
 
   return {
     ...project,
@@ -143,8 +139,7 @@ async function getById(db, id) {
     countries,
     supporting_divisions: supportingDivisions,
     tec_stacks: tecStacks,
-    project_managers: projectManagers,
-    solution_architects: solutionArchitects
+    role_assignments: roleAssignments
   };
 }
 
@@ -191,14 +186,9 @@ async function create(db, data) {
     }
   }
 
-  // Sync project managers if provided
-  if (data.project_managers) {
-    await projectManagerService.syncProjectManagers(db, result.lastID, data.project_managers);
-  }
-
-  // Sync solution architects if provided
-  if (data.solution_architects) {
-    await solutionArchitectService.syncSolutionArchitects(db, result.lastID, data.solution_architects);
+  // Sync role assignments if provided
+  if (data.role_assignments) {
+    await projectAssignmentService.syncForProject(db, result.lastID, data.role_assignments);
   }
 
   return result;
@@ -272,7 +262,7 @@ async function update(db, id, data) {
       );
     }
     // If only countries changed, mark as updated
-    if (fields.length === 0 && !data.project_managers && data.supporting_division_ids === undefined) {
+    if (fields.length === 0 && !data.role_assignments && data.supporting_division_ids === undefined) {
       await runQuery(db,
         'UPDATE projects SET project_update_date = ? WHERE id = ?',
         [now, id]
@@ -295,8 +285,7 @@ async function update(db, id, data) {
         [id, divId]
       );
     }
-    // If only supporting divisions changed, mark as updated
-    if (fields.length === 0 && !data.country_codes && !data.project_managers) {
+    if (fields.length === 0 && !data.country_codes && !data.role_assignments) {
       await runQuery(db,
         'UPDATE projects SET project_update_date = ? WHERE id = ?',
         [now, id]
@@ -305,22 +294,10 @@ async function update(db, id, data) {
     }
   }
 
-  // Sync project managers if provided
-  if (data.project_managers !== undefined) {
-    await projectManagerService.syncProjectManagers(db, id, data.project_managers);
-    if (fields.length === 0 && !data.country_codes) {
-      await runQuery(db,
-        'UPDATE projects SET project_update_date = ? WHERE id = ?',
-        [now, id]
-      );
-      result = { changes: 1 };
-    }
-  }
-
-  // Sync solution architects if provided
-  if (data.solution_architects !== undefined) {
-    await solutionArchitectService.syncSolutionArchitects(db, id, data.solution_architects);
-    if (fields.length === 0 && !data.country_codes && !data.project_managers) {
+  // Sync role assignments if provided
+  if (data.role_assignments !== undefined) {
+    await projectAssignmentService.syncForProject(db, id, data.role_assignments);
+    if (fields.length === 0 && !data.country_codes && !data.supporting_division_ids) {
       await runQuery(db,
         'UPDATE projects SET project_update_date = ? WHERE id = ?',
         [now, id]
@@ -420,28 +397,19 @@ async function getStats(db) {
      GROUP BY hs.healthstatus_value`
   );
 
-  const projectManagers = await getAll(db,
-    `SELECT u.id as user_id, u.user_name, u.user_lastname, u.user_email,
-            COUNT(DISTINCT ppm.project_id) as project_count
-     FROM projectmanagers pm
-     JOIN users u ON pm.user_id = u.id
-     LEFT JOIN projects_to_projectmanagers ppm ON ppm.projectmanager_id = pm.id
-     LEFT JOIN projects p ON p.id = ppm.project_id
+  // Get role assignments grouped by role
+  const roleAssignments = await getAll(db,
+    `SELECT pr.id as role_id, pr.role_name,
+            u.id as user_id, u.user_name, u.user_lastname, u.user_email,
+            COUNT(DISTINCT pa.project_id) as project_count
+     FROM project_assignments pa
+     JOIN users u ON pa.user_id = u.id
+     JOIN project_roles pr ON pa.project_role_id = pr.id
+     JOIN projects p ON p.id = pa.project_id
        AND (p.project_is_deleted = 0 OR p.project_is_deleted IS NULL)
-     GROUP BY pm.id
-     ORDER BY u.user_name`
-  );
-
-  const solutionArchitects = await getAll(db,
-    `SELECT u.id as user_id, u.user_name, u.user_lastname, u.user_email,
-            COUNT(DISTINCT psa.project_id) as project_count
-     FROM solutionarchitects sa
-     JOIN users u ON sa.user_id = u.id
-     LEFT JOIN projects_to_solutionarchitects psa ON psa.solutionarchitect_id = sa.id
-     LEFT JOIN projects p ON p.id = psa.project_id
-       AND (p.project_is_deleted = 0 OR p.project_is_deleted IS NULL)
-     GROUP BY sa.id
-     ORDER BY u.user_name`
+     WHERE (pr.role_is_deleted = 0 OR pr.role_is_deleted IS NULL)
+     GROUP BY pr.id, u.id
+     ORDER BY pr.role_name, u.user_name`
   );
 
   const owners = await getAll(db,
@@ -454,8 +422,7 @@ async function getStats(db) {
      ORDER BY u.user_name`
   );
 
-  const projectManagersCount = await projectManagerService.getCount(db);
-  const solutionArchitectsCount = await solutionArchitectService.getCount(db);
+  const roleAssignmentCounts = await projectAssignmentService.getCountByRole(db);
 
   return {
     totalProjects: totalProjects.count,
@@ -481,11 +448,9 @@ async function getStats(db) {
     exchangeRates: exchangeRates,
     exchangeRatesUpdatedAt: getLastFetchedAt(),
     healthDistribution: healthDistribution,
-    projectManagers: projectManagers,
-    solutionArchitects: solutionArchitects,
+    roleAssignments: roleAssignments,
     owners: owners,
-    projectManagersCount,
-    solutionArchitectsCount
+    roleAssignmentCounts
   };
 }
 

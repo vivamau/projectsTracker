@@ -182,8 +182,16 @@ export default function DashboardPage() {
 
       {/* People */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <PeopleListCard title="Project Managers" people={stats?.projectManagers || []} isSuperAdmin={isSuperAdmin} />
-        <PeopleListCard title="Solution Architects" people={stats?.solutionArchitects || []} isSuperAdmin={isSuperAdmin} />
+        {(() => {
+          const byRole = {};
+          (stats?.roleAssignments || []).forEach(ra => {
+            if (!byRole[ra.role_name]) byRole[ra.role_name] = [];
+            byRole[ra.role_name].push(ra);
+          });
+          return Object.entries(byRole).map(([roleName, people]) => (
+            <PeopleListCard key={roleName} title={roleName + 's'} people={people} isSuperAdmin={isSuperAdmin} />
+          ));
+        })()}
         <PeopleListCard title="Owners" people={stats?.owners || []} isSuperAdmin={isSuperAdmin} />
       </div>
 
