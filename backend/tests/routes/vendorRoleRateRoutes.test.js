@@ -1,7 +1,7 @@
 const supertest = require('supertest');
 const { initTestDb, seedTestDb, closeTestDb } = require('../helpers/testDb');
 const { createTestApp } = require('../helpers/testApp');
-const { adminToken } = require('../helpers/testAuth');
+const { adminToken, superadminToken } = require('../helpers/testAuth');
 
 let db, app, request;
 let vendorId, contractId, roleId, currencyId, seniorityId;
@@ -53,10 +53,10 @@ beforeAll(async () => {
     });
   currencyId = currRes.body.data.id;
 
-  // Create seniority
+  // Create seniority (superadmin only)
   const senRes = await request
     .post('/api/seniorities')
-    .set('Cookie', [`token=${adminToken()}`])
+    .set('Cookie', [`token=${superadminToken()}`])
     .send({
       seniority_description: 'Senior'
     });

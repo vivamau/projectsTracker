@@ -17,6 +17,7 @@
 ## Development strategy
 - Stay strictly with TDD: first write tests, run the tests and then the code
 - Use red/green TDD
+- Every time a new API endpoint is created or an API endpoint changes, update the swagger file (that must available at /api/docs url).
 - The coverage tests must be at least 85%
 - Before ending a task run unit and end to end tests. If anything fails, fix the code not the tests.
 - Keep file code short (max 1000 lines) and split the code into components for React or smaller classes for Node.js
@@ -74,7 +75,8 @@
 - **Avatars**: [DiceBear API](https://www.dicebear.com) (User avatars)
 - **Unit Testing library**: Jest
 - **End to end test library**: Playwright
-
+- **Charts library**: Recharts
+- **Swagger documentation**: swagger-ui-express
 ### Security Policy
 - **Dependencies**: The project MUST use only libraries that do not have **High** or **Critical** vulnerabilities.
 - **Auditing**: Run `npm audit` regularly and update/replace vulnerable packages immediately.

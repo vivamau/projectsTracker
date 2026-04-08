@@ -1,15 +1,39 @@
 import { useState } from 'react';
 import { useAuth } from '../../hooks/useAuth';
+import { useAppSettings } from '../../hooks/useAppSettings';
+import client from '../../api/client';
 import Card from '../../commoncomponents/Card';
+import UserAvatar from '../../commoncomponents/UserAvatar';
 import SeniorityManagementModal from './SeniorityManagementModal';
 import ProjectStatusManagementModal from './ProjectStatusManagementModal';
 import HealthStatusManagementModal from './HealthStatusManagementModal';
 
+const DICEBEAR_STYLES = [
+  'adventurer', 'adventurer-neutral', 'avataaars', 'big-ears', 'big-smile',
+  'bottts', 'croodles', 'dylan', 'fun-emoji', 'glass', 'icons', 'identicon',
+  'initials', 'lorelei', 'micah', 'miniavs', 'notionists', 'open-peeps',
+  'personas', 'pixel-art', 'rings', 'shapes', 'thumbs',
+];
+
 export default function SettingsPage() {
-  const { user } = useAuth();
+  const { user, role } = useAuth();
+  const { settings, updateSetting } = useAppSettings();
   const [seniorityModalOpen, setSeniorityModalOpen] = useState(false);
   const [projectStatusModalOpen, setProjectStatusModalOpen] = useState(false);
   const [healthStatusModalOpen, setHealthStatusModalOpen] = useState(false);
+  const [savingStyle, setSavingStyle] = useState(false);
+
+  const handleStyleChange = async (style) => {
+    setSavingStyle(true);
+    try {
+      await client.put('/settings/avatar_style', { value: style });
+      updateSetting('avatar_style', style);
+    } catch {
+      // revert on error
+    } finally {
+      setSavingStyle(false);
+    }
+  };
 
   return (
     <div className="max-w-2xl">
@@ -20,12 +44,7 @@ export default function SettingsPage() {
 
       <Card title="Profile">
         <div className="flex items-center gap-4 mb-6">
-          <img
-            src={`https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(user?.user_email || '')}&backgroundColor=1677ff&textColor=ffffff&size=64`}
-            alt="avatar"
-            className="h-16 w-16 rounded-full"
-            crossOrigin="anonymous"
-          />
+          <UserAvatar seed={user?.user_email} name={user?.user_name} size={64} />
           <div>
             <p className="text-lg font-semibold">{user?.user_name} {user?.user_lastname}</p>
             <p className="text-sm text-text-secondary capitalize">{user?.role}</p>
@@ -50,51 +69,90 @@ export default function SettingsPage() {
         </div>
       </Card>
 
-      <Card title="Vendor Management" className="mt-6">
-        <div className="space-y-4">
-          <div className="flex items-center justify-between pb-4 border-b border-border">
-            <div>
-              <h3 className="font-medium text-text-primary">Seniority Levels</h3>
-              <p className="text-sm text-text-secondary">Manage vendor staff seniority classifications</p>
-            </div>
-            <button
-              onClick={() => setSeniorityModalOpen(true)}
-              className="rounded-lg bg-primary-500 px-4 py-2 text-sm font-medium text-white hover:bg-primary-600 transition-colors"
-            >
-              Manage
-            </button>
+      {role === 'superadmin' && (
+        <Card title="Avatar Style" className="mt-6">
+          <p className="text-sm text-text-secondary mb-4">
+            Choose the DiceBear avatar style used across the application
+          </p>
+          <div className="grid grid-cols-4 sm:grid-cols-6 gap-3">
+            {DICEBEAR_STYLES.map((style) => (
+              <button
+                key={style}
+                onClick={() => handleStyleChange(style)}
+                disabled={savingStyle}
+                className={`flex flex-col items-center gap-1.5 rounded-lg border-2 p-2 transition-colors ${
+                  settings.avatar_style === style
+                    ? 'border-primary-500 bg-primary-50'
+                    : 'border-border hover:border-primary-300'
+                }`}
+              >
+                <img
+                  src={`https://api.dicebear.com/9.x/${style}/svg?seed=${encodeURIComponent(user?.user_email || 'demo')}`}
+                  alt={style}
+                  width={40}
+                  height={40}
+                  className="rounded-full bg-primary-50"
+                  crossOrigin="anonymous"
+                  loading="lazy"
+                />
+                <span className="text-[10px] text-text-secondary leading-tight text-center truncate w-full">
+                  {style}
+                </span>
+              </button>
+            ))}
           </div>
-        </div>
-      </Card>
+        </Card>
+      )}
 
-      <Card title="Project Management" className="mt-6">
-        <div className="space-y-4">
-          <div className="flex items-center justify-between pb-4 border-b border-border">
-            <div>
-              <h3 className="font-medium text-text-primary">Project Statuses</h3>
-              <p className="text-sm text-text-secondary">Manage project lifecycle status types</p>
+      {role === 'superadmin' && (
+        <Card title="Vendor Management" className="mt-6">
+          <div className="space-y-4">
+            <div className="flex items-center justify-between pb-4 border-b border-border">
+              <div>
+                <h3 className="font-medium text-text-primary">Seniority Levels</h3>
+                <p className="text-sm text-text-secondary">Manage vendor staff seniority classifications</p>
+              </div>
+              <button
+                onClick={() => setSeniorityModalOpen(true)}
+                className="rounded-lg bg-primary-500 px-4 py-2 text-sm font-medium text-white hover:bg-primary-600 transition-colors"
+              >
+                Manage
+              </button>
             </div>
-            <button
-              onClick={() => setProjectStatusModalOpen(true)}
-              className="rounded-lg bg-primary-500 px-4 py-2 text-sm font-medium text-white hover:bg-primary-600 transition-colors"
-            >
-              Manage
-            </button>
           </div>
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="font-medium text-text-primary">Health Status Types</h3>
-              <p className="text-sm text-text-secondary">Manage project health status classifications</p>
+        </Card>
+      )}
+
+      {role === 'superadmin' && (
+        <Card title="Project Management" className="mt-6">
+          <div className="space-y-4">
+            <div className="flex items-center justify-between pb-4 border-b border-border">
+              <div>
+                <h3 className="font-medium text-text-primary">Project Statuses</h3>
+                <p className="text-sm text-text-secondary">Manage project lifecycle status types</p>
+              </div>
+              <button
+                onClick={() => setProjectStatusModalOpen(true)}
+                className="rounded-lg bg-primary-500 px-4 py-2 text-sm font-medium text-white hover:bg-primary-600 transition-colors"
+              >
+                Manage
+              </button>
             </div>
-            <button
-              onClick={() => setHealthStatusModalOpen(true)}
-              className="rounded-lg bg-primary-500 px-4 py-2 text-sm font-medium text-white hover:bg-primary-600 transition-colors"
-            >
-              Manage
-            </button>
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="font-medium text-text-primary">Health Status Types</h3>
+                <p className="text-sm text-text-secondary">Manage project health status classifications</p>
+              </div>
+              <button
+                onClick={() => setHealthStatusModalOpen(true)}
+                className="rounded-lg bg-primary-500 px-4 py-2 text-sm font-medium text-white hover:bg-primary-600 transition-colors"
+              >
+                Manage
+              </button>
+            </div>
           </div>
-        </div>
-      </Card>
+        </Card>
+      )}
 
       <SeniorityManagementModal
         open={seniorityModalOpen}

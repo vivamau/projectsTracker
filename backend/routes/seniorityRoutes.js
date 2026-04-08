@@ -16,7 +16,7 @@ function createSeniorityRoutes(db, auditDb) {
     }
   });
 
-  router.post('/', authenticate, authorize('superadmin', 'admin'), async (req, res) => {
+  router.post('/', authenticate, authorize('superadmin'), async (req, res) => {
     try {
       const { seniority_description } = req.body;
       if (!seniority_description) {
@@ -38,7 +38,7 @@ function createSeniorityRoutes(db, auditDb) {
     }
   });
 
-  router.delete('/:id', authenticate, authorize('superadmin', 'admin'), async (req, res) => {
+  router.delete('/:id', authenticate, authorize('superadmin'), async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const result = await seniorityService.softDelete(db, id);

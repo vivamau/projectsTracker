@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import UserAvatar from '../../../commoncomponents/UserAvatar';
 
 const PAGE_SIZE = 5;
 
@@ -22,8 +23,9 @@ export default function PeopleListCard({ title, people = [], isSuperAdmin = fals
         <>
           <div className="flex-1 space-y-2">
             {slice.map((person, i) => (
-              <div key={i} className="flex items-center justify-between">
-                <div className="min-w-0">
+              <div key={i} className="flex items-center gap-2.5">
+                <UserAvatar seed={person.user_email} name={person.user_name} size={28} />
+                <div className="min-w-0 flex-1">
                   {isSuperAdmin ? (
                     <Link
                       to={`/users/${person.user_id}`}
@@ -36,9 +38,8 @@ export default function PeopleListCard({ title, people = [], isSuperAdmin = fals
                       {person.user_name} {person.user_lastname}
                     </p>
                   )}
-                  <p className="text-xs text-text-secondary truncate">{person.user_email}</p>
                 </div>
-                <span className="ml-3 shrink-0 text-xs font-semibold text-text-primary">
+                <span className="ml-auto shrink-0 text-xs font-semibold text-text-primary">
                   {person.project_count} <span className="font-normal text-text-secondary">proj</span>
                 </span>
               </div>

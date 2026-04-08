@@ -45,6 +45,8 @@ tags:
     description: Vendor contract role management endpoints
   - name: Vendor Role Rates
     description: Vendor role rate management endpoints
+  - name: Project Roles
+    description: Project role management (superadmin writes, all reads)
   - name: Settings
     description: Application settings (superadmin only)
   - name: Audit Logs
@@ -64,6 +66,26 @@ components:
         as "Bearer <token>".
 
   schemas:
+    # Project Role Schema
+    ProjectRole:
+      type: object
+      properties:
+        id:
+          type: integer
+        role_name:
+          type: string
+          example: Project Manager
+        role_description:
+          type: string
+          nullable: true
+          example: Manages the project lifecycle
+        role_create_date:
+          type: integer
+          description: Unix timestamp
+        role_is_deleted:
+          type: integer
+          enum: [0, 1]
+
     # Common Response Schemas
     Error:
       type: object
@@ -2675,13 +2697,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/Success'
 
-  # ==================== Project Managers ====================
-  /projects/{id}/project-managers:
+  # ==================== Role Assignments ====================
+  /projects/{id}/role-assignments:
     get:
       tags:
         - Projects
-      summary: Get project managers
-      description: Get all project managers for a project
+      summary: Get role assignments
+      description: Get all role assignments (project managers, solution architects, etc.) for a project
       parameters:
         - name: id
           in: path
@@ -2691,27 +2713,57 @@ paths:
             type: integer
       responses:
         '200':
-          description: Project managers retrieved
+          description: Role assignments retrieved
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  type: object
-                  properties:
-                    id:
-                      type: integer
-                    user_id:
-                      type: integer
-                    user_name:
-                      type: string
-                    user_email:
-                      type: string
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                        project_id:
+                          type: integer
+                        user_id:
+                          type: integer
+                        project_role_id:
+                          type: integer
+                        division_id:
+                          type: integer
+                          nullable: true
+                        user_name:
+                          type: string
+                        user_lastname:
+                          type: string
+                        user_email:
+                          type: string
+                        role_name:
+                          type: string
+                        division_name:
+                          type: string
+                          nullable: true
+                        assignment_start_date:
+                          type: integer
+                          nullable: true
+                          description: Unix timestamp
+                        assignment_end_date:
+                          type: integer
+                          nullable: true
+                          description: Unix timestamp
+                        assignment_percentage:
+                          type: integer
+                          nullable: true
     put:
       tags:
         - Projects
-      summary: Sync project managers
-      description: Replace all project managers for a project (admin and above)
+      summary: Sync role assignments
+      description: Replace all role assignments for a project (project members and above)
       parameters:
         - name: id
           in: path
@@ -2726,15 +2778,38 @@ paths:
             schema:
               type: object
               required:
-                - user_ids
+                - role_assignments
               properties:
-                user_ids:
+                role_assignments:
                   type: array
                   items:
-                    type: integer
+                    type: object
+                    required:
+                      - user_id
+                      - project_role_id
+                    properties:
+                      user_id:
+                        type: integer
+                      project_role_id:
+                        type: integer
+                      division_id:
+                        type: integer
+                        nullable: true
+                      start_date:
+                        type: integer
+                        nullable: true
+                        description: Unix timestamp
+                      end_date:
+                        type: integer
+                        nullable: true
+                        description: Unix timestamp
+                      percentage:
+                        type: integer
+                        nullable: true
+                        description: Allocation percentage (0–100)
       responses:
         '200':
-          description: Project managers synced
+          description: Role assignments synced
           content:
             application/json:
               schema:
@@ -2778,12 +2853,12 @@ paths:
                       type: string
 
   # ==================== Division Sub-routes ====================
-  /divisions/{id}/project-managers:
+  /divisions/{id}/role-assignments:
     get:
       tags:
         - Divisions
-      summary: Get project managers in division
-      description: Get all project managers belonging to a division
+      summary: Get role assignments in division
+      description: Get all role assignments (PMs, SAs, etc.) for projects in a division
       parameters:
         - name: id
           in: path
@@ -2793,20 +2868,37 @@ paths:
             type: integer
       responses:
         '200':
-          description: Project managers retrieved
+          description: Role assignments retrieved
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  type: object
-                  properties:
-                    id:
-                      type: integer
-                    user_name:
-                      type: string
-                    user_email:
-                      type: string
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                        user_id:
+                          type: integer
+                        user_name:
+                          type: string
+                        user_lastname:
+                          type: string
+                        user_email:
+                          type: string
+                        role_id:
+                          type: integer
+                        role_name:
+                          type: string
+                        project_id:
+                          type: integer
+                        project_name:
+                          type: string
 
   /divisions/{id}/projects:
     get:
@@ -3187,6 +3279,40 @@ paths:
                     description:
                       type: string
 
+  /settings/public/{key}:
+    get:
+      tags:
+        - Settings
+      summary: Get a public setting
+      description: Get a single application setting by key. Available to all authenticated users.
+      parameters:
+        - name: key
+          in: path
+          required: true
+          description: Setting key (e.g. avatar_style)
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Setting value retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      key:
+                        type: string
+                      value:
+                        type: string
+                        nullable: true
+        '401':
+          description: Not authenticated
+
   /settings/{key}:
     put:
       tags:
@@ -3402,3 +3528,151 @@ paths:
                   deleted:
                     type: integer
                     description: Number of records deleted
+
+  # ==================== Project Roles ====================
+  /project-roles:
+    get:
+      tags:
+        - Project Roles
+      summary: List all project roles
+      description: Get all active project roles (e.g. Project Manager, Solution Architect)
+      responses:
+        '200':
+          description: Project roles retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ProjectRole'
+    post:
+      tags:
+        - Project Roles
+      summary: Create a project role
+      description: Create a new project role (superadmin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - role_name
+              properties:
+                role_name:
+                  type: string
+                  example: Product Owner
+                role_description:
+                  type: string
+                  nullable: true
+                  example: Owns the product backlog
+      responses:
+        '201':
+          description: Project role created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+        '400':
+          description: Validation error (missing role_name)
+        '403':
+          description: Forbidden — superadmin only
+
+  /project-roles/{id}:
+    get:
+      tags:
+        - Project Roles
+      summary: Get a project role
+      description: Get a single project role by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Project role ID
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Project role retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/ProjectRole'
+        '404':
+          description: Project role not found
+    put:
+      tags:
+        - Project Roles
+      summary: Update a project role
+      description: Update an existing project role (superadmin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Project role ID
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                role_name:
+                  type: string
+                role_description:
+                  type: string
+                  nullable: true
+      responses:
+        '200':
+          description: Project role updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+        '403':
+          description: Forbidden — superadmin only
+        '404':
+          description: Project role not found
+    delete:
+      tags:
+        - Project Roles
+      summary: Delete a project role
+      description: Soft-delete a project role (superadmin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Project role ID
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Project role deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+        '403':
+          description: Forbidden — superadmin only
+        '404':
+          description: Project role not found

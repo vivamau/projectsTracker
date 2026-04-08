@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { getProject, createProject, updateProject, getProjectRoles } from '../../api/projectsApi';
 import { getDivisions, getInitiatives, getDeliveryPaths, getCountries, getUsers } from '../../api/entitiesApi';
 import Card from '../../commoncomponents/Card';
+import UserAvatar from '../../commoncomponents/UserAvatar';
 import LoadingSpinner from '../../commoncomponents/LoadingSpinner';
 
 export default function ProjectFormPage() {
@@ -282,7 +283,8 @@ export default function ProjectFormPage() {
                       return (
                         <div key={`${ra.user_id}-${ra.project_role_id}`} className="rounded-lg border border-primary-200 bg-primary-50 px-3 py-2 space-y-2">
                           <div className="flex items-center gap-2">
-                            <span className="text-sm font-medium text-primary-700 min-w-[140px]">
+                            <UserAvatar seed={u?.user_email} name={u?.user_name} size={24} />
+                            <span className="text-sm font-medium text-primary-700 min-w-[120px]">
                               {u ? `${u.user_name} ${u.user_lastname}` : `User #${ra.user_id}`}
                             </span>
                             <select

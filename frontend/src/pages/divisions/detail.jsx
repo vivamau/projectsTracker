@@ -9,6 +9,7 @@ import {
 } from '../../api/entitiesApi';
 import { getBudgets, getPurchaseOrders, getPurchaseOrderItems } from '../../api/projectsApi';
 import { useAuth } from '../../hooks/useAuth';
+import UserAvatar from '../../commoncomponents/UserAvatar';
 import Card from '../../commoncomponents/Card';
 import StatusBadge from '../../commoncomponents/StatusBadge';
 import ConfirmDialog from '../../commoncomponents/ConfirmDialog';
@@ -277,9 +278,7 @@ export default function DivisionDetailPage() {
                 {focalPoints.map(fp => (
                   <div key={fp.id} className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2.5">
-                      <span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary-50 text-xs font-bold text-primary-600">
-                        {(fp.user_name?.[0] || '') + (fp.user_lastname?.[0] || '')}
-                      </span>
+                      <UserAvatar seed={fp.user_email} name={fp.user_name} size={32} />
                       <div>
                         <p className="text-sm font-medium text-text-primary">{fp.user_name} {fp.user_lastname}</p>
                         <p className="text-xs text-text-secondary">{fp.user_email}</p>
@@ -320,9 +319,7 @@ export default function DivisionDetailPage() {
                     }, {})
                   ).map(person => (
                     <div key={person.user_id} className="flex items-start gap-2.5">
-                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-50 text-xs font-bold text-primary-600">
-                        {(person.user_name?.[0] || '') + (person.user_lastname?.[0] || '')}
-                      </span>
+                      <UserAvatar seed={person.user_email} name={person.user_name} size={32} />
                       <div>
                         <p className="text-sm font-medium text-text-primary">{person.user_name} {person.user_lastname}</p>
                         <p className="text-xs text-text-secondary">{person.user_email}</p>

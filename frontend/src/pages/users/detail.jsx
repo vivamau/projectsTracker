@@ -7,6 +7,7 @@ import Card from '../../commoncomponents/Card';
 import LoadingSpinner from '../../commoncomponents/LoadingSpinner';
 import Pagination from '../../commoncomponents/Pagination';
 import ProjectStatusBadge from '../../commoncomponents/ProjectStatusBadge';
+import UserAvatar from '../../commoncomponents/UserAvatar';
 
 const ACTION_ICONS = {
   CREATE: '+',
@@ -121,6 +122,7 @@ function UserDetailPage() {
           >
             <ArrowLeft size={20} />
           </button>
+          <UserAvatar seed={user.user_email} name={user.user_name} size={96} />
           <div>
             <div className="flex items-center gap-2">
               <h1 className="text-xl font-bold">

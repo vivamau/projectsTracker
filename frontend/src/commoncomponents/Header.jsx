@@ -3,6 +3,7 @@ import { useLocation, Link } from 'react-router-dom';
 import { Menu, LogOut, User, ChevronRight, Sun, Moon } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { useTheme } from '../hooks/useTheme';
+import UserAvatar from './UserAvatar';
 
 const pathLabels = {
   dashboard: 'Dashboard',
@@ -39,10 +40,6 @@ export default function Header({ onMenuClick }) {
     path: '/' + segments.slice(0, i + 1).join('/'),
     isLast: i === segments.length - 1
   }));
-
-  const avatarUrl = user
-    ? `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(user.user_email)}&backgroundColor=1677ff&textColor=ffffff`
-    : '';
 
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-border bg-surface-header px-6 shadow-sm transition-colors duration-200">
@@ -87,12 +84,7 @@ export default function Header({ onMenuClick }) {
             onClick={() => setMenuOpen(!menuOpen)}
             className="flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-surface-hover transition-colors"
           >
-            <img
-              src={avatarUrl}
-              alt="avatar"
-              className="h-8 w-8 rounded-full"
-              crossOrigin="anonymous"
-            />
+            <UserAvatar seed={user?.user_email} name={user?.user_name} size={32} />
             <div className="hidden text-left sm:block">
               <p className="text-sm font-medium leading-tight">
                 {user?.user_name} {user?.user_lastname}

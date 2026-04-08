@@ -103,6 +103,43 @@ describe('PUT /api/settings/:key', () => {
   });
 });
 
+describe('GET /api/settings/public/:key', () => {
+  beforeAll(async () => {
+    const appSettingsService = require('../../services/appSettingsService');
+    await appSettingsService.set(db, 'avatar_style', 'fun-emoji', 'superadmin@test.com');
+  });
+
+  it('returns a public setting for any authenticated user', async () => {
+    const res = await request(app)
+      .get('/api/settings/public/avatar_style')
+      .set('Cookie', ['token=' + readerToken()]);
+    expect(res.status).toBe(200);
+    expect(res.body.data.value).toBe('fun-emoji');
+  });
+
+  it('returns a public setting for admin', async () => {
+    const res = await request(app)
+      .get('/api/settings/public/avatar_style')
+      .set('Cookie', ['token=' + adminToken()]);
+    expect(res.status).toBe(200);
+    expect(res.body.data.value).toBe('fun-emoji');
+  });
+
+  it('returns null for non-existent key', async () => {
+    const res = await request(app)
+      .get('/api/settings/public/nonexistent_key')
+      .set('Cookie', ['token=' + readerToken()]);
+    expect(res.status).toBe(200);
+    expect(res.body.data.value).toBeNull();
+  });
+
+  it('rejects unauthenticated requests', async () => {
+    const res = await request(app)
+      .get('/api/settings/public/avatar_style');
+    expect(res.status).toBe(401);
+  });
+});
+
 describe('GET /api/audit-logs', () => {
   beforeEach(async () => {
     await new Promise((resolve, reject) => {

@@ -1,7 +1,7 @@
 const supertest = require('supertest');
 const { initTestDb, seedTestDb, closeTestDb } = require('../helpers/testDb');
 const { createTestApp } = require('../helpers/testApp');
-const { adminToken } = require('../helpers/testAuth');
+const { superadminToken, adminToken } = require('../helpers/testAuth');
 
 let db, app, request;
 
@@ -36,10 +36,10 @@ describe('GET /api/seniorities', () => {
 });
 
 describe('POST /api/seniorities', () => {
-  it('creates a seniority when authenticated as admin', async () => {
+  it('creates a seniority when authenticated as superadmin', async () => {
     const res = await request
       .post('/api/seniorities')
-      .set('Cookie', [`token=${adminToken()}`])
+      .set('Cookie', [`token=${superadminToken()}`])
       .send({
         seniority_description: 'Expert Consultant'
       });
@@ -49,10 +49,21 @@ describe('POST /api/seniorities', () => {
     expect(res.body.data.id).toBeGreaterThan(0);
   });
 
-  it('returns 400 when seniority_description missing', async () => {
+  it('rejects admin role', async () => {
     const res = await request
       .post('/api/seniorities')
       .set('Cookie', [`token=${adminToken()}`])
+      .send({
+        seniority_description: 'Should Fail'
+      });
+
+    expect(res.statusCode).toBe(403);
+  });
+
+  it('returns 400 when seniority_description missing', async () => {
+    const res = await request
+      .post('/api/seniorities')
+      .set('Cookie', [`token=${superadminToken()}`])
       .send({});
 
     expect(res.statusCode).toBe(400);
@@ -70,29 +81,43 @@ describe('POST /api/seniorities', () => {
 });
 
 describe('DELETE /api/seniorities/:id', () => {
-  it('soft-deletes a seniority when authenticated as admin', async () => {
-    // Create a seniority
+  it('soft-deletes a seniority when authenticated as superadmin', async () => {
     const createRes = await request
       .post('/api/seniorities')
-      .set('Cookie', [`token=${adminToken()}`])
+      .set('Cookie', [`token=${superadminToken()}`])
       .send({
         seniority_description: 'To Delete'
       });
     const seniorityId = createRes.body.data.id;
 
-    // Delete it
     const res = await request
       .delete(`/api/seniorities/${seniorityId}`)
-      .set('Cookie', [`token=${adminToken()}`]);
+      .set('Cookie', [`token=${superadminToken()}`]);
 
     expect(res.statusCode).toBe(200);
     expect(res.body.success).toBe(true);
   });
 
+  it('rejects admin role', async () => {
+    const createRes = await request
+      .post('/api/seniorities')
+      .set('Cookie', [`token=${superadminToken()}`])
+      .send({
+        seniority_description: 'Admin Cannot Delete'
+      });
+    const seniorityId = createRes.body.data.id;
+
+    const res = await request
+      .delete(`/api/seniorities/${seniorityId}`)
+      .set('Cookie', [`token=${adminToken()}`]);
+
+    expect(res.statusCode).toBe(403);
+  });
+
   it('returns 404 when seniority not found', async () => {
     const res = await request
       .delete('/api/seniorities/99999')
-      .set('Cookie', [`token=${adminToken()}`]);
+      .set('Cookie', [`token=${superadminToken()}`]);
 
     expect(res.statusCode).toBe(404);
   });

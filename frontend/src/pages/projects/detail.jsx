@@ -18,6 +18,7 @@ import ProjectStatusBadge from '../../commoncomponents/ProjectStatusBadge';
 import ConfirmDialog from '../../commoncomponents/ConfirmDialog';
 import Modal from '../../commoncomponents/Modal';
 import LoadingSpinner from '../../commoncomponents/LoadingSpinner';
+import UserAvatar from '../../commoncomponents/UserAvatar';
 import MilestoneTimeline from './components/MilestoneTimeline';
 import ActivitiesChart from './components/ActivitiesChart';
 import Map from './components/Map';
@@ -370,9 +371,7 @@ export default function ProjectDetailPage() {
                     <div className="space-y-2">
                       {byRole[roleName].map(ra => (
                         <div key={ra.id} className="flex items-center gap-2.5">
-                          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-50 text-xs font-bold text-primary-600">
-                            {(ra.user_name?.[0] || '') + (ra.user_lastname?.[0] || '')}
-                          </span>
+                          <UserAvatar seed={ra.user_email} name={ra.user_name} size={32} />
                           <div className="min-w-0">
                             <p className="text-sm font-medium text-text-primary truncate">{ra.user_name} {ra.user_lastname}</p>
                             <p className="text-xs text-text-secondary truncate">
