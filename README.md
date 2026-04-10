@@ -95,15 +95,32 @@ Default credentials can be found in [CLAUDE.md](./CLAUDE.md#default-credentials)
 
 ## Testing
 
-```bash
-# Backend
-cd backend
-npm test
+### Backend Unit & Integration Tests
 
-# Frontend (if configured)
-cd frontend
-npm test
+```bash
+cd backend
+npm test               # run all tests with coverage
+npm run test:watch     # watch mode
 ```
+
+### Frontend E2E Tests (Playwright)
+
+E2E tests run against a real backend + frontend. Playwright auto-starts both servers.
+
+```bash
+cd frontend
+npm run test:e2e           # headless (CI-friendly)
+npm run test:e2e:headed    # visible browser window
+```
+
+**Prerequisites:** First-time setup requires installing the Chromium browser:
+
+```bash
+cd frontend
+npx playwright install chromium
+```
+
+**What's tested:** Authentication (login/logout, role-based access), navigation, projects (list, detail, vendor resources), vendors, and role-based UI visibility across 38 tests.
 
 ## Environment Configuration
 
