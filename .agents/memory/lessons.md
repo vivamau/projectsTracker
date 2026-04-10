@@ -43,3 +43,18 @@ The existing healthstatuses.healthstatus_value column stores 1/2/3 as integer co
 
 ## Duplicate API call lines can silently corrupt data flow
 When editing JSX files, be careful not to leave duplicate lines (e.g., `getConsumptions(...)` called twice in a useEffect). The first call's promise is orphaned and never awaited, causing silent failures. Always diff carefully after edits.
+
+## Vendor resource deduplication needs subquery, not DISTINCT
+When a vendor resource has multiple PO items (with different contract roles) on the same project, `SELECT DISTINCT` doesn't deduplicate because the role columns differ. Fix: use a subquery to find distinct vendorresource_ids, then LEFT JOIN the latest contract role separately. This returns one row per resource.
+
+## Playwright getByLabel requires htmlFor/id association
+React `<label>` elements without `htmlFor`/`id` attributes cannot be found by Playwright's `getByLabel()`. Always pair labels with inputs using `<label htmlFor="field-id">` and `<input id="field-id">`. This is also an accessibility best practice.
+
+## Playwright re-login needs clearCookies()
+When writing E2E tests that switch users within a single test, call `page.context().clearCookies()` before the second login. Otherwise the app redirects to /dashboard (because the cookie still exists) and the login form is never shown.
+
+## Playwright strict mode: prefer specific role selectors
+When multiple elements match (e.g., multiple tables, headings in sidebar + nav), use `getByRole('heading', { name: '...' })` instead of `getByText('...')`, or use `.first()` to disambiguate.
+
+## Default users are superadmin/admin/contributor/guest (not reader)
+The actual seed_users.js creates: superadmin, admin, contributor, guest. CLAUDE.md mentions "reader" but it doesn't exist. Use the actual seeded credentials in tests.

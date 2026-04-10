@@ -328,3 +328,20 @@
   - [x] ProjectStatusBadge.jsx: "Support Ended" renders as "S.Ended" via displayLabel map
   - [x] StatusBadge.jsx: "Needs Att." changed to "N.Att"
   - [x] HealthChart.jsx: "Needs Attention" changed to "N.Att"
+- [x] Vendor Resources on Project Details Page <!-- id: 291 -->
+  - [x] vendorResourceService.js: getByProjectId() — returns unique vendor resources via PO items → POs → budgets → projects chain, deduplicates by vendorresource_id, picks latest contract role
+  - [x] projectRoutes.js: GET /:id/vendor-resources endpoint
+  - [x] projectsApi.js: getVendorResources(projectId) API function
+  - [x] detail.jsx: Vendor Resources card in sidebar (orange avatar, name, vendor, role, email)
+  - [x] vendorResourceService.test.js: 5 new tests for getByProjectId
+  - [x] projectRoutes.test.js: 2 new route tests for vendor-resources endpoint
+  - [x] 727 backend tests passing, 0 lint errors on changed files
+- [x] Frontend E2E Integration Tests (Playwright) <!-- id: 292 -->
+  - [x] Installed @playwright/test + Chromium, created playwright.config.js
+  - [x] e2e/helpers.js: login() helper with clearCookies for re-login, credential constants
+  - [x] e2e/auth.spec.js: 8 tests (login/logout for 4 roles, error handling, redirect)
+  - [x] e2e/navigation.spec.js: 9 tests (dashboard, sidebar nav, divisions, settings)
+  - [x] e2e/projects.spec.js: 15 tests (list, detail, sidebar cards incl. vendor resources, role-based UI)
+  - [x] e2e/vendors.spec.js: 6 tests (list, table, detail, role-based create button)
+  - [x] Fixed login.jsx: added htmlFor/id for accessibility (getByLabel support)
+  - [x] 38 E2E tests all passing (chromium, ~30s total)

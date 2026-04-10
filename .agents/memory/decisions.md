@@ -272,3 +272,17 @@ Palette: deep blue/purple tones (surface #1a1a2e, card #252540, text #e0e0e0).
 Alternative rejected: Tailwind's built-in `dark:` variant strategy would require adding `dark:` classes to every component (hundreds of changes).
 
 **Status:** Implemented (useTheme.jsx, index.css .dark block, Header.jsx toggle, main.jsx provider).
+
+## Playwright E2E Tests with Real Backend
+**Date:** 2026-04-10
+**Decision:** Use Playwright with a real backend server (not mocked) for E2E tests. The `playwright.config.js` starts both backend (`node index.js nodata`) and frontend (`npm run dev`) as webServers. Tests use the admin/superadmin/contributor/guest credentials from `seed_users.js`. The `nodata` flag runs minimal seeding (no dummy data) for faster startup.
+
+Alternative rejected: Mocked API tests would not catch real integration issues (CORS, cookie handling, proxy config).
+
+**Status:** Implemented (38 tests across 4 spec files).
+
+## Vendor Resources on Project Details — Read-Only via PO Items
+**Date:** 2026-04-10
+**Decision:** Vendor resources are displayed on the project detail page as a read-only card. The data flows through PO items (not a direct project→resource link). Resources are deduplicated by vendorresource_id, with the latest contract role shown. Admin "Edit" button navigates to the assignment modal for link/unlink. No new database tables or migrations needed.
+
+**Status:** Implemented (vendorResourceService.getByProjectId, GET /:id/vendor-resources, detail.jsx card).

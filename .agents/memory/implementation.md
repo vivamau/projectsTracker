@@ -1,9 +1,9 @@
 # Implementation Status
 
 ## Backend
-- **54 test suites, 818 tests, all passing**
-- 19 services: auth, user, project, division, country, currency, healthStatus, initiative, deliveryPath, completion, budget, purchaseOrder, purchaseOrderItem, focalPoint, vendor, vendorContract, vendorContractRole, vendorRoleRate, seniority, poitemConsumption
-- 14 route files: auth, projects (includes health-statuses + completions + budgets + project-managers), divisions (includes focal-points + projects + project-managers), budgets (includes purchase-orders + purchase-order items + item consumptions), users, countries, currencies, initiatives, deliveryPaths, vendors (includes contracts > roles > rates), seniorities
+- **47 test suites, 727 tests, all passing**
+- Services: auth, user, project, division, country, currency, healthStatus, initiative, deliveryPath, completion, budget, purchaseOrder, purchaseOrderItem, focalPoint, vendor, vendorContract, vendorContractRole, vendorRoleRate, seniority, poitemConsumption, vendorResource (getByProjectId)
+- 14 route files: auth, projects (includes health-statuses + completions + budgets + project-managers + vendor-resources), divisions (includes focal-points + projects + project-managers), budgets (includes purchase-orders + purchase-order items + item consumptions), users, countries, currencies, initiatives, deliveryPaths, vendors (includes contracts > roles > rates), seniorities
 - 16 migrations: initial schema, auth+soft-delete, completions FK, projectmanagers FK, PM division FK, vendors, PO+items, PO soft delete, vendor soft delete, PO items soft delete, vendor contracts soft delete, seniorities, vendor rates update, milestones dates, supporting divisions, poitem_consumptions
 - 3 seed scripts: userroles, users, dummy_data (divisions, initiatives, delivery paths, projects, health statuses, completions, budgets, country links, PM assignments, focal points, vendors with 10 vendors × 1-3 contracts × 2-4 roles × 2-3 rates, 11 seniorities, 2-5 resources per vendor)
 
@@ -24,6 +24,16 @@
 - TailwindCSS v4 with custom theme (primary blue, success green, warning amber, error red) + light/dark toggle (deep blue/purple dark palette)
 - Theme system: useTheme.jsx (React Context), CSS custom property overrides via `.dark` class on `<html>`, persisted to localStorage, respects OS preference
 
+## Frontend E2E Tests (Playwright)
+- **38 tests, all passing** (~30s total, chromium only)
+- `playwright.config.js`: auto-starts backend (port 5003, nodata) + frontend (port 5173), single worker, 25s timeout
+- `e2e/helpers.js`: login() with clearCookies, credential constants (ADMIN, SUPERADMIN, CONTRIBUTOR, GUEST)
+- `e2e/auth.spec.js` (8 tests): login for all roles, invalid creds, empty fields, redirect, logout
+- `e2e/navigation.spec.js` (9 tests): dashboard, sidebar nav links, divisions detail, settings
+- `e2e/projects.spec.js` (15 tests): list, detail, sidebar cards (Budgets, Vendor Resources, Countries, etc.), role-based edit/delete visibility
+- `e2e/vendors.spec.js` (6 tests): list, table, role-based create button, vendor detail navigation
+- Scripts: `npm run test:e2e`, `npm run test:e2e:headed`
+
 ## API Endpoints
 | Route | Methods | Auth |
 |-------|---------|------|
@@ -34,6 +44,7 @@
 | `/api/projects/:id/budgets` | GET,POST,PUT,DELETE | reader+/admin+ |
 | `/api/projects/:id/budgets/total` | GET | reader+ |
 | `/api/projects/:id/project-managers` | GET,PUT | reader+/admin+ |
+| `/api/projects/:id/vendor-resources` | GET | reader+ |
 | `/api/projects/stats` | GET | reader+ |
 | `/api/budgets/:id` | GET | reader+ |
 | `/api/budgets/:id/purchase-orders` | GET,POST,PUT,DELETE | reader+/admin+ |
