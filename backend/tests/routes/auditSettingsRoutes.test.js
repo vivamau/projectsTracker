@@ -133,10 +133,11 @@ describe('GET /api/settings/public/:key', () => {
     expect(res.body.data.value).toBeNull();
   });
 
-  it('rejects unauthenticated requests', async () => {
+  it('returns setting for unauthenticated requests (truly public)', async () => {
     const res = await request(app)
       .get('/api/settings/public/avatar_style');
-    expect(res.status).toBe(401);
+    expect(res.status).toBe(200);
+    expect(res.body.data.value).toBe('fun-emoji');
   });
 });
 

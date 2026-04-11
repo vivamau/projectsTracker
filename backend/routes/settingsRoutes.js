@@ -6,7 +6,7 @@ const { success, error } = require('../utilities/responseHelper');
 function createSettingsRoutes(db) {
   const router = express.Router();
 
-  router.get('/public/:key', authenticate, async (req, res) => {
+  router.get('/public/:key', async (req, res) => {
     try {
       const value = await appSettingsService.get(db, req.params.key);
       return success(res, { key: req.params.key, value });
