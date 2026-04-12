@@ -1,0 +1,1347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ProjectsTracker — Mission Control for Your Portfolio</title>
+  <meta name="description" content="A full-stack project management application with budget tracking, vendor management, and delivery path planning." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;700;900&family=Readex+Pro:wght@300;400;500;600&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #08090f;
+      --surface:   #0f1018;
+      --border:    #1e2030;
+      --cyan:      #00e8ff;
+      --lime:      #b8ff57;
+      --amber:     #ff9a3c;
+      --purple:    #a259ff;
+      --text:      #dde2f0;
+      --muted:     #6b7194;
+      --white:     #ffffff;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Readex Pro', sans-serif;
+      font-size: 16px;
+      line-height: 1.6;
+      overflow-x: hidden;
+    }
+
+    /* ── GRID BACKGROUND ──────────────────────────────── */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(0,232,255,.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,232,255,.03) 1px, transparent 1px);
+      background-size: 48px 48px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ── NAV ──────────────────────────────────────────── */
+    nav {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 20px 48px;
+      background: rgba(8,9,15,.85);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .nav-logo {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--cyan);
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .nav-logo::before {
+      content: '';
+      width: 8px; height: 8px;
+      background: var(--cyan);
+      border-radius: 50%;
+      box-shadow: 0 0 10px var(--cyan);
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: .5; transform: scale(.8); }
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 40px;
+      list-style: none;
+    }
+
+    .nav-links a {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      font-weight: 400;
+      color: var(--muted);
+      text-decoration: none;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      transition: color .2s;
+    }
+
+    .nav-links a:hover { color: var(--cyan); }
+
+    .nav-cta {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      padding: 10px 24px;
+      background: transparent;
+      border: 1px solid var(--cyan);
+      color: var(--cyan);
+      text-decoration: none;
+      transition: background .2s, color .2s, box-shadow .2s;
+    }
+
+    .nav-cta:hover {
+      background: var(--cyan);
+      color: var(--bg);
+      box-shadow: 0 0 24px rgba(0,232,255,.4);
+    }
+
+    /* ── HERO ─────────────────────────────────────────── */
+    .hero {
+      position: relative;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 140px 48px 100px;
+      overflow: hidden;
+    }
+
+    .hero-glow {
+      position: absolute;
+      width: 600px; height: 600px;
+      background: radial-gradient(circle, rgba(0,232,255,.12) 0%, transparent 70%);
+      top: -100px; right: -100px;
+      pointer-events: none;
+    }
+
+    .hero-glow-2 {
+      position: absolute;
+      width: 400px; height: 400px;
+      background: radial-gradient(circle, rgba(162,89,255,.08) 0%, transparent 70%);
+      bottom: 100px; left: 100px;
+      pointer-events: none;
+    }
+
+    .hero-eyebrow {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: .25em;
+      text-transform: uppercase;
+      color: var(--cyan);
+      margin-bottom: 24px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      opacity: 0;
+      animation: fadeUp .6s ease forwards .2s;
+    }
+
+    .hero-eyebrow::before {
+      content: '';
+      width: 40px; height: 1px;
+      background: var(--cyan);
+    }
+
+    .hero-title {
+      font-family: 'Unbounded', sans-serif;
+      font-size: clamp(56px, 9vw, 130px);
+      font-weight: 900;
+      line-height: .9;
+      letter-spacing: -.03em;
+      margin-bottom: 40px;
+      max-width: 900px;
+      opacity: 0;
+      animation: fadeUp .7s ease forwards .4s;
+    }
+
+    .hero-title span {
+      display: block;
+      background: linear-gradient(135deg, var(--white) 0%, var(--cyan) 60%, var(--purple) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .hero-title .secondary {
+      font-size: clamp(32px, 5vw, 72px);
+      font-weight: 400;
+      color: var(--muted);
+      -webkit-text-fill-color: var(--muted);
+    }
+
+    .hero-desc {
+      font-size: 18px;
+      font-weight: 300;
+      color: var(--muted);
+      max-width: 520px;
+      line-height: 1.8;
+      margin-bottom: 56px;
+      opacity: 0;
+      animation: fadeUp .7s ease forwards .6s;
+    }
+
+    .hero-actions {
+      display: flex;
+      gap: 20px;
+      align-items: center;
+      flex-wrap: wrap;
+      opacity: 0;
+      animation: fadeUp .7s ease forwards .8s;
+    }
+
+    .btn-primary {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      padding: 16px 40px;
+      background: var(--cyan);
+      color: var(--bg);
+      text-decoration: none;
+      transition: box-shadow .25s, transform .2s;
+      display: inline-block;
+    }
+
+    .btn-primary:hover {
+      box-shadow: 0 0 40px rgba(0,232,255,.5);
+      transform: translateY(-2px);
+    }
+
+    .btn-secondary {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      font-weight: 400;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      padding: 16px 40px;
+      background: transparent;
+      color: var(--text);
+      text-decoration: none;
+      border: 1px solid var(--border);
+      transition: border-color .2s, color .2s;
+      display: inline-block;
+    }
+
+    .btn-secondary:hover {
+      border-color: var(--muted);
+      color: var(--white);
+    }
+
+    .hero-stats {
+      position: absolute;
+      bottom: 60px;
+      right: 48px;
+      display: flex;
+      gap: 48px;
+      opacity: 0;
+      animation: fadeUp .7s ease forwards 1s;
+    }
+
+    .stat {
+      text-align: right;
+    }
+
+    .stat-num {
+      font-family: 'Unbounded', sans-serif;
+      font-size: 36px;
+      font-weight: 700;
+      color: var(--white);
+      line-height: 1;
+    }
+
+    .stat-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      letter-spacing: .15em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-top: 6px;
+    }
+
+    .hero-scroll {
+      position: absolute;
+      bottom: 40px;
+      left: 48px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      letter-spacing: .15em;
+      text-transform: uppercase;
+      color: var(--muted);
+      opacity: 0;
+      animation: fadeUp .7s ease forwards 1.2s;
+    }
+
+    .hero-scroll::after {
+      content: '';
+      width: 60px; height: 1px;
+      background: var(--border);
+    }
+
+    /* ── SECTION COMMON ───────────────────────────────── */
+    section {
+      position: relative;
+      z-index: 1;
+    }
+
+    .section-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .25em;
+      text-transform: uppercase;
+      color: var(--cyan);
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .section-label::before {
+      content: attr(data-num);
+      color: var(--border);
+      font-size: 10px;
+    }
+
+    .section-title {
+      font-family: 'Unbounded', sans-serif;
+      font-size: clamp(28px, 4vw, 52px);
+      font-weight: 700;
+      line-height: 1.1;
+      letter-spacing: -.02em;
+      margin-bottom: 20px;
+    }
+
+    .section-sub {
+      font-size: 16px;
+      color: var(--muted);
+      max-width: 560px;
+      line-height: 1.8;
+    }
+
+    /* ── FEATURES ─────────────────────────────────────── */
+    .features {
+      padding: 120px 48px;
+    }
+
+    .features-header {
+      max-width: 1200px;
+      margin: 0 auto 80px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 40px;
+      align-items: end;
+    }
+
+    .features-grid {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 2px;
+    }
+
+    .feature-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      padding: 40px;
+      transition: border-color .25s, transform .25s;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .feature-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      background: transparent;
+      transition: background .25s;
+    }
+
+    .feature-card:hover {
+      border-color: rgba(0,232,255,.3);
+      transform: translateY(-4px);
+    }
+
+    .feature-card:hover::before {
+      background: linear-gradient(90deg, var(--cyan), var(--purple));
+    }
+
+    .feature-card.accent-lime:hover::before { background: var(--lime); }
+    .feature-card.accent-amber:hover::before { background: var(--amber); }
+    .feature-card.accent-purple:hover::before { background: var(--purple); }
+    .feature-card.accent-cyan:hover::before { background: var(--cyan); }
+
+    .feature-icon {
+      width: 48px; height: 48px;
+      margin-bottom: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .feature-icon svg {
+      width: 32px; height: 32px;
+    }
+
+    .feature-title {
+      font-family: 'Unbounded', sans-serif;
+      font-size: 16px;
+      font-weight: 700;
+      margin-bottom: 12px;
+      color: var(--white);
+    }
+
+    .feature-desc {
+      font-size: 14px;
+      color: var(--muted);
+      line-height: 1.75;
+    }
+
+    .feature-tag {
+      display: inline-block;
+      margin-top: 24px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      padding: 4px 10px;
+      background: rgba(0,232,255,.08);
+      color: var(--cyan);
+      border: 1px solid rgba(0,232,255,.2);
+    }
+
+    /* ── ARCHITECTURE ─────────────────────────────────── */
+    .architecture {
+      padding: 120px 48px;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .arch-inner {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 80px;
+      align-items: start;
+    }
+
+    .arch-diagram {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .arch-layer {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .arch-layer-line {
+      width: 2px;
+      height: 40px;
+      background: var(--border);
+      margin-left: 23px;
+    }
+
+    .arch-node {
+      flex: 1;
+      border: 1px solid var(--border);
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      transition: border-color .2s;
+    }
+
+    .arch-node:hover {
+      border-color: rgba(0,232,255,.4);
+    }
+
+    .arch-node-dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .arch-node-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--white);
+      text-transform: uppercase;
+      letter-spacing: .1em;
+    }
+
+    .arch-node-tech {
+      font-size: 13px;
+      color: var(--muted);
+      margin-left: auto;
+    }
+
+    .arch-arrow {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-left: 23px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: var(--border);
+    }
+
+    .tech-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 32px;
+    }
+
+    .pill {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      font-weight: 400;
+      padding: 8px 16px;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      transition: border-color .2s, color .2s;
+      cursor: default;
+    }
+
+    .pill:hover {
+      border-color: var(--cyan);
+      color: var(--cyan);
+    }
+
+    .pill.highlight {
+      border-color: rgba(0,232,255,.3);
+      color: var(--cyan);
+      background: rgba(0,232,255,.04);
+    }
+
+    /* ── ROLES ────────────────────────────────────────── */
+    .roles {
+      padding: 120px 48px;
+    }
+
+    .roles-inner {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .roles-header {
+      margin-bottom: 64px;
+    }
+
+    .roles-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 2px;
+    }
+
+    .role-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      padding: 40px 32px;
+      position: relative;
+      overflow: hidden;
+      transition: transform .25s;
+    }
+
+    .role-card:hover {
+      transform: translateY(-4px);
+    }
+
+    .role-badge {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: .2em;
+      text-transform: uppercase;
+      padding: 4px 12px;
+      margin-bottom: 28px;
+      display: inline-block;
+    }
+
+    .role-name {
+      font-family: 'Unbounded', sans-serif;
+      font-size: 20px;
+      font-weight: 700;
+      margin-bottom: 12px;
+      color: var(--white);
+    }
+
+    .role-desc {
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.75;
+      margin-bottom: 28px;
+    }
+
+    .role-perms {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .role-perms li {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: var(--muted);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .role-perms li::before {
+      content: '→';
+      font-size: 10px;
+    }
+
+    .role-card.r-super  { --rc: #ff9a3c; }
+    .role-card.r-admin  { --rc: #a259ff; }
+    .role-card.r-contrib{ --rc: #00e8ff; }
+    .role-card.r-guest  { --rc: #b8ff57; }
+
+    .role-badge { background: rgba(255,255,255,.04); color: var(--rc); border: 1px solid rgba(255,255,255,.06); }
+    .role-card::after {
+      content: '';
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      height: 2px;
+      background: var(--rc);
+      transform: scaleX(0);
+      transform-origin: left;
+      transition: transform .3s ease;
+    }
+
+    .role-card:hover::after { transform: scaleX(1); }
+
+    /* ── QUICKSTART ───────────────────────────────────── */
+    .quickstart {
+      padding: 120px 48px;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+    }
+
+    .qs-inner {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 80px;
+      align-items: start;
+    }
+
+    .code-block {
+      background: #060810;
+      border: 1px solid var(--border);
+      padding: 0;
+      overflow: hidden;
+    }
+
+    .code-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 14px 20px;
+      border-bottom: 1px solid var(--border);
+      background: rgba(255,255,255,.02);
+    }
+
+    .code-dot {
+      width: 12px; height: 12px;
+      border-radius: 50%;
+    }
+
+    .code-title {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: var(--muted);
+      margin-left: 8px;
+    }
+
+    .code-body {
+      padding: 28px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      line-height: 2;
+      overflow-x: auto;
+    }
+
+    .code-body .cmd { color: var(--cyan); }
+    .code-body .comment { color: var(--muted); }
+    .code-body .string { color: var(--lime); }
+    .code-body .keyword { color: var(--amber); }
+
+    .qs-steps {
+      display: flex;
+      flex-direction: column;
+      gap: 32px;
+    }
+
+    .qs-step {
+      display: flex;
+      gap: 24px;
+    }
+
+    .qs-num {
+      font-family: 'Unbounded', sans-serif;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--cyan);
+      width: 32px;
+      flex-shrink: 0;
+      padding-top: 2px;
+    }
+
+    .qs-content h3 {
+      font-family: 'Unbounded', sans-serif;
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--white);
+      margin-bottom: 6px;
+    }
+
+    .qs-content p {
+      font-size: 14px;
+      color: var(--muted);
+      line-height: 1.7;
+    }
+
+    /* ── SECURITY ─────────────────────────────────────── */
+    .security {
+      padding: 80px 48px;
+      border-top: 1px solid var(--border);
+    }
+
+    .sec-inner {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 60px;
+    }
+
+    .sec-badges {
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .sec-badge {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 14px 24px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: var(--muted);
+      transition: border-color .2s, color .2s;
+    }
+
+    .sec-badge:hover {
+      border-color: rgba(0,232,255,.3);
+      color: var(--text);
+    }
+
+    .sec-badge svg {
+      width: 16px; height: 16px;
+      color: var(--cyan);
+    }
+
+    /* ── FOOTER ───────────────────────────────────────── */
+    footer {
+      padding: 60px 48px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .footer-left {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .footer-left span {
+      color: var(--cyan);
+    }
+
+    .footer-links {
+      display: flex;
+      gap: 32px;
+    }
+
+    .footer-links a {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: var(--muted);
+      text-decoration: none;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      transition: color .2s;
+    }
+
+    .footer-links a:hover { color: var(--cyan); }
+
+    /* ── ANIMATIONS ───────────────────────────────────── */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(24px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .reveal {
+      opacity: 0;
+      transform: translateY(32px);
+      transition: opacity .7s ease, transform .7s ease;
+    }
+
+    .reveal.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* ── TERMINAL BLINK ───────────────────────────────── */
+    .blink {
+      animation: blink 1s step-end infinite;
+    }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0; }
+    }
+
+    /* ── HORIZONTAL SCAN ──────────────────────────────── */
+    .hero::after {
+      content: '';
+      position: absolute;
+      left: 0; right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(0,232,255,.15), transparent);
+      animation: scan 6s linear infinite;
+      pointer-events: none;
+    }
+
+    @keyframes scan {
+      from { top: 0; }
+      to   { top: 100%; }
+    }
+
+    /* ── RESPONSIVE ───────────────────────────────────── */
+    @media (max-width: 1024px) {
+      nav { padding: 20px 24px; }
+      .nav-links { display: none; }
+      .hero { padding: 120px 24px 100px; }
+      .hero-stats { right: 24px; gap: 32px; }
+      .features { padding: 80px 24px; }
+      .features-header { grid-template-columns: 1fr; }
+      .features-grid { grid-template-columns: 1fr 1fr; }
+      .architecture, .quickstart { padding: 80px 24px; }
+      .arch-inner, .qs-inner { grid-template-columns: 1fr; gap: 48px; }
+      .roles { padding: 80px 24px; }
+      .roles-grid { grid-template-columns: 1fr 1fr; }
+      .security { padding: 60px 24px; }
+      .sec-inner { flex-direction: column; align-items: flex-start; }
+      footer { padding: 40px 24px; flex-direction: column; gap: 24px; align-items: flex-start; }
+    }
+
+    @media (max-width: 640px) {
+      .hero-stats { display: none; }
+      .features-grid { grid-template-columns: 1fr; }
+      .roles-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ── NAV ── -->
+  <nav>
+    <div class="nav-logo">ProjectsTracker</div>
+    <ul class="nav-links">
+      <li><a href="#features">Features</a></li>
+      <li><a href="#stack">Stack</a></li>
+      <li><a href="#roles">Roles</a></li>
+      <li><a href="#quickstart">Quickstart</a></li>
+    </ul>
+    <a class="nav-cta" href="https://github.com/vivamau/projectsTracker" target="_blank">GitHub →</a>
+  </nav>
+
+  <!-- ── HERO ── -->
+  <section class="hero">
+    <div class="hero-glow"></div>
+    <div class="hero-glow-2"></div>
+
+    <p class="hero-eyebrow">Open Source · Full-Stack · Self-Hosted</p>
+
+    <h1 class="hero-title">
+      <span>Mission</span>
+      <span>Control</span>
+      <span class="secondary">for your portfolio.</span>
+    </h1>
+
+    <p class="hero-desc">
+      A full-stack project management platform built with React, Node.js, and SQLite.
+      Track budgets, vendors, milestones, and delivery paths — all in one place.
+    </p>
+
+    <div class="hero-actions">
+      <a href="#quickstart" class="btn-primary">Get Started</a>
+      <a href="https://github.com/vivamau/projectsTracker" class="btn-secondary" target="_blank">View Source</a>
+    </div>
+
+    <div class="hero-stats">
+      <div class="stat">
+        <div class="stat-num" data-target="4">0</div>
+        <div class="stat-label">User Roles</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num" data-target="10">0</div>
+        <div class="stat-label">Core Modules</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num" data-target="38">0</div>
+        <div class="stat-label">E2E Tests</div>
+      </div>
+    </div>
+
+    <div class="hero-scroll">Scroll to explore</div>
+  </section>
+
+  <!-- ── FEATURES ── -->
+  <section class="features" id="features">
+    <div class="features-header">
+      <div>
+        <div class="section-label" data-num="01">Features</div>
+        <h2 class="section-title reveal">Everything you need to run complex projects.</h2>
+      </div>
+      <p class="section-sub reveal" style="transition-delay:.1s">
+        ProjectsTracker covers the full lifecycle — from planning and budget allocation to vendor contracts, delivery milestones, and audit trails.
+      </p>
+    </div>
+
+    <div class="features-grid">
+      <!-- Card 1 -->
+      <div class="feature-card reveal">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#00e8ff" stroke-width="1.5">
+            <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
+            <rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
+          </svg>
+        </div>
+        <h3 class="feature-title">Project Management</h3>
+        <p class="feature-desc">Full project lifecycle tracking with health statuses, tech stacks, project managers, solution architects, and milestone planning.</p>
+        <span class="feature-tag">Core Module</span>
+      </div>
+
+      <!-- Card 2 -->
+      <div class="feature-card accent-amber reveal" style="transition-delay:.05s">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#ff9a3c" stroke-width="1.5">
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/>
+            <path d="M12 6v6l4 2"/>
+          </svg>
+        </div>
+        <h3 class="feature-title">Budget Tracking</h3>
+        <p class="feature-desc">Manage budgets and purchase orders with line-item detail. Record consumption against POs and track financial health in real time.</p>
+        <span class="feature-tag" style="color:var(--amber);border-color:rgba(255,154,60,.3);background:rgba(255,154,60,.06)">Finance</span>
+      </div>
+
+      <!-- Card 3 -->
+      <div class="feature-card accent-lime reveal" style="transition-delay:.1s">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#b8ff57" stroke-width="1.5">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+            <circle cx="9" cy="7" r="4"/>
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+            <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+          </svg>
+        </div>
+        <h3 class="feature-title">Vendor Management</h3>
+        <p class="feature-desc">Maintain vendor profiles, contracts, contract roles, and role rates. Assign vendor resources to projects with full visibility.</p>
+        <span class="feature-tag" style="color:var(--lime);border-color:rgba(184,255,87,.3);background:rgba(184,255,87,.06)">Procurement</span>
+      </div>
+
+      <!-- Card 4 -->
+      <div class="feature-card accent-purple reveal" style="transition-delay:.15s">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#a259ff" stroke-width="1.5">
+            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+          </svg>
+        </div>
+        <h3 class="feature-title">Delivery Paths</h3>
+        <p class="feature-desc">Plan initiatives and delivery paths with milestone timelines. Visualize progress and track completion across the entire portfolio.</p>
+        <span class="feature-tag" style="color:var(--purple);border-color:rgba(162,89,255,.3);background:rgba(162,89,255,.06)">Planning</span>
+      </div>
+
+      <!-- Card 5 -->
+      <div class="feature-card reveal" style="transition-delay:.2s">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#00e8ff" stroke-width="1.5">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+          </svg>
+        </div>
+        <h3 class="feature-title">Role-Based Access</h3>
+        <p class="feature-desc">Four-tier permission model with superadmin, admin, contributor, and guest roles. JWT auth stored in HttpOnly cookies for XSS protection.</p>
+        <span class="feature-tag">Security</span>
+      </div>
+
+      <!-- Card 6 -->
+      <div class="feature-card accent-amber reveal" style="transition-delay:.25s">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#ff9a3c" stroke-width="1.5">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+            <line x1="16" y1="13" x2="8" y2="13"/>
+            <line x1="16" y1="17" x2="8" y2="17"/>
+          </svg>
+        </div>
+        <h3 class="feature-title">Audit Logging</h3>
+        <p class="feature-desc">Every create, update, and soft-delete is recorded with user attribution. Filter, search, and analyze logs with statistics and cleanup tools.</p>
+        <span class="feature-tag" style="color:var(--amber);border-color:rgba(255,154,60,.3);background:rgba(255,154,60,.06)">Compliance</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── ARCHITECTURE ── -->
+  <section class="architecture" id="stack">
+    <div class="arch-inner">
+      <div class="reveal">
+        <div class="section-label" data-num="02">Architecture</div>
+        <h2 class="section-title">Built on a solid, pragmatic stack.</h2>
+        <p class="section-sub" style="margin-bottom:40px">
+          No over-engineering. React on the frontend, Express on the backend, SQLite for persistence. Fast to set up, easy to maintain.
+        </p>
+        <div class="tech-pills">
+          <span class="pill highlight">React 19</span>
+          <span class="pill highlight">Vite</span>
+          <span class="pill highlight">TailwindCSS</span>
+          <span class="pill">Node.js 20</span>
+          <span class="pill">Express.js</span>
+          <span class="pill">SQLite3</span>
+          <span class="pill">JWT</span>
+          <span class="pill">Recharts</span>
+          <span class="pill">Playwright</span>
+          <span class="pill">Jest</span>
+          <span class="pill">Docker</span>
+          <span class="pill">Swagger</span>
+        </div>
+      </div>
+
+      <div class="arch-diagram reveal" style="transition-delay:.1s">
+        <!-- Browser -->
+        <div class="arch-layer">
+          <div class="arch-node">
+            <div class="arch-node-dot" style="background:#00e8ff;box-shadow:0 0 8px #00e8ff"></div>
+            <div>
+              <div class="arch-node-label">Browser</div>
+            </div>
+            <div class="arch-node-tech">React 19 + Vite</div>
+          </div>
+        </div>
+        <div class="arch-arrow">↕ HTTP/REST + HttpOnly Cookie</div>
+        <!-- API -->
+        <div class="arch-layer">
+          <div class="arch-node">
+            <div class="arch-node-dot" style="background:#a259ff;box-shadow:0 0 8px #a259ff"></div>
+            <div>
+              <div class="arch-node-label">API Server</div>
+            </div>
+            <div class="arch-node-tech">Express.js + JWT</div>
+          </div>
+        </div>
+        <div class="arch-arrow">↕ SQL + WAL Mode</div>
+        <!-- DB -->
+        <div class="arch-layer">
+          <div class="arch-node">
+            <div class="arch-node-dot" style="background:#b8ff57;box-shadow:0 0 8px #b8ff57"></div>
+            <div>
+              <div class="arch-node-label">Database</div>
+            </div>
+            <div class="arch-node-tech">SQLite3 WAL</div>
+          </div>
+        </div>
+        <div class="arch-arrow">↕ Static Assets</div>
+        <!-- Infra -->
+        <div class="arch-layer">
+          <div class="arch-node">
+            <div class="arch-node-dot" style="background:#ff9a3c;box-shadow:0 0 8px #ff9a3c"></div>
+            <div>
+              <div class="arch-node-label">Infrastructure</div>
+            </div>
+            <div class="arch-node-tech">Docker / PM2 / Nginx</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── ROLES ── -->
+  <section class="roles" id="roles">
+    <div class="roles-inner">
+      <div class="roles-header">
+        <div class="section-label" data-num="03">Access Control</div>
+        <h2 class="section-title reveal">Four roles. One source of truth.</h2>
+        <p class="section-sub reveal" style="transition-delay:.1s">
+          A layered permission model ensures the right people have the right access — enforced server-side on every request.
+        </p>
+      </div>
+
+      <div class="roles-grid">
+        <div class="role-card r-super reveal">
+          <span class="role-badge">superadmin</span>
+          <div class="role-name">Super Admin</div>
+          <p class="role-desc">Full system access including user management, audit logs, and application settings.</p>
+          <ul class="role-perms">
+            <li>User CRUD</li>
+            <li>Audit log access</li>
+            <li>App settings</li>
+            <li>All data operations</li>
+          </ul>
+        </div>
+
+        <div class="role-card r-admin reveal" style="transition-delay:.07s">
+          <span class="role-badge">admin</span>
+          <div class="role-name">Admin</div>
+          <p class="role-desc">Full access to project data and content. Cannot manage users or view audit logs.</p>
+          <ul class="role-perms">
+            <li>Create & edit projects</li>
+            <li>Manage vendors</li>
+            <li>Budget management</li>
+            <li>Division management</li>
+          </ul>
+        </div>
+
+        <div class="role-card r-contrib reveal" style="transition-delay:.14s">
+          <span class="role-badge">contributor</span>
+          <div class="role-name">Contributor</div>
+          <p class="role-desc">Read-only by default. Full edit rights on projects where assigned as PM or Solution Architect.</p>
+          <ul class="role-perms">
+            <li>View all content</li>
+            <li>Edit own projects</li>
+            <li>Manage milestones</li>
+            <li>Record consumption</li>
+          </ul>
+        </div>
+
+        <div class="role-card r-guest reveal" style="transition-delay:.21s">
+          <span class="role-badge">guest</span>
+          <div class="role-name">Guest</div>
+          <p class="role-desc">Read-only access across the entire platform. Ideal for stakeholders and observers.</p>
+          <ul class="role-perms">
+            <li>View projects</li>
+            <li>View budgets</li>
+            <li>View vendors</li>
+            <li>View initiatives</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── QUICKSTART ── -->
+  <section class="quickstart" id="quickstart">
+    <div class="qs-inner">
+      <div class="reveal">
+        <div class="section-label" data-num="04">Quickstart</div>
+        <h2 class="section-title">Up and running in minutes.</h2>
+        <p class="section-sub" style="margin-bottom:48px">
+          Docker is the recommended path for deployment. For local development, run backend and frontend independently.
+        </p>
+
+        <div class="qs-steps">
+          <div class="qs-step">
+            <div class="qs-num">01</div>
+            <div class="qs-content">
+              <h3>Clone & configure</h3>
+              <p>Clone the repository and copy the environment file. Edit <code style="font-family:JetBrains Mono;font-size:12px;color:var(--cyan)">.env</code> to set your secrets and ports.</p>
+            </div>
+          </div>
+          <div class="qs-step">
+            <div class="qs-num">02</div>
+            <div class="qs-content">
+              <h3>Build & launch</h3>
+              <p>Run <code style="font-family:JetBrains Mono;font-size:12px;color:var(--cyan)">docker compose up --build -d</code>. The backend auto-runs migrations, seeds roles, users, and sample data.</p>
+            </div>
+          </div>
+          <div class="qs-step">
+            <div class="qs-num">03</div>
+            <div class="qs-content">
+              <h3>Sign in</h3>
+              <p>Navigate to <code style="font-family:JetBrains Mono;font-size:12px;color:var(--cyan)">http://localhost</code> and log in with <code style="font-family:JetBrains Mono;font-size:12px;color:var(--lime)">admin@projecttracker.it</code>.</p>
+            </div>
+          </div>
+          <div class="qs-step">
+            <div class="qs-num">04</div>
+            <div class="qs-content">
+              <h3>Explore the API docs</h3>
+              <p>Swagger UI is available at <code style="font-family:JetBrains Mono;font-size:12px;color:var(--cyan)">/api/docs</code> with all endpoints documented and interactive.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="reveal" style="transition-delay:.15s">
+        <div class="code-block">
+          <div class="code-header">
+            <div class="code-dot" style="background:#ff5f57"></div>
+            <div class="code-dot" style="background:#ffbd2e"></div>
+            <div class="code-dot" style="background:#28c840"></div>
+            <span class="code-title">terminal</span>
+          </div>
+          <div class="code-body">
+            <div><span class="comment"># Clone the repo</span></div>
+            <div><span class="cmd">git clone</span> https://github.com/vivamau/projectsTracker</div>
+            <div><span class="cmd">cd</span> projectsTracker</div>
+            <br/>
+            <div><span class="comment"># Configure environment</span></div>
+            <div><span class="cmd">cp</span> .env.docker.sample .env</div>
+            <br/>
+            <div><span class="comment"># Build and start with Docker</span></div>
+            <div><span class="cmd">docker compose up</span> --build -d</div>
+            <br/>
+            <div><span class="comment"># Or run locally (dev mode)</span></div>
+            <div><span class="cmd">cd</span> backend <span class="keyword">&&</span> npm install <span class="keyword">&&</span> npm start</div>
+            <div><span class="cmd">cd</span> frontend <span class="keyword">&&</span> npm install <span class="keyword">&&</span> npm run dev</div>
+            <br/>
+            <div><span class="comment"># Run the test suite</span></div>
+            <div><span class="cmd">cd</span> backend <span class="keyword">&&</span> npm test</div>
+            <div><span class="cmd">cd</span> frontend <span class="keyword">&&</span> npm run test:e2e</div>
+            <br/>
+            <div class="blink" style="color:var(--cyan)">█</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── SECURITY ── -->
+  <section class="security">
+    <div class="sec-inner">
+      <div class="reveal">
+        <div class="section-label" data-num="05">Security</div>
+        <h2 class="section-title" style="font-size:clamp(22px,3vw,36px)">Security-first by design.</h2>
+      </div>
+      <div class="sec-badges reveal" style="transition-delay:.1s">
+        <div class="sec-badge">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          HttpOnly Cookies
+        </div>
+        <div class="sec-badge">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          bcryptjs Hashing
+        </div>
+        <div class="sec-badge">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+          Helmet.js Headers
+        </div>
+        <div class="sec-badge">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+          CORS Strict Origin
+        </div>
+        <div class="sec-badge">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          Soft Deletes + Audit Log
+        </div>
+        <div class="sec-badge">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+          FK Enforced SQLite
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── FOOTER ── -->
+  <footer>
+    <div class="footer-left">
+      <span>ProjectsTracker</span> — Open source project management platform.
+    </div>
+    <div class="footer-links">
+      <a href="https://github.com/vivamau/projectsTracker" target="_blank">GitHub</a>
+      <a href="https://github.com/vivamau/projectsTracker/blob/main/DEPLOYMENT.md" target="_blank">Deploy</a>
+      <a href="https://github.com/vivamau/projectsTracker/blob/main/CLAUDE.md" target="_blank">Docs</a>
+    </div>
+  </footer>
+
+  <script>
+    // ── Intersection Observer for reveal animations ──
+    const reveals = document.querySelectorAll('.reveal');
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(e => {
+        if (e.isIntersecting) {
+          e.target.classList.add('visible');
+        }
+      });
+    }, { threshold: 0.12 });
+    reveals.forEach(el => observer.observe(el));
+
+    // ── Counter animation ──
+    const counters = document.querySelectorAll('[data-target]');
+    const counterObserver = new IntersectionObserver((entries) => {
+      entries.forEach(e => {
+        if (!e.isIntersecting) return;
+        const el = e.target;
+        const target = parseInt(el.dataset.target, 10);
+        const duration = 1200;
+        const step = target / (duration / 16);
+        let current = 0;
+        const timer = setInterval(() => {
+          current += step;
+          if (current >= target) {
+            el.textContent = target + (target === 38 ? '' : '');
+            clearInterval(timer);
+          } else {
+            el.textContent = Math.floor(current);
+          }
+        }, 16);
+        counterObserver.unobserve(el);
+      });
+    }, { threshold: 0.5 });
+    counters.forEach(el => counterObserver.observe(el));
+  </script>
+</body>
+</html>
