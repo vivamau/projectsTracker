@@ -1,6 +1,6 @@
 # ProjectsTracker
 
-A full-stack project management application with budget tracking, vendor management, and delivery path planning.
+A full-stack project management application with budget tracking, vendor management, and delivery path planning. And soon, architecture management.
 
 ## Stack
 
