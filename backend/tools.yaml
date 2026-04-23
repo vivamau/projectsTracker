@@ -1,0 +1,46 @@
+# MCP Toolbox for Databases — ProjectsTracker custom configuration
+# Alternative to --prebuilt sqlite: run with ./toolbox --config tools.yaml
+#
+# To use this file instead of prebuilt, set TOOLBOX_ARGS in .env:
+#   TOOLBOX_ARGS=--config /path/to/tools.yaml
+
+sources:
+  - kind: sqlite
+    name: projectstracker
+    database: ${DB_PATH}
+
+tools:
+  - kind: sqlite-sql
+    name: list_tables
+    source: projectstracker
+    description: >
+      List all tables in the ProjectsTracker database along with their columns.
+      Use this to understand the schema before writing queries.
+    statement: >
+      SELECT m.name AS table_name,
+             GROUP_CONCAT(p.name || ' (' || p.type || ')', ', ') AS columns
+      FROM sqlite_master m
+      LEFT JOIN pragma_table_info(m.name) p ON 1=1
+      WHERE m.type = 'table'
+        AND m.name NOT LIKE 'sqlite_%'
+        AND m.name != '_migrations'
+      GROUP BY m.name
+      ORDER BY m.name
+
+  - kind: sqlite-sql
+    name: execute_sql
+    source: projectstracker
+    description: >
+      Execute a read-only SQL SELECT query to retrieve data from the database.
+      Only SELECT statements are permitted.
+    parameters:
+      - name: query
+        type: string
+        description: A SQL SELECT query to execute against the database
+    statement: "${query}"
+
+toolsets:
+  - name: projectstracker
+    tools:
+      - list_tables
+      - execute_sql

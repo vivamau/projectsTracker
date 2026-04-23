@@ -16,6 +16,24 @@ function createCountryRoutes(db) {
     }
   });
 
+  router.get('/with-projects', authenticate, async (req, res) => {
+    try {
+      const countries = await countryService.getCountriesWithProjects(db);
+      return success(res, countries);
+    } catch (err) {
+      return error(res, 'Failed to list countries with projects');
+    }
+  });
+
+  router.get('/:code/projects', authenticate, async (req, res) => {
+    try {
+      const projects = await countryService.getProjectsByCountry(db, parseInt(req.params.code));
+      return success(res, projects);
+    } catch (err) {
+      return error(res, 'Failed to get projects for country');
+    }
+  });
+
   router.get('/:code', authenticate, async (req, res) => {
     try {
       const country = await countryService.getByCode(db, parseInt(req.params.code));

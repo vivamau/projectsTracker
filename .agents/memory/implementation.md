@@ -110,3 +110,55 @@
 - Blueprint: Automated, one-click deploy of multiple services, **paid feature**
 - Manual: Click each service individually, same end result, **free tier supported**
 - User chose: Manual free tier approach to avoid Blueprint cost
+
+## Country Pages (id: 293) — 2026-04-23
+
+### Backend
+- `countryService.js`: added `getProjectsByCountry(db, code)` — JOINs `projects_to_countries` → `projects` → `divisions` + `users` + subquery health status, returns same shape as projectService.getAll; added `getCountriesWithProjects(db)` — INNER JOIN to only return countries with ≥1 project, includes `COUNT(ptc.project_id) as project_count`
+- `countryRoutes.js`: `GET /with-projects` (registered before `/:code`), `GET /:code/projects`
+- Tests: 11 new service tests (countryService.test.js), 8 new route tests (countryRoutes.test.js), total 25 country tests
+
+### Frontend
+- `entitiesApi.js`: `getCountriesWithProjects()`, `getCountryProjects(code)`
+- `pages/countries/index.jsx`: searchable table showing ISO2/ISO3, official name, project count badge
+- `pages/countries/detail.jsx`: header with ISO codes + project count, projects list with StatusBadge, division, dates, owner
+- `App.jsx`: `/countries` + `/countries/:code` routes
+- `Sidebar.jsx`: Countries entry with Globe icon between Delivery Paths and Budgets
+- `Map.jsx`: ExternalLink icon added to each country pill → `/countries/:UN_country_code`
+
+---
+
+## Ollama API Key Support (AI Agent) — 2026-04-23
+
+### Backend
+- `agentService.js` `SETTING_KEYS`: added `apiKey: 'agent_ollama_api_key'`
+- `getSettings()`: fetches 3 keys via `Promise.all`, returns `{ ollama_url, ollama_model, ollama_api_key }`
+- `updateSettings()`: upserts `ollama_api_key` alongside url/model
+- `getOllamaModels(url, apiKey='')`: sends `Authorization: Bearer <key>` when key is non-empty
+- `callOllama(url, model, messages, tools, apiKey='')`: same Bearer header pattern; used for both agentic loop iterations and final-response call
+- `chat()`: destructures `ollama_api_key` from settings, passes to all `callOllama` invocations
+- `agentRoutes.js` `GET /models`: passes `settings.ollama_api_key` to `getOllamaModels`
+- `migrations/027_agent_settings.sql`: added `agent_ollama_api_key` seed row (empty string default)
+
+### Frontend
+- `settings/index.jsx` `agentForm` state: `{ ollama_url, ollama_model, ollama_api_key: '' }`
+- Added `<input type="password">` field for API Key in AI Agent card
+- Helper text: "Required for Ollama cloud; leave empty for local"
+- Field is included in the form `PUT /api/agent/settings` payload automatically
+
+---
+
+## Dashboard Choropleth Map (id: 294) — 2026-04-23
+
+### Component: `frontend/src/pages/dashboard/components/ProjectsMap.jsx`
+- Fetches `GET /api/countries/with-projects` on mount (no backend changes needed)
+- React-leaflet `MapContainer` + `GeoJSON` with choropleth coloring
+- Color function `countColor(count, max, theme)`: returns base gray when count=0, otherwise linear RGB interpolation between scale endpoints. Ratio = `(count-1)/(max-1)` ensures 1 project = lightest blue, max projects = darkest blue
+- Light scale: `#dbeafe` (#219,234,254) → `#1e3a8a` (#30,58,138); Dark scale: `#93c5fd` → `#1d4ed8`
+- `onEachFeature`: uses `dataRef` + `navigateRef` to avoid stale closures; bindTooltip shows country name + project count; hover fades fill; click navigates to /countries/:code
+- `geoKey = theme + ISO3 list` forces GeoJSON remount when data loads or theme changes
+- Card header: 6-swatch color legend (0 → max) + "max: N" label
+- Map height: 400px, zoom range 1-5, scroll wheel zoom disabled
+
+### Dashboard integration
+- `dashboard/index.jsx`: `<ProjectsMap />` added between KPI cards and People section

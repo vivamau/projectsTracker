@@ -27,7 +27,7 @@ export default function RecentBudgets({ budgets = [] }) {
   };
 
   return (
-    <Card title="Recent Budgets" noPadding>
+    <Card title="Recent Budgets" noPadding className="h-full">
       {budgets.length === 0 ? (
         <p className="px-6 py-8 text-sm text-text-secondary text-center">No budgets yet</p>
       ) : (

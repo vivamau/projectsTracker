@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { MapContainer, GeoJSON, CircleMarker, Tooltip, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { MapPin } from 'lucide-react';
+import { MapPin, ExternalLink } from 'lucide-react';
 import { useTheme } from '../../../hooks/useTheme';
 
 const geoUrl = import.meta.env.VITE_API_URL + '/world';
@@ -145,15 +146,23 @@ const Map = ({ countrylist }) => {
         {sorted.map(c => {
           const isSelected = selected?.iso3 === c.ISO3;
           return (
-            <button
-              key={c.UN_country_code}
-              onClick={() => handleCountryClick(c)}
-              style={isSelected ? { backgroundColor: COLORS.highlighted.stroke, color: '#ffffff' } : undefined}
-              className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium transition-colors cursor-pointer ${isSelected ? '' : 'bg-surface text-text-primary hover:bg-surface-hover'}`}
-            >
-              <MapPin size={12} className={isSelected ? 'text-white/70' : 'text-text-secondary'} />
-              {c.short_name}
-            </button>
+            <div key={c.UN_country_code} className="inline-flex items-center gap-0.5">
+              <button
+                onClick={() => handleCountryClick(c)}
+                style={isSelected ? { backgroundColor: COLORS.highlighted.stroke, color: '#ffffff' } : undefined}
+                className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium transition-colors cursor-pointer ${isSelected ? '' : 'bg-surface text-text-primary hover:bg-surface-hover'}`}
+              >
+                <MapPin size={12} className={isSelected ? 'text-white/70' : 'text-text-secondary'} />
+                {c.short_name}
+              </button>
+              <Link
+                to={`/countries/${c.UN_country_code}`}
+                className="p-0.5 text-text-secondary hover:text-primary-500 transition-colors"
+                title={`View ${c.short_name} country page`}
+              >
+                <ExternalLink size={11} />
+              </Link>
+            </div>
           );
         })}
       </div>

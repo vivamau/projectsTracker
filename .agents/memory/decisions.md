@@ -286,3 +286,20 @@ Alternative rejected: Mocked API tests would not catch real integration issues (
 **Decision:** Vendor resources are displayed on the project detail page as a read-only card. The data flows through PO items (not a direct project→resource link). Resources are deduplicated by vendorresource_id, with the latest contract role shown. Admin "Edit" button navigates to the assignment modal for link/unlink. No new database tables or migrations needed.
 
 **Status:** Implemented (vendorResourceService.getByProjectId, GET /:id/vendor-resources, detail.jsx card).
+
+## Country Pages — Route Ordering in Express
+**Date:** 2026-04-23
+**Decision:** In countryRoutes.js, `GET /with-projects` is registered before `GET /:code` to prevent Express from treating the string "with-projects" as a numeric code parameter and returning a 404.
+**Status:** Implemented.
+
+## Dashboard Choropleth — react-leaflet with refs for onEachFeature
+**Date:** 2026-04-23
+**Decision:** The ProjectsMap component uses `dataRef` and `navigateRef` (not state/props) inside `onEachFeature` to avoid stale closures while keeping a stable callback reference. The GeoJSON layer is re-keyed (`geoKey = theme + ISO3 list`) to force a remount when country data loads or the theme changes, which causes `style` and `onEachFeature` to run fresh with the current ref values.
+
+Alternative rejected: Passing data as deps to `useCallback` would cause `onEachFeature` to change on every country update, remounting GeoJSON unnecessarily mid-session.
+**Status:** Implemented (ProjectsMap.jsx).
+
+## Dashboard Choropleth — Color Scale
+**Date:** 2026-04-23
+**Decision:** Linear RGB interpolation between two endpoints: base gray (no projects), light-blue → dark-blue (1 to max projects). Light mode: #dbeafe→#1e3a8a. Dark mode: #93c5fd→#1d4ed8. The ratio is `(count-1)/(max-1)` so the lightest blue always maps to exactly 1 project and the darkest to the country with the most projects.
+**Status:** Implemented (ProjectsMap.jsx countColor()).

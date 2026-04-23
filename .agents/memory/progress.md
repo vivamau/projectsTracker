@@ -345,3 +345,34 @@
   - [x] e2e/vendors.spec.js: 6 tests (list, table, detail, role-based create button)
   - [x] Fixed login.jsx: added htmlFor/id for accessibility (getByLabel support)
   - [x] 38 E2E tests all passing (chromium, ~30s total)
+
+- [x] Country Pages feature <!-- id: 293 -->
+  - [x] countryService.js: getProjectsByCountry() JOIN through projects_to_countries + getCountriesWithProjects() with project_count
+  - [x] countryRoutes.js: GET /api/countries/with-projects + GET /api/countries/:code/projects
+  - [x] entitiesApi.js: getCountriesWithProjects() + getCountryProjects(code) API functions
+  - [x] pages/countries/index.jsx: searchable table of countries with project counts, links to detail
+  - [x] pages/countries/detail.jsx: country header (ISO codes, project count), projects list with health status
+  - [x] Sidebar.jsx: Countries nav item with Globe icon between Delivery Paths and Budgets
+  - [x] App.jsx: /countries and /countries/:code routes registered
+  - [x] Map.jsx: ExternalLink icon on each country pill → /countries/:code
+  - [x] TDD: 11 new service tests + 8 new route tests (25 total for country suite)
+  - [x] 839 backend tests passing, frontend builds cleanly
+- [x] Dashboard Choropleth Map <!-- id: 294 -->
+  - [x] ProjectsMap.jsx: self-contained component, fetches getCountriesWithProjects(), react-leaflet choropleth
+  - [x] Color scale: base gray (no projects) → light blue → dark blue (max projects), linear interpolation
+  - [x] Hover tooltip: country name + project count via bindTooltip in onEachFeature
+  - [x] Click navigates to /countries/:code, adapts to light/dark theme
+  - [x] Color legend (6 swatches + max label) in card header
+  - [x] Added to dashboard/index.jsx between KPI cards and People section
+  - [x] Frontend builds cleanly, 839 backend tests passing
+- [x] AI Agent (Chat with DB) <!-- id: 295 -->
+  - [x] Migration 027: seed agent_ollama_url + agent_ollama_model + agent_ollama_api_key into app_settings
+  - [x] agentService.js: getSettings, updateSettings, getOllamaModels, chat (agentic loop) — all with API key support
+  - [x] agentRoutes.js: GET/PUT /api/agent/settings, GET /api/agent/models, POST /api/agent/chat
+  - [x] agentRoutes.test.js: 12 tests (TDD, service mocked)
+  - [x] index.js: startToolbox() child process (--prebuilt sqlite, port 5100)
+  - [x] tools.yaml: optional custom toolset config documented
+  - [x] pages/agent/index.jsx: chat UI with suggestion chips, typing indicator, auto-grow textarea
+  - [x] settings/index.jsx: AI Agent card (admin+) - Ollama URL, model dropdown, API key (password input for cloud)
+  - [x] App.jsx: /agent route; Sidebar.jsx: AI Assistant nav item
+  - [x] 851 backend tests passing, frontend builds cleanly

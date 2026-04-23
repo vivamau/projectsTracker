@@ -61,6 +61,94 @@ See [CLAUDE.md](./CLAUDE.md) for development guidelines.
 - Delivery path milestones with timeline visualization
 - Supporting divisions for projects
 - Activity logging
+- AI assistant for natural-language database queries (via Ollama + MCP Toolbox)
+
+## AI Assistant
+
+The AI assistant lets users ask questions about their data in plain English ("Which projects are at risk?", "What is the total budget for Division X?"). It uses a local or cloud Ollama LLM and the [MCP Toolbox for Databases](https://github.com/googleapis/mcp-toolbox) to safely execute read-only SQL against the SQLite database.
+
+### How It Works
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant UI as Chat UI<br/>(React)
+    participant API as Express API<br/>/api/agent/chat
+    participant Agent as agentService<br/>(agentic loop)
+    participant Ollama as Ollama LLM
+    participant SDK as ToolboxClient<br/>(@toolbox-sdk/core)
+    participant Toolbox as MCP Toolbox Server<br/>(port 5100)
+    participant DB as SQLite Database
+
+    User->>UI: types a question
+    UI->>API: POST /api/agent/chat<br/>{ message, history }
+    API->>Agent: chat(db, { message, history })
+
+    Agent->>SDK: loadToolset()
+    SDK->>Toolbox: GET /api/toolset
+    Toolbox-->>SDK: tool definitions (list_tables, execute_sql)
+    SDK-->>Agent: callable tool functions + Zod schemas
+
+    Agent->>Agent: build Ollama tool definitions<br/>(Zod → JSON Schema)
+
+    loop Agentic loop (max 6 iterations)
+        Agent->>Ollama: POST /api/chat<br/>{ model, messages, tools }
+        Ollama-->>Agent: response message
+
+        alt no tool_calls in response
+            Agent-->>API: final answer
+        else has tool_calls
+            loop for each tool call
+                Agent->>SDK: tool(args)
+                SDK->>Toolbox: execute tool (e.g. execute_sql)
+                Toolbox->>DB: SELECT … (read-only)
+                DB-->>Toolbox: rows
+                Toolbox-->>SDK: JSON result
+                SDK-->>Agent: result string
+                Agent->>Agent: append tool result<br/>to message history
+            end
+        end
+    end
+
+    API-->>UI: { role: "assistant", content: "…" }
+    UI-->>User: displays answer
+```
+
+### Components
+
+| Component | Role |
+|-----------|------|
+| `@toolbox-sdk/server` | MCP Toolbox server spawned by the backend on startup (port 5100). Exposes `list_tables` and `execute_sql` tools backed by the SQLite database. Only SELECT queries are permitted. |
+| `@toolbox-sdk/core` | Client SDK used inside `agentService.js` to discover available tools and call them. |
+| Ollama | LLM backend. Receives the conversation history + tool definitions on each iteration and decides whether to answer directly or invoke a tool. |
+| `agentService.js` | Orchestrates the agentic loop — up to 6 LLM calls, feeding each tool result back into the conversation until Ollama stops requesting tools. |
+
+### Configuration
+
+Admins and superadmins can configure the Ollama connection under **Settings → AI Agent**:
+
+| Setting | Description |
+|---------|-------------|
+| Ollama URL | Base URL of your Ollama server (default: `http://localhost:11434`) |
+| Model | Select from models available on your Ollama instance, or type a name manually |
+| API Key | Bearer token for [Ollama cloud](https://ollama.com/blog/ollama-cloud) — leave empty for local |
+
+### Prerequisites
+
+The AI assistant requires a running Ollama instance with at least one model pulled:
+
+```bash
+# Install Ollama (macOS)
+brew install ollama
+
+# Pull a model
+ollama pull llama3.2
+
+# Start Ollama (if not already running)
+ollama serve
+```
+
+The MCP Toolbox server starts automatically alongside the backend — no separate setup is needed.
 
 ## Database Initialization
 

@@ -11,7 +11,9 @@ import {
   DollarSign,
   FileText,
   ChevronLeft,
-  Shield
+  Shield,
+  Globe,
+  Bot
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 
@@ -21,7 +23,9 @@ const navItems = [
   { label: 'Divisions', path: '/divisions', icon: Building2 },
   { label: 'Initiatives', path: '/initiatives', icon: Flag },
   { label: 'Delivery Paths', path: '/delivery-paths', icon: Route },
+  { label: 'Countries', path: '/countries', icon: Globe },
   { label: 'Budgets', path: '/budgets', icon: DollarSign },
+  { label: 'AI Assistant', path: '/agent', icon: Bot },
   { label: 'Vendors', path: '/vendors', icon: Store },
   { label: 'Users', path: '/users', icon: Users, roles: ['superadmin', 'admin'] },
   { label: 'Project Roles', path: '/project-roles', icon: Shield, roles: ['superadmin'] },

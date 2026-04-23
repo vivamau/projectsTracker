@@ -58,3 +58,9 @@ When multiple elements match (e.g., multiple tables, headings in sidebar + nav),
 
 ## Default users are superadmin/admin/contributor/guest (not reader)
 The actual seed_users.js creates: superadmin, admin, contributor, guest. CLAUDE.md mentions "reader" but it doesn't exist. Use the actual seeded credentials in tests.
+
+## Express route ordering — literal paths before params
+When a router has both `GET /with-projects` and `GET /:code`, the literal path must be registered first. If `/:code` comes first, Express matches "with-projects" as the code parameter and countryService.getByCode() returns 404 (it tries parseInt("with-projects") = NaN).
+
+## react-leaflet onEachFeature runs outside React's render cycle
+`onEachFeature` is called by Leaflet when building layers, not during a React render. Hooks like `useNavigate` cannot be called inside it. Pattern: capture navigate and data in refs (`navigateRef`, `dataRef`), keep `onEachFeature` in a `useCallback([])` (empty deps = stable reference), and read refs at call time. Re-key the GeoJSON component when data changes to force a remount that picks up the latest ref values.

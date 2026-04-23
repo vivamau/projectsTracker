@@ -54,6 +54,8 @@ export const updateDeliveryPath = (id, data) => client.put(`/deliverypaths/${id}
 export const deleteDeliveryPath = (id) => client.delete(`/deliverypaths/${id}`);
 
 export const getCountries = (search) => client.get('/countries', { params: { search } });
+export const getCountriesWithProjects = () => client.get('/countries/with-projects');
+export const getCountryProjects = (code) => client.get(`/countries/${code}/projects`);
 
 export const getCurrencies = () => client.get('/currencies');
 export const getSeniorities = () => client.get('/seniorities');

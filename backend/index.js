@@ -7,7 +7,30 @@ const cookieParser = require('cookie-parser');
 const swaggerUi = require('swagger-ui-express');
 const YAML = require('yamljs');
 const path = require('path');
+const { spawn } = require('child_process');
 const { getDb } = require('./config/database');
+
+function startToolbox(dbPath) {
+  if (process.env.NODE_ENV === 'test') return null;
+  const port = process.env.TOOLBOX_PORT || 5100;
+  try {
+    const runScript = require.resolve('@toolbox-sdk/server/bin/run.js');
+    const proc = spawn(process.execPath, [runScript, '--prebuilt', 'sqlite', '--port', String(port)], {
+      env: { ...process.env, SQLITE_DATABASE: dbPath },
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    proc.stdout.on('data', d => process.stdout.write(`[Toolbox] ${d}`));
+    proc.stderr.on('data', d => process.stderr.write(`[Toolbox] ${d}`));
+    proc.on('error', err => console.warn('[Toolbox] Failed to start:', err.message));
+    proc.on('exit', code => { if (code && code !== 0) console.warn(`[Toolbox] Exited with code ${code}`); });
+    process.on('exit', () => { try { proc.kill(); } catch {} });
+    console.log(`[Toolbox] Starting on port ${port} — DB: ${dbPath}`);
+    return proc;
+  } catch (err) {
+    console.warn('[Toolbox] Could not start:', err.message, '— AI agent will be unavailable');
+    return null;
+  }
+}
 const { getAuditDb } = require('./config/auditDatabase');
 const { runMigrations } = require('./scripts/run_migrations');
 const { seedUserRoles } = require('./scripts/seed_userroles');
@@ -60,6 +83,9 @@ async function startServer() {
     }
 
     app.use('/api', createRoutes(db, auditDb));
+
+    const dbPath = process.env.DB_PATH || path.join(__dirname, 'data', 'database.sqlite');
+    startToolbox(dbPath);
 
     app.get('/world', (req, res) => {
       res.sendFile(path.join(__dirname, 'data', 'world.geojson'));

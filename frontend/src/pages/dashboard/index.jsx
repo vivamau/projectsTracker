@@ -7,6 +7,7 @@ import HealthDistributionCard from './components/HealthDistributionCard';
 import ActivityStatsCard from './components/ActivityStatsCard';
 import PeopleListCard from './components/PeopleListCard';
 import RecentBudgets from './components/RecentBudgets';
+import ProjectsMap from './components/ProjectsMap';
 import LoadingSpinner from '../../commoncomponents/LoadingSpinner';
 
 function fmt(n) {
@@ -180,6 +181,11 @@ export default function DashboardPage() {
         <HealthDistributionCard distribution={stats?.healthDistribution || []} />
       </div>
 
+      {/* Country choropleth */}
+      <div className="mb-6">
+        <ProjectsMap />
+      </div>
+
       {/* People */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         {(() => {
@@ -192,12 +198,16 @@ export default function DashboardPage() {
             <PeopleListCard key={roleName} title={roleName + 's'} people={people} isSuperAdmin={isSuperAdmin} />
           ));
         })()}
-        <PeopleListCard title="Owners" people={stats?.owners || []} isSuperAdmin={isSuperAdmin} />
       </div>
 
-      {/* Recent Budgets */}
-      <div className="mt-6">
-        <RecentBudgets budgets={budgets} />
+      {/* Owners + Recent Budgets */}
+      <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-3 items-stretch">
+        <div className="lg:col-span-1 h-full">
+          <PeopleListCard title="Owners" people={stats?.owners || []} isSuperAdmin={isSuperAdmin} />
+        </div>
+        <div className="lg:col-span-2 h-full">
+          <RecentBudgets budgets={budgets} />
+        </div>
       </div>
     </div>
   );

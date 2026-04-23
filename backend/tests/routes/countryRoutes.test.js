@@ -25,6 +25,16 @@ beforeAll(async () => {
     ['US', 'USA', 'United States', 'United States of America', 840, 'USA']
   );
 
+  // Seed a project and link it to Italy
+  await runQuery(db,
+    "INSERT INTO projects (project_name, project_create_date, division_id) VALUES (?, ?, ?)",
+    ['Beta Project', Date.now(), 1]
+  );
+  await runQuery(db,
+    "INSERT INTO projects_to_countries (UN_country_code, project_id) VALUES (?, ?)",
+    [380, 1]
+  );
+
   app = createTestApp(db);
 });
 
@@ -86,6 +96,58 @@ describe('Country Routes', () => {
 
     it('should return 401 when not authenticated', async () => {
       const res = await request(app).get('/api/countries/380');
+      expect(res.status).toBe(401);
+    });
+  });
+
+  describe('GET /api/countries/:code/projects', () => {
+    it('should return projects for a country', async () => {
+      const res = await request(app)
+        .get('/api/countries/380/projects')
+        .set('Cookie', ['token=' + adminToken()]);
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(Array.isArray(res.body.data)).toBe(true);
+      expect(res.body.data.length).toBe(1);
+      expect(res.body.data[0].project_name).toBe('Beta Project');
+    });
+
+    it('should return empty array for country with no projects', async () => {
+      const res = await request(app)
+        .get('/api/countries/840/projects')
+        .set('Cookie', ['token=' + adminToken()]);
+      expect(res.status).toBe(200);
+      expect(res.body.data).toEqual([]);
+    });
+
+    it('should return 401 when not authenticated', async () => {
+      const res = await request(app).get('/api/countries/380/projects');
+      expect(res.status).toBe(401);
+    });
+  });
+
+  describe('GET /api/countries/with-projects', () => {
+    it('should return only countries that have projects', async () => {
+      const res = await request(app)
+        .get('/api/countries/with-projects')
+        .set('Cookie', ['token=' + adminToken()]);
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(Array.isArray(res.body.data)).toBe(true);
+      expect(res.body.data.length).toBe(1);
+      expect(res.body.data[0].short_name).toBe('Italy');
+    });
+
+    it('should include project_count in each country', async () => {
+      const res = await request(app)
+        .get('/api/countries/with-projects')
+        .set('Cookie', ['token=' + adminToken()]);
+      expect(res.status).toBe(200);
+      expect(res.body.data[0]).toHaveProperty('project_count');
+    });
+
+    it('should return 401 when not authenticated', async () => {
+      const res = await request(app).get('/api/countries/with-projects');
       expect(res.status).toBe(401);
     });
   });

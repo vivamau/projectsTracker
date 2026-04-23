@@ -19,6 +19,9 @@ import VendorDetailPage from './pages/vendors/detail';
 import VendorResourceDetailPage from './pages/vendors/resourceDetail';
 import UsersPage from './pages/users/index';
 import UserDetailPage from './pages/users/detail';
+import CountriesPage from './pages/countries/index';
+import CountryDetailPage from './pages/countries/detail';
+import AgentPage from './pages/agent/index';
 import LogsPage from './pages/logs/index';
 import ProjectRolesPage from './pages/projectRoles/index';
 import SettingsPage from './pages/settings/index';
@@ -48,11 +51,14 @@ export default function App() {
         <Route path="/initiatives/:id" element={<InitiativeDetailPage />} />
         <Route path="/delivery-paths" element={<DeliveryPathsPage />} />
         <Route path="/delivery-paths/:id" element={<DeliveryPathDetailPage />} />
+        <Route path="/countries" element={<CountriesPage />} />
+        <Route path="/countries/:code" element={<CountryDetailPage />} />
         <Route path="/vendors" element={<VendorsPage />} />
         <Route path="/vendors/:id" element={<VendorDetailPage />} />
         <Route path="/vendors/:vendorId/resources/:resourceId" element={<VendorResourceDetailPage />} />
         <Route path="/users" element={<UsersPage />} />
         <Route path="/users/:id" element={<UserDetailPage />} />
+        <Route path="/agent" element={<AgentPage />} />
         <Route path="/project-roles" element={<ProjectRolesPage />} />
         <Route path="/logs" element={<LogsPage />} />
         <Route path="/settings" element={<SettingsPage />} />
