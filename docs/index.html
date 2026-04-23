@@ -409,6 +409,52 @@
     .feature-card.accent-purple:hover::before { background: var(--purple); }
     .feature-card.accent-cyan:hover::before { background: var(--cyan); }
 
+    .feature-card.feature-ai {
+      grid-column: 1 / -1;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 48px;
+      align-items: center;
+    }
+
+    .feature-ai-left {}
+
+    .feature-ai-right {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .feature-ai-bubble {
+      padding: 14px 18px;
+      border-radius: 12px;
+      font-size: 13px;
+      line-height: 1.6;
+      max-width: 92%;
+    }
+
+    .feature-ai-bubble.user {
+      background: rgba(162,89,255,.15);
+      border: 1px solid rgba(162,89,255,.25);
+      color: var(--text);
+      align-self: flex-end;
+      border-radius: 12px 12px 2px 12px;
+    }
+
+    .feature-ai-bubble.bot {
+      background: rgba(255,255,255,.04);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      align-self: flex-start;
+      border-radius: 12px 12px 12px 2px;
+    }
+
+    .feature-ai-bubble.bot strong { color: var(--text); }
+
+    @media (max-width: 1024px) {
+      .feature-card.feature-ai { grid-template-columns: 1fr; gap: 32px; }
+    }
+
     .feature-icon {
       width: 48px; height: 48px;
       margin-bottom: 28px;
@@ -904,6 +950,7 @@
     <div class="nav-logo">ProjectsTracker</div>
     <ul class="nav-links">
       <li><a href="#features">Features</a></li>
+      <li><a href="#ai-agent">AI Agent</a></li>
       <li><a href="#stack">Stack</a></li>
       <li><a href="#roles">Roles</a></li>
       <li><a href="#quickstart">Quickstart</a></li>
@@ -1030,6 +1077,39 @@
         <p class="feature-desc">Every create, update, and soft-delete is recorded with user attribution. Filter, search, and analyze logs with statistics and cleanup tools.</p>
         <span class="feature-tag" style="color:var(--amber);border-color:rgba(255,154,60,.3);background:rgba(255,154,60,.06)">Compliance</span>
       </div>
+
+      <!-- Card 7 — AI Agent (full-width) -->
+      <div class="feature-card feature-ai accent-purple reveal" style="transition-delay:.3s" id="ai-agent">
+        <div class="feature-ai-left">
+          <div class="feature-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#a259ff" stroke-width="1.5">
+              <path d="M12 2a4 4 0 0 1 4 4v1h1a3 3 0 0 1 3 3v7a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3v-7a3 3 0 0 1 3-3h1V6a4 4 0 0 1 4-4z"/>
+              <circle cx="9" cy="13" r="1" fill="#a259ff"/><circle cx="15" cy="13" r="1" fill="#a259ff"/>
+            </svg>
+          </div>
+          <h3 class="feature-title">AI Assistant</h3>
+          <p class="feature-desc">
+            Ask natural-language questions about your portfolio data and get instant answers. The AI agent queries projects, budgets, vendors, and countries in real time — with full conversation history and Markdown-rendered responses.
+          </p>
+          <p class="feature-desc" style="margin-top:12px">
+            Powered by a local <strong style="color:var(--text)">Ollama</strong> instance via the <strong style="color:var(--text)">MCP Toolbox</strong>. Configure the endpoint, model, and API key from the Settings page. All queries are read-only — the agent can never mutate data.
+          </p>
+          <span class="feature-tag" style="color:var(--purple);border-color:rgba(162,89,255,.3);background:rgba(162,89,255,.06)">AI · Ollama · MCP Toolbox</span>
+        </div>
+
+        <div class="feature-ai-right">
+          <div class="feature-ai-bubble user">Which country has the most active projects?</div>
+          <div class="feature-ai-bubble bot">
+            <strong>Italy</strong> leads with <strong>12 active projects</strong>, followed by Germany (8) and France (6).<br/><br/>
+            Here are the top 3:<br/>
+            → Italy — 12 projects<br/>
+            → Germany — 8 projects<br/>
+            → France — 6 projects
+          </div>
+          <div class="feature-ai-bubble user">Show me the top 5 budgets</div>
+          <div class="feature-ai-bubble bot" style="opacity:.6;font-style:italic;font-size:12px">Thinking…</div>
+        </div>
+      </div>
     </div>
   </section>
 
@@ -1055,6 +1135,8 @@
           <span class="pill">Jest</span>
           <span class="pill">Docker</span>
           <span class="pill">Swagger</span>
+          <span class="pill" style="border-color:rgba(162,89,255,.3);color:var(--purple);background:rgba(162,89,255,.04)">Ollama</span>
+          <span class="pill" style="border-color:rgba(162,89,255,.3);color:var(--purple);background:rgba(162,89,255,.04)">MCP Toolbox</span>
         </div>
       </div>
 
