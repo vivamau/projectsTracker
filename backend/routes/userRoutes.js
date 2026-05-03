@@ -40,9 +40,11 @@ function createUserRoutes(db, auditDb) {
 
   router.post('/', authenticate, authorize('superadmin'), async (req, res) => {
     try {
-      const { user_email, password, userrole_id } = req.body;
-      if (!user_email || !password || !userrole_id) {
-        return error(res, 'user_email, password, and userrole_id are required', 400);
+      const { user_email, password, userrole_id, user_active = 1 } = req.body;
+      const isActive = user_active === 1 || user_active === true;
+      if (!user_email) return error(res, 'user_email is required', 400);
+      if (isActive && (!password || !userrole_id)) {
+        return error(res, 'password and userrole_id are required for active users', 400);
       }
       const result = await userService.create(db, req.body);
       await auditLog(auditDb, {

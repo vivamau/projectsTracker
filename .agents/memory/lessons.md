@@ -62,5 +62,17 @@ The actual seed_users.js creates: superadmin, admin, contributor, guest. CLAUDE.
 ## Express route ordering — literal paths before params
 When a router has both `GET /with-projects` and `GET /:code`, the literal path must be registered first. If `/:code` comes first, Express matches "with-projects" as the code parameter and countryService.getByCode() returns 404 (it tries parseInt("with-projects") = NaN).
 
+## Bulk-imported records share the same create_date timestamp
+Seed/import scripts often set all records to the same `create_date` (the moment of import). Sorting by `create_date` on such data produces arbitrary order. Prefer sorting by a business date (e.g. `purchaseorder_start_date`) which reflects the actual temporal meaning of the record.
+
+## Tailwind v4 doesn't compile classes not in initial scan
+In Tailwind v4, classes that weren't present at build time won't be included in the CSS output — even via HMR. For theme-sensitive or dynamically computed colors, use inline `style` props with hardcoded hex values rather than dynamic Tailwind class names.
+
+## Inactive user pattern: force guest + null password at DB level
+When adding a user-active flag, enforce the constraint in the service layer (not just the frontend): `create()` and `update()` must hard-set `userrole_id=4` and `user_password_hash=NULL` for inactive users. This prevents privilege escalation if the frontend is bypassed. Also block login in `authService.login` by checking `user_active === 0` before bcrypt compare.
+
+## AI agent LLMs sometimes return SQL as plain text
+Even with tool-calling set up, some models output the SQL query as plain text instead of invoking the execute_sql tool. Fix with two layers: (1) explicit system prompt rule "NEVER write SQL in reply text", (2) a post-response interceptor that detects SQL-shaped responses, runs the query directly, and re-prompts for a plain-language summary.
+
 ## react-leaflet onEachFeature runs outside React's render cycle
 `onEachFeature` is called by Leaflet when building layers, not during a React render. Hooks like `useNavigate` cannot be called inside it. Pattern: capture navigate and data in refs (`navigateRef`, `dataRef`), keep `onEachFeature` in a `useCallback([])` (empty deps = stable reference), and read refs at call time. Re-key the GeoJSON component when data changes to force a remount that picks up the latest ref values.

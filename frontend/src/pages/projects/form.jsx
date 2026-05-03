@@ -45,7 +45,7 @@ export default function ProjectFormPage() {
   const [projectRoles, setProjectRoles] = useState([]);
   const [roleSearch, setRoleSearch] = useState({});
   const [addUserModal, setAddUserModal] = useState(false);
-  const [addUserForm, setAddUserForm] = useState({ user_name: '', user_lastname: '', user_email: '', password: '', userrole_id: 3 });
+  const [addUserForm, setAddUserForm] = useState({ user_name: '', user_lastname: '', user_email: '', password: '', userrole_id: 3, user_active: 1 });
   const [addUserError, setAddUserError] = useState('');
   const [pendingRoleId, setPendingRoleId] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -137,7 +137,7 @@ export default function ProjectFormPage() {
 
   const openAddUser = (roleId) => {
     setPendingRoleId(roleId);
-    setAddUserForm({ user_name: '', user_lastname: '', user_email: '', password: '', userrole_id: 3 });
+    setAddUserForm({ user_name: '', user_lastname: '', user_email: '', password: '', userrole_id: 3, user_active: 1 });
     setAddUserError('');
     setAddUserModal(true);
   };
@@ -145,8 +145,13 @@ export default function ProjectFormPage() {
   const handleAddUser = async (e) => {
     e.preventDefault();
     setAddUserError('');
-    if (!addUserForm.user_email || !addUserForm.password) {
-      setAddUserError('Email and password are required');
+    const isActive = addUserForm.user_active === 1;
+    if (!addUserForm.user_email) {
+      setAddUserError('Email is required');
+      return;
+    }
+    if (isActive && !addUserForm.password) {
+      setAddUserError('Password is required for active users');
       return;
     }
     try {
@@ -523,6 +528,34 @@ export default function ProjectFormPage() {
       <Modal open={addUserModal} onClose={() => setAddUserModal(false)} title="New User" maxWidth="max-w-md">
         <form onSubmit={handleAddUser} className="space-y-4">
           {addUserError && <div className="rounded-lg bg-error-50 px-4 py-3 text-sm text-error-600">{addUserError}</div>}
+
+          {/* Active toggle */}
+          <div className="flex items-center justify-between rounded-lg border border-border p-3">
+            <div>
+              <p className="text-sm font-medium text-text-primary">Active user</p>
+              <p className="text-xs text-text-secondary mt-0.5">
+                {addUserForm.user_active === 1
+                  ? 'Can log in to the platform'
+                  : 'Cannot log in — assigned as guest for data tracking only'}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setAddUserForm(f => ({
+                ...f,
+                user_active: f.user_active === 1 ? 0 : 1,
+                ...(f.user_active === 1 ? { userrole_id: 4, password: '' } : { userrole_id: 3 })
+              }))}
+              className={`relative inline-flex h-6 w-11 shrink-0 rounded-full border-2 border-transparent transition-colors focus:outline-none ${
+                addUserForm.user_active === 1 ? 'bg-primary-500' : 'bg-border'
+              }`}
+            >
+              <span className={`inline-block h-5 w-5 rounded-full bg-white shadow transition-transform ${
+                addUserForm.user_active === 1 ? 'translate-x-5' : 'translate-x-0'
+              }`} />
+            </button>
+          </div>
+
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="mb-1 block text-sm font-medium">First Name</label>
@@ -534,19 +567,28 @@ export default function ProjectFormPage() {
             </div>
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium">Email</label>
+            <label className="mb-1 block text-sm font-medium">Email <span className="text-error-500">*</span></label>
             <input type="email" value={addUserForm.user_email} onChange={e => setAddUserForm(f => ({ ...f, user_email: e.target.value }))} className="w-full rounded-lg border border-border-dark bg-surface px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 appearance-none" required />
           </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium">Password</label>
-            <input type="password" value={addUserForm.password} onChange={e => setAddUserForm(f => ({ ...f, password: e.target.value }))} className="w-full rounded-lg border border-border-dark bg-surface px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 appearance-none" required />
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium">Role</label>
-            <select value={addUserForm.userrole_id} onChange={e => setAddUserForm(f => ({ ...f, userrole_id: parseInt(e.target.value) }))} className="w-full rounded-lg border border-border-dark bg-surface px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 appearance-none">
-              {USER_ROLES.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
-            </select>
-          </div>
+          {addUserForm.user_active === 1 && (
+            <>
+              <div>
+                <label className="mb-1 block text-sm font-medium">Password <span className="text-error-500">*</span></label>
+                <input type="password" value={addUserForm.password} onChange={e => setAddUserForm(f => ({ ...f, password: e.target.value }))} className="w-full rounded-lg border border-border-dark bg-surface px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 appearance-none" />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium">Role</label>
+                <select value={addUserForm.userrole_id} onChange={e => setAddUserForm(f => ({ ...f, userrole_id: parseInt(e.target.value) }))} className="w-full rounded-lg border border-border-dark bg-surface px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 appearance-none">
+                  {USER_ROLES.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                </select>
+              </div>
+            </>
+          )}
+          {addUserForm.user_active === 0 && (
+            <div className="rounded-lg bg-surface border border-border px-3 py-2 text-xs text-text-secondary">
+              Role is automatically set to <strong>guest</strong> for inactive users.
+            </div>
+          )}
           <div className="flex justify-end gap-3">
             <button type="button" onClick={() => setAddUserModal(false)} className="rounded-lg border border-border-dark px-4 py-2 text-sm font-medium hover:bg-surface transition-colors">Cancel</button>
             <button type="submit" className="rounded-lg bg-primary-500 px-4 py-2 text-sm font-medium text-white hover:bg-primary-600 transition-colors">Create</button>

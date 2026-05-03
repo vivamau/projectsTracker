@@ -23,7 +23,8 @@ async function getAllUsers(db, { page = 1, limit = 20, search } = {}) {
   const users = await getAll(db,
     `SELECT u.id, u.user_email, u.user_name, u.user_lastname, u.user_middlename,
             u.user_create_date, u.user_update_date, u.user_lastlogin_date,
-            u.userrole_id, ur.userrole_name as role
+            u.userrole_id, ur.userrole_name as role,
+            COALESCE(u.user_active, 1) as user_active
      FROM users u
      LEFT JOIN userroles ur ON u.userrole_id = ur.id
      ${where}
@@ -45,7 +46,8 @@ async function getById(db, id) {
   return getOne(db,
     `SELECT u.id, u.user_email, u.user_name, u.user_lastname, u.user_middlename,
             u.user_create_date, u.user_update_date, u.user_lastlogin_date,
-            u.userrole_id, ur.userrole_name as role
+            u.userrole_id, ur.userrole_name as role,
+            COALESCE(u.user_active, 1) as user_active
      FROM users u
      LEFT JOIN userroles ur ON u.userrole_id = ur.id
      WHERE u.id = ? AND (u.user_is_deleted = 0 OR u.user_is_deleted IS NULL)`,
@@ -53,13 +55,15 @@ async function getById(db, id) {
   );
 }
 
-async function create(db, { user_email, user_name, user_lastname, user_middlename, password, userrole_id }) {
+async function create(db, { user_email, user_name, user_lastname, user_middlename, password, userrole_id, user_active = 1 }) {
   const now = Date.now();
-  const hash = await bcrypt.hash(password, SALT_ROUNDS);
+  const isActive = user_active === 1 || user_active === true;
+  const effectiveRoleId = isActive ? userrole_id : 4; // inactive => guest
+  const hash = isActive ? await bcrypt.hash(password, SALT_ROUNDS) : null;
   return runQuery(db,
-    `INSERT INTO users (user_email, user_name, user_lastname, user_middlename, user_password_hash, user_create_date, userrole_id)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`,
-    [user_email, user_name, user_lastname, user_middlename || null, hash, now, userrole_id]
+    `INSERT INTO users (user_email, user_name, user_lastname, user_middlename, user_password_hash, user_create_date, userrole_id, user_active)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    [user_email, user_name, user_lastname, user_middlename || null, hash, now, effectiveRoleId, isActive ? 1 : 0]
   );
 }
 
@@ -88,10 +92,22 @@ async function update(db, id, data) {
     fields.push('userrole_id = ?');
     params.push(data.userrole_id);
   }
-  if (data.password !== undefined) {
+  if (data.password !== undefined && data.password !== '') {
     const hash = await bcrypt.hash(data.password, SALT_ROUNDS);
     fields.push('user_password_hash = ?');
     params.push(hash);
+  }
+  if (data.user_active !== undefined) {
+    const isActive = data.user_active === 1 || data.user_active === true;
+    fields.push('user_active = ?');
+    params.push(isActive ? 1 : 0);
+    if (!isActive) {
+      // Force guest role and clear password when deactivating
+      fields.push('userrole_id = ?');
+      params.push(4);
+      fields.push('user_password_hash = ?');
+      params.push(null);
+    }
   }
 
   if (fields.length === 0) return { changes: 0 };

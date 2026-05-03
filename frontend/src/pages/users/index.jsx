@@ -54,14 +54,14 @@ export default function UsersPage() {
 
   const openCreate = () => {
     setEditItem(null);
-    setForm({ user_email: '', user_name: '', user_lastname: '', password: '', userrole_id: 3 });
+    setForm({ user_email: '', user_name: '', user_lastname: '', password: '', userrole_id: 3, user_active: 1 });
     setError('');
     setModal(true);
   };
 
   const openEdit = (u) => {
     setEditItem(u);
-    setForm({ user_email: u.user_email, user_name: u.user_name || '', user_lastname: u.user_lastname || '', password: '', userrole_id: u.userrole_id });
+    setForm({ user_email: u.user_email, user_name: u.user_name || '', user_lastname: u.user_lastname || '', password: '', userrole_id: u.userrole_id, user_active: u.user_active ?? 1 });
     setError('');
     setModal(true);
   };
@@ -69,14 +69,19 @@ export default function UsersPage() {
   const handleSave = async (e) => {
     e.preventDefault();
     setError('');
+    const isActive = form.user_active === 1;
     try {
       if (editItem) {
         const data = { ...form };
         if (!data.password) delete data.password;
         await updateUser(editItem.id, data);
       } else {
-        if (!form.user_email || !form.password) {
-          setError('Email and password are required');
+        if (!form.user_email) {
+          setError('Email is required');
+          return;
+        }
+        if (isActive && !form.password) {
+          setError('Password is required for active users');
           return;
         }
         await createUser(form);
@@ -121,6 +126,7 @@ export default function UsersPage() {
                 <th className="px-6 py-3 text-left font-medium text-text-secondary">Name</th>
                 <th className="px-6 py-3 text-left font-medium text-text-secondary">Email</th>
                 <th className="px-6 py-3 text-left font-medium text-text-secondary">Role</th>
+                <th className="px-6 py-3 text-left font-medium text-text-secondary">Active</th>
                 <th className="px-6 py-3 text-left font-medium text-text-secondary">Act as</th>
                 {isSuperAdmin && <th className="px-6 py-3 text-right font-medium text-text-secondary">Actions</th>}
               </tr>
@@ -149,6 +155,12 @@ export default function UsersPage() {
                       {u.role || u.userrole_name}
                     </span>
                   </td>
+                  <td className="px-6 py-3">
+                    {(u.user_active ?? 1) === 1
+                      ? <span className="rounded-full bg-success-100 px-2.5 py-0.5 text-xs font-medium text-success-700">Yes</span>
+                      : <span className="rounded-full bg-surface border border-border px-2.5 py-0.5 text-xs font-medium text-text-secondary">No</span>
+                    }
+                  </td>
                   <td className="px-6 py-3 text-sm text-text-secondary">{actAs}</td>
                   {isSuperAdmin && (
                     <td className="px-6 py-3" onClick={(e) => e.stopPropagation()}>
@@ -170,6 +182,34 @@ export default function UsersPage() {
       <Modal open={modal} onClose={() => setModal(false)} title={editItem ? 'Edit User' : 'New User'} maxWidth="max-w-md">
         <form onSubmit={handleSave} className="space-y-4">
           {error && <div className="rounded-lg bg-error-50 px-4 py-3 text-sm text-error-600">{error}</div>}
+
+          {/* Active toggle */}
+          <div className="flex items-center justify-between rounded-lg border border-border p-3">
+            <div>
+              <p className="text-sm font-medium text-text-primary">Active user</p>
+              <p className="text-xs text-text-secondary mt-0.5">
+                {form.user_active === 1
+                  ? 'Can log in to the platform'
+                  : 'Cannot log in — assigned as guest for data tracking only'}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setForm(f => ({
+                ...f,
+                user_active: f.user_active === 1 ? 0 : 1,
+                ...(f.user_active === 1 ? { userrole_id: 4, password: '' } : { userrole_id: 3 })
+              }))}
+              className={`relative inline-flex h-6 w-11 shrink-0 rounded-full border-2 border-transparent transition-colors focus:outline-none ${
+                form.user_active === 1 ? 'bg-primary-500' : 'bg-border'
+              }`}
+            >
+              <span className={`inline-block h-5 w-5 rounded-full bg-white shadow transition-transform ${
+                form.user_active === 1 ? 'translate-x-5' : 'translate-x-0'
+              }`} />
+            </button>
+          </div>
+
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="mb-1 block text-sm font-medium">First Name</label>
@@ -181,19 +221,31 @@ export default function UsersPage() {
             </div>
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium">Email</label>
+            <label className="mb-1 block text-sm font-medium">Email <span className="text-error-500">*</span></label>
             <input type="email" value={form.user_email} onChange={e => setForm(f => ({ ...f, user_email: e.target.value }))} className="w-full rounded-lg border border-border-dark bg-surface px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 appearance-none" required />
           </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium">Password {editItem && '(leave blank to keep)'}</label>
-            <input type="password" value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} className="w-full rounded-lg border border-border-dark bg-surface px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 appearance-none" {...(!editItem && { required: true })} />
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium">Role</label>
-            <select value={form.userrole_id} onChange={e => setForm(f => ({ ...f, userrole_id: parseInt(e.target.value) }))} className="w-full rounded-lg border border-border-dark bg-surface px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 appearance-none">
-              {ROLES.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
-            </select>
-          </div>
+          {form.user_active === 1 && (
+            <>
+              <div>
+                <label className="mb-1 block text-sm font-medium">
+                  Password {editItem && <span className="text-text-secondary font-normal">(leave blank to keep)</span>}
+                  {!editItem && <span className="text-error-500"> *</span>}
+                </label>
+                <input type="password" value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} className="w-full rounded-lg border border-border-dark bg-surface px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 appearance-none" />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium">Role</label>
+                <select value={form.userrole_id} onChange={e => setForm(f => ({ ...f, userrole_id: parseInt(e.target.value) }))} className="w-full rounded-lg border border-border-dark bg-surface px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 appearance-none">
+                  {ROLES.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                </select>
+              </div>
+            </>
+          )}
+          {form.user_active === 0 && (
+            <div className="rounded-lg bg-surface border border-border px-3 py-2 text-xs text-text-secondary">
+              Role is automatically set to <strong>guest</strong> for inactive users.
+            </div>
+          )}
           <div className="flex justify-end gap-3">
             <button type="button" onClick={() => setModal(false)} className="rounded-lg border border-border-dark px-4 py-2 text-sm font-medium hover:bg-surface transition-colors">Cancel</button>
             <button type="submit" className="rounded-lg bg-primary-500 px-4 py-2 text-sm font-medium text-white hover:bg-primary-600 transition-colors">{editItem ? 'Update' : 'Create'}</button>

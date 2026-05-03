@@ -12,6 +12,8 @@ async function login(db, email, password) {
   );
 
   if (!user) return null;
+  if (user.user_active === 0) return null; // inactive users cannot log in
+  if (!user.user_password_hash) return null;
 
   const valid = await bcrypt.compare(password, user.user_password_hash);
   if (!valid) return null;

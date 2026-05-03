@@ -303,3 +303,18 @@ Alternative rejected: Passing data as deps to `useCallback` would cause `onEachF
 **Date:** 2026-04-23
 **Decision:** Linear RGB interpolation between two endpoints: base gray (no projects), light-blue → dark-blue (1 to max projects). Light mode: #dbeafe→#1e3a8a. Dark mode: #93c5fd→#1d4ed8. The ratio is `(count-1)/(max-1)` so the lightest blue always maps to exactly 1 project and the darkest to the country with the most projects.
 **Status:** Implemented (ProjectsMap.jsx countColor()).
+
+## Purchase Orders — standalone route, not nested under budgets
+**Date:** 2026-05-03
+**Decision:** The list-all POs endpoint lives at `GET /api/purchase-orders` (new `purchaseOrderRoutes.js`), not nested under `/api/budgets/:id/purchase-orders`. The existing budget-scoped routes are kept for the budget detail page. The new route returns aggregated data (item count, total value, project name) in one query, which would be impossible with the budget-scoped pattern without N+1 calls.
+**Status:** Implemented.
+
+## User active flag — enforce at service layer, not just frontend
+**Date:** 2026-05-03
+**Decision:** Inactive users (`user_active=0`) are enforced at three backend layers: (1) `userService.create/update` hard-sets `userrole_id=4` and `user_password_hash=NULL`; (2) `userRoutes` skips password/role validation; (3) `authService.login` blocks login before bcrypt compare. Frontend shows/hides fields as UX sugar only.
+**Status:** Implemented (migration 031).
+
+## User avatar seed — stored per user, falls back to email
+**Date:** 2026-05-03
+**Decision:** Each user can pick a custom DiceBear seed stored as `user_avatar_seed TEXT` on the users table. When null, the app falls back to `user_email` as the seed (existing behavior). This preserves backwards compatibility while allowing personalisation. The seed vocabulary is a fixed list of 24 NATO-alphabet-inspired words to keep the picker UI small and predictable.
+**Status:** Implemented (migration 030).

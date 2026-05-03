@@ -376,3 +376,31 @@
   - [x] settings/index.jsx: AI Agent card (admin+) - Ollama URL, model dropdown, API key (password input for cloud)
   - [x] App.jsx: /agent route; Sidebar.jsx: AI Assistant nav item
   - [x] 851 backend tests passing, frontend builds cleanly
+- [x] User avatar picker (Settings page) <!-- id: 296 -->
+  - [x] Migration 030: user_avatar_seed TEXT column on users table
+  - [x] authService: updateAvatarSeed(); getUserById includes user_avatar_seed
+  - [x] authRoutes: PUT /api/auth/me/avatar endpoint
+  - [x] authApi: updateAvatar(seed); useAuth: refreshUser()
+  - [x] Header: uses user_avatar_seed || user_email as DiceBear seed
+  - [x] settings/index.jsx: hover overlay → inline 24-seed picker grid; reset option
+- [x] Purchase Orders page <!-- id: 297 -->
+  - [x] purchaseOrderService: getAllPaginated() with vendor/project/item/currency JOINs, sortBy/sortDir support
+  - [x] purchaseOrderRoutes.js (new): GET /api/purchase-orders with page/limit/search/sortBy/sortDir
+  - [x] routes/index.js: registered /purchase-orders
+  - [x] projectsApi: getAllPurchaseOrders(params)
+  - [x] pages/purchaseOrders/index.jsx: sortable 7-column table, server-side pagination/search, vendor+project as links
+  - [x] Sorted by purchaseorder_start_date DESC (create_date was identical for bulk-imported records)
+  - [x] Sidebar: Purchase Orders nav item with ShoppingCart icon; App.jsx: /purchase-orders route
+- [x] User active flag <!-- id: 298 -->
+  - [x] Migration 031: user_active INTEGER NOT NULL DEFAULT 1
+  - [x] userService.create: inactive → force guest role, no password hash
+  - [x] userService.update: deactivating forces guest + clears password hash
+  - [x] userRoutes POST /: password + role only required for active users
+  - [x] authService.login: blocks login if user_active=0 or no password hash
+  - [x] users/index.jsx: Active toggle in modal + Active column in table; password/role hidden for inactive
+  - [x] projects/form.jsx: same active toggle in inline New User modal
+- [x] AI Agent SQL response fix <!-- id: 299 -->
+  - [x] agentService: looksLikeSql / extractSql / runQueryDirectly helpers
+  - [x] Chat loop: auto-executes raw SQL responses and re-prompts for human-readable summary
+  - [x] System prompt: explicit rule to never return SQL in reply text
+  - [x] Iteration cap raised 6→8 to accommodate extra round-trip
