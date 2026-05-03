@@ -39,7 +39,7 @@ function createRoutes(db, auditDb) {
   router.use('/tec-stacks', createTecStackRoutes(db));
   router.use('/healthstatus-types', createHealthStatusTypeRoutes(db));
   router.use('/project-roles', createProjectRoleRoutes(db, auditDb));
-  router.use('/agent', createAgentRoutes(db));
+  router.use('/agent', createAgentRoutes(db, auditDb));
 
   return router;
 }

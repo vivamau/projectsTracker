@@ -19,6 +19,22 @@ const AUDIT_SCHEMA = `
   CREATE INDEX IF NOT EXISTS idx_audit_logs_action ON audit_logs(action);
   CREATE INDEX IF NOT EXISTS idx_audit_logs_entity_type ON audit_logs(entity_type);
   CREATE INDEX IF NOT EXISTS idx_audit_logs_user_email ON audit_logs(user_email);
+
+  CREATE TABLE IF NOT EXISTS ai_token_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER,
+    user_email TEXT,
+    session_id TEXT NOT NULL,
+    model TEXT NOT NULL,
+    prompt_tokens INTEGER NOT NULL DEFAULT 0,
+    completion_tokens INTEGER NOT NULL DEFAULT 0,
+    message_preview TEXT,
+    created_at INTEGER NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS idx_ai_token_logs_session_id ON ai_token_logs(session_id);
+  CREATE INDEX IF NOT EXISTS idx_ai_token_logs_created_at ON ai_token_logs(created_at);
+  CREATE INDEX IF NOT EXISTS idx_ai_token_logs_user_email ON ai_token_logs(user_email);
+  CREATE INDEX IF NOT EXISTS idx_ai_token_logs_model ON ai_token_logs(model);
 `;
 
 function getAuditDb() {

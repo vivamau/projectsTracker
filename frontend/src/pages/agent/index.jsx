@@ -84,11 +84,17 @@ function TypingIndicator() {
   );
 }
 
+function newSessionId() {
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 9)}`;
+}
+
 export default function AgentPage() {
   const { role } = useAuth();
   const [history, setHistory] = useState([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [sessionId] = useState(newSessionId);
+  const sessionIdRef = useRef(sessionId);
   const bottomRef = useRef(null);
   const inputRef = useRef(null);
 
@@ -106,7 +112,7 @@ export default function AgentPage() {
     setLoading(true);
 
     try {
-      const res = await sendChatMessage(msg, history.filter(m => m.role !== 'error'));
+      const res = await sendChatMessage(msg, history.filter(m => m.role !== 'error'), sessionIdRef.current);
       setHistory(h => [...h, res.data.data]);
     } catch (err) {
       const detail = err.response?.data?.error || err.message || 'Something went wrong';
@@ -125,6 +131,7 @@ export default function AgentPage() {
   };
 
   const clear = () => {
+    sessionIdRef.current = newSessionId();
     setHistory([]);
     inputRef.current?.focus();
   };

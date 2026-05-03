@@ -143,13 +143,24 @@ async function chat(db, { message, history = [] }) {
     { role: 'user', content: message },
   ];
 
+  let totalPromptTokens = 0;
+  let totalCompletionTokens = 0;
+
   const MAX_ITERATIONS = 6;
   for (let i = 0; i < MAX_ITERATIONS; i++) {
     const response = await callOllama(ollama_url, ollama_model, messages, ollamaTools, ollama_api_key);
+    totalPromptTokens     += response.prompt_eval_count || 0;
+    totalCompletionTokens += response.eval_count        || 0;
     const assistantMsg = response.message;
 
     if (!assistantMsg.tool_calls || assistantMsg.tool_calls.length === 0) {
-      return { role: 'assistant', content: assistantMsg.content };
+      return {
+        role: 'assistant',
+        content: assistantMsg.content,
+        model: ollama_model,
+        promptTokens: totalPromptTokens,
+        completionTokens: totalCompletionTokens,
+      };
     }
 
     messages.push(assistantMsg);
@@ -174,7 +185,15 @@ async function chat(db, { message, history = [] }) {
 
   // Max iterations: get a final response with no tools
   const final = await callOllama(ollama_url, ollama_model, messages, [], ollama_api_key);
-  return { role: 'assistant', content: final.message.content };
+  totalPromptTokens     += final.prompt_eval_count || 0;
+  totalCompletionTokens += final.eval_count        || 0;
+  return {
+    role: 'assistant',
+    content: final.message.content,
+    model: ollama_model,
+    promptTokens: totalPromptTokens,
+    completionTokens: totalCompletionTokens,
+  };
 }
 
 module.exports = { getSettings, updateSettings, getOllamaModels, chat };
