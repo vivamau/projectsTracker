@@ -203,7 +203,7 @@ export default function AgentPage() {
             rows={1}
             disabled={loading}
             className="w-full resize-none rounded-xl border border-border bg-surface-card px-4 py-3 pr-12 text-sm text-text-primary placeholder-text-secondary outline-none focus:border-primary-500 transition-colors disabled:opacity-60"
-            style={{ maxHeight: '120px', overflowY: 'auto' }}
+            style={{ maxHeight: '120px', overflowY: 'hidden' }}
             onInput={e => {
               e.target.style.height = 'auto';
               e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px';
