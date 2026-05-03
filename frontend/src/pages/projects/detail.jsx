@@ -23,6 +23,7 @@ import UserAvatar from '../../commoncomponents/UserAvatar';
 import MilestoneTimeline from './components/MilestoneTimeline';
 import ActivitiesChart from './components/ActivitiesChart';
 import Map from './components/Map';
+import TasksCard from './components/TasksCard';
 
 export default function ProjectDetailPage() {
   const { id } = useParams();
@@ -446,6 +447,13 @@ export default function ProjectDetailPage() {
               </div>
             )}
           </Card>
+
+          {/* Tasks */}
+          <TasksCard
+            projectId={id}
+            teamMembers={project?.role_assignments || []}
+            canEdit={canEditProject}
+          />
         </div>
 
         {/* Sidebar */}
