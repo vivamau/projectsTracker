@@ -28,6 +28,8 @@ Key tables:
 
 Rules:
 - Only execute SELECT queries — never INSERT, UPDATE, DELETE, or DROP
+- ALWAYS use the execute_sql tool to run queries — NEVER write SQL in your reply text
+- After receiving tool results, respond ONLY with a human-readable answer in plain language
 - Be concise and format numbers clearly
 - When listing items, use clean formatting
 - If a query fails, explain what went wrong and try a simpler approach`;
@@ -121,6 +123,27 @@ async function callOllama(baseUrl, model, messages, tools, apiKey = '') {
   return res.json();
 }
 
+function looksLikeSql(text) {
+  if (!text) return false;
+  const stripped = text.replace(/```[\w]*\n?/g, '').trim();
+  return /^\s*(SELECT|WITH\s+\w)/i.test(stripped);
+}
+
+function extractSql(text) {
+  // Strip markdown code fences if present
+  const fenced = text.match(/```(?:sql)?\s*([\s\S]*?)```/i);
+  if (fenced) return fenced[1].trim();
+  return text.trim();
+}
+
+async function runQueryDirectly(db, sql) {
+  const { getAll } = require('../config/database');
+  const cleanSql = sql.trim().replace(/;+$/, '');
+  if (!/^\s*SELECT\b/i.test(cleanSql)) throw new Error('Only SELECT queries are permitted');
+  const rows = await getAll(db, cleanSql, []);
+  return JSON.stringify(rows, null, 2);
+}
+
 async function chat(db, { message, history = [] }) {
   const settings = await getSettings(db);
   const { ollama_url, ollama_model, ollama_api_key } = settings;
@@ -146,14 +169,33 @@ async function chat(db, { message, history = [] }) {
   let totalPromptTokens = 0;
   let totalCompletionTokens = 0;
 
-  const MAX_ITERATIONS = 6;
+  const MAX_ITERATIONS = 8;
   for (let i = 0; i < MAX_ITERATIONS; i++) {
     const response = await callOllama(ollama_url, ollama_model, messages, ollamaTools, ollama_api_key);
     totalPromptTokens     += response.prompt_eval_count || 0;
     totalCompletionTokens += response.eval_count        || 0;
     const assistantMsg = response.message;
 
+    // No tool calls — check if the reply is raw SQL instead of a human answer
     if (!assistantMsg.tool_calls || assistantMsg.tool_calls.length === 0) {
+      if (looksLikeSql(assistantMsg.content)) {
+        // Execute the SQL the model returned as text, then ask for interpretation
+        const sql = extractSql(assistantMsg.content);
+        let queryResult;
+        try {
+          queryResult = await runQueryDirectly(db, sql);
+        } catch (err) {
+          queryResult = `Error running query: ${err.message}`;
+        }
+        messages.push({ role: 'assistant', content: assistantMsg.content });
+        messages.push({ role: 'tool', content: queryResult });
+        messages.push({
+          role: 'user',
+          content: 'Please summarise these query results in plain language. Do not show any SQL.',
+        });
+        continue;
+      }
+
       return {
         role: 'assistant',
         content: assistantMsg.content,

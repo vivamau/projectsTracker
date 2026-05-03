@@ -84,7 +84,7 @@ export default function Header({ onMenuClick }) {
             onClick={() => setMenuOpen(!menuOpen)}
             className="flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-surface-hover transition-colors"
           >
-            <UserAvatar seed={user?.user_email} name={user?.user_name} size={32} />
+            <UserAvatar seed={user?.user_avatar_seed || user?.user_email} name={user?.user_name} size={32} />
             <div className="hidden text-left sm:block">
               <p className="text-sm font-medium leading-tight">
                 {user?.user_name} {user?.user_lastname}

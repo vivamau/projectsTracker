@@ -1,6 +1,6 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const { getOne } = require('../config/database');
+const { getOne, runQuery } = require('../config/database');
 
 async function login(db, email, password) {
   const user = await getOne(db,
@@ -30,7 +30,7 @@ async function getUserById(db, id) {
   const user = await getOne(db,
     `SELECT u.id, u.user_email, u.user_name, u.user_lastname, u.user_middlename,
             u.user_create_date, u.user_update_date, u.user_lastlogin_date,
-            u.userrole_id, ur.userrole_name as role
+            u.userrole_id, ur.userrole_name as role, u.user_avatar_seed
      FROM users u
      JOIN userroles ur ON u.userrole_id = ur.id
      WHERE u.id = ? AND (u.user_is_deleted = 0 OR u.user_is_deleted IS NULL)`,
@@ -40,4 +40,8 @@ async function getUserById(db, id) {
   return user || null;
 }
 
-module.exports = { login, getUserById };
+async function updateAvatarSeed(db, id, seed) {
+  await runQuery(db, 'UPDATE users SET user_avatar_seed = ? WHERE id = ?', [seed || null, id]);
+}
+
+module.exports = { login, getUserById, updateAvatarSeed };

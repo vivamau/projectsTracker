@@ -11,9 +11,9 @@ import {
   DollarSign,
   FileText,
   ChevronLeft,
-  Shield,
   Globe,
-  Bot
+  Bot,
+  ShoppingCart
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 
@@ -25,10 +25,10 @@ const navItems = [
   { label: 'Delivery Paths', path: '/delivery-paths', icon: Route },
   { label: 'Countries', path: '/countries', icon: Globe },
   { label: 'Budgets', path: '/budgets', icon: DollarSign },
+  { label: 'Purchase Orders', path: '/purchase-orders', icon: ShoppingCart },
   { label: 'AI Assistant', path: '/agent', icon: Bot },
   { label: 'Vendors', path: '/vendors', icon: Store },
   { label: 'Users', path: '/users', icon: Users, roles: ['superadmin', 'admin'] },
-  { label: 'Project Roles', path: '/project-roles', icon: Shield, roles: ['superadmin'] },
   { label: 'Logs', path: '/logs', icon: FileText, roles: ['superadmin'] },
   { label: 'Settings', path: '/settings', icon: Settings },
 ];

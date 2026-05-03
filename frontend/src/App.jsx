@@ -22,8 +22,8 @@ import UserDetailPage from './pages/users/detail';
 import CountriesPage from './pages/countries/index';
 import CountryDetailPage from './pages/countries/detail';
 import AgentPage from './pages/agent/index';
+import PurchaseOrdersPage from './pages/purchaseOrders/index';
 import LogsPage from './pages/logs/index';
-import ProjectRolesPage from './pages/projectRoles/index';
 import SettingsPage from './pages/settings/index';
 
 const router = createBrowserRouter(
@@ -59,7 +59,7 @@ const router = createBrowserRouter(
         <Route path="/users" element={<UsersPage />} />
         <Route path="/users/:id" element={<UserDetailPage />} />
         <Route path="/agent" element={<AgentPage />} />
-        <Route path="/project-roles" element={<ProjectRolesPage />} />
+        <Route path="/purchase-orders" element={<PurchaseOrdersPage />} />
         <Route path="/logs" element={<LogsPage />} />
         <Route path="/settings" element={<SettingsPage />} />
       </Route>

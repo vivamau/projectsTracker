@@ -6,7 +6,7 @@ import 'leaflet/dist/leaflet.css';
 import { MapPin, ExternalLink } from 'lucide-react';
 import { useTheme } from '../../../hooks/useTheme';
 
-const geoUrl = import.meta.env.VITE_API_URL + '/world';
+const geoUrl = '/world';
 
 const COLORS = {
   light: {

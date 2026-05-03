@@ -5,7 +5,7 @@ import 'leaflet/dist/leaflet.css';
 import { useTheme } from '../../../hooks/useTheme';
 import { getCountriesWithProjects } from '../../../api/entitiesApi';
 
-const geoUrl = import.meta.env.VITE_API_URL + '/world';
+const geoUrl = '/world';
 
 const SEA = { light: '#a8d4eb', dark: '#1a1a2e' };
 const BASE = { light: '#e5e7eb', dark: '#2f2f50' };

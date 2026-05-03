@@ -78,6 +78,17 @@ function createAuthRoutes(db, auditDb) {
     }
   });
 
+  router.put('/me/avatar', authenticate, async (req, res) => {
+    try {
+      const { seed } = req.body;
+      await authService.updateAvatarSeed(db, req.user.id, seed || null);
+      const user = await authService.getUserById(db, req.user.id);
+      return success(res, { user });
+    } catch (err) {
+      return error(res, 'Failed to update avatar');
+    }
+  });
+
   return router;
 }
 

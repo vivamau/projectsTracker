@@ -8,3 +8,6 @@ export const logout = () =>
 
 export const getMe = () =>
   client.get('/auth/me');
+
+export const updateAvatar = (seed) =>
+  client.put('/auth/me/avatar', { seed });

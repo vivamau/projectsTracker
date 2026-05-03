@@ -12,6 +12,7 @@ import {
 } from '../../api/projectsApi';
 import { getCurrencies, getHealthStatusTypes } from '../../api/entitiesApi';
 import { useAuth } from '../../hooks/useAuth';
+import { useTheme } from '../../hooks/useTheme';
 import Card from '../../commoncomponents/Card';
 import StatusBadge from '../../commoncomponents/StatusBadge';
 import ProjectStatusBadge from '../../commoncomponents/ProjectStatusBadge';
@@ -27,6 +28,8 @@ export default function ProjectDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { isAdmin, user } = useAuth();
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
   const [project, setProject] = useState(null);
   // true for admin/superadmin AND for contributors who are PM or SA on this project
   const canEditProject = isAdmin || (
@@ -430,7 +433,10 @@ export default function ProjectDetailPage() {
                         {a.vendor_name}
                       </p>
                       {a.pvr_percentage < 100 && (
-                        <span className="mt-0.5 inline-block rounded-full bg-primary-100 px-1.5 py-0.5 text-xs text-primary-700 dark:bg-primary-900/30 dark:text-primary-300">
+                        <span className="mt-0.5 inline-block rounded-full px-1.5 py-0.5 text-xs"
+                          style={isDark
+                            ? { background: 'rgba(6,29,102,0.35)', color: '#4d94ff' }
+                            : { background: '#b3d1ff', color: '#0a338c' }}>
                           {a.pvr_percentage}%
                         </span>
                       )}
@@ -500,11 +506,11 @@ export default function ProjectDetailPage() {
           {/* Tech Stack */}
           {(() => {
             const typeConfig = {
-              fe:   { label: 'Frontend', color: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300' },
-              be:   { label: 'Backend',  color: 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300' },
-              db:   { label: 'Database', color: 'bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-300' },
-              mob:  { label: 'Mobile',   color: 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300' },
-              none: { label: 'Other',    color: 'bg-surface text-text-secondary border border-border' },
+              fe:   { label: 'Frontend', tagStyle: isDark ? { background: 'rgba(30,58,138,0.25)',  color: '#93c5fd' } : { background: '#dbeafe', color: '#1e40af' } },
+              be:   { label: 'Backend',  tagStyle: isDark ? { background: 'rgba(74,4,78,0.25)',   color: '#d8b4fe' } : { background: '#f3e8ff', color: '#6b21a8' } },
+              db:   { label: 'Database', tagStyle: isDark ? { background: 'rgba(19,78,74,0.25)',  color: '#5eead4' } : { background: '#ccfbf1', color: '#115e59' } },
+              mob:  { label: 'Mobile',   tagStyle: isDark ? { background: 'rgba(124,45,18,0.25)', color: '#fdba74' } : { background: '#ffedd5', color: '#9a3412' } },
+              none: { label: 'Other',    tagStyle: null },
             };
             const canEdit = canEditProject;
             const stacks = project.tec_stacks || [];
@@ -536,13 +542,15 @@ export default function ProjectDetailPage() {
                 ) : (
                   <div className="space-y-3">
                     {Object.entries(groups).map(([type, items]) => {
-                      const { label, color } = typeConfig[type] || typeConfig.none;
+                      const { label, tagStyle } = typeConfig[type] || typeConfig.none;
                       return (
                         <div key={type}>
                           <p className="mb-1.5 text-xs font-semibold uppercase text-text-secondary">{label}</p>
                           <div className="flex flex-wrap gap-2">
                             {items.map(ts => (
-                              <span key={ts.id} className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${color}`}>
+                              <span key={ts.id}
+                                className="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium border border-border"
+                                style={tagStyle || undefined}>
                                 {ts.tec_stack_name}
                               </span>
                             ))}

@@ -154,3 +154,6 @@ export const getTecStacks = () =>
 export const syncTecStacks = (projectId, tec_stack_ids) =>
   client.put(`/projects/${projectId}/tec-stacks`, { tec_stack_ids });
 
+export const getAllPurchaseOrders = (params) =>
+  client.get('/purchase-orders', { params });
+

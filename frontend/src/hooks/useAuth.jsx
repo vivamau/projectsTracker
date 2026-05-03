@@ -25,12 +25,17 @@ export function AuthProvider({ children }) {
     setUser(null);
   }, []);
 
+  const refreshUser = useCallback(async () => {
+    const res = await authApi.getMe();
+    setUser(res.data.data.user);
+  }, []);
+
   const isAuthenticated = !!user;
   const role = user?.role || null;
   const isAdmin = role === 'superadmin' || role === 'admin';
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout, isAuthenticated, role, isAdmin }}>
+    <AuthContext.Provider value={{ user, loading, login, logout, refreshUser, isAuthenticated, role, isAdmin }}>
       {children}
     </AuthContext.Provider>
   );

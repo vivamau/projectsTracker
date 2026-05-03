@@ -18,6 +18,7 @@ const createTecStackRoutes = require('./tecStackRoutes');
 const createHealthStatusTypeRoutes = require('./healthStatusTypeRoutes');
 const createProjectRoleRoutes = require('./projectRoleRoutes');
 const createAgentRoutes = require('./agentRoutes');
+const createPurchaseOrderRoutes = require('./purchaseOrderRoutes');
 
 function createRoutes(db, auditDb) {
   const router = express.Router();
@@ -40,6 +41,7 @@ function createRoutes(db, auditDb) {
   router.use('/healthstatus-types', createHealthStatusTypeRoutes(db));
   router.use('/project-roles', createProjectRoleRoutes(db, auditDb));
   router.use('/agent', createAgentRoutes(db, auditDb));
+  router.use('/purchase-orders', createPurchaseOrderRoutes(db));
 
   return router;
 }
