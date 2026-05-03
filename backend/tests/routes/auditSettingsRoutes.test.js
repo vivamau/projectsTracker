@@ -235,3 +235,40 @@ describe('POST /api/audit-logs/cleanup', () => {
     expect(res.status).toBe(403);
   });
 });
+
+describe('Audit log route error handling', () => {
+  afterEach(() => jest.restoreAllMocks());
+
+  it('GET /api/audit-logs/filters returns 500 on service error', async () => {
+    jest.spyOn(auditLogService, 'getActionTypes').mockRejectedValueOnce(new Error('DB error'));
+    const res = await request(app)
+      .get('/api/audit-logs/filters')
+      .set('Cookie', ['token=' + superadminToken()]);
+    expect(res.status).toBe(500);
+  });
+
+  it('GET /api/audit-logs/stats returns 500 on service error', async () => {
+    jest.spyOn(auditLogService, 'getStats').mockRejectedValueOnce(new Error('DB error'));
+    const res = await request(app)
+      .get('/api/audit-logs/stats')
+      .set('Cookie', ['token=' + superadminToken()]);
+    expect(res.status).toBe(500);
+  });
+
+  it('POST /api/audit-logs/cleanup returns 500 on service error', async () => {
+    jest.spyOn(auditLogService, 'cleanup').mockRejectedValueOnce(new Error('DB error'));
+    const res = await request(app)
+      .post('/api/audit-logs/cleanup')
+      .set('Cookie', ['token=' + superadminToken()])
+      .send({ retentionDays: 90 });
+    expect(res.status).toBe(500);
+  });
+
+  it('GET /api/audit-logs returns 500 on service error', async () => {
+    jest.spyOn(auditLogService, 'getLogs').mockRejectedValueOnce(new Error('DB error'));
+    const res = await request(app)
+      .get('/api/audit-logs')
+      .set('Cookie', ['token=' + superadminToken()]);
+    expect(res.status).toBe(500);
+  });
+});

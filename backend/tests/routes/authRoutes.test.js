@@ -144,3 +144,34 @@ describe('GET /api/auth/me', () => {
     expect(res.status).toBe(401);
   });
 });
+
+describe('PUT /api/auth/me/avatar', () => {
+  it('should update avatar seed when authenticated', async () => {
+    const res = await request(app)
+      .put('/api/auth/me/avatar')
+      .set('Cookie', ['token=' + superadminToken()])
+      .send({ seed: 'alpha' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.data.user).toBeDefined();
+  });
+
+  it('should clear avatar seed when seed is omitted', async () => {
+    const res = await request(app)
+      .put('/api/auth/me/avatar')
+      .set('Cookie', ['token=' + superadminToken()])
+      .send({});
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+  });
+
+  it('should return 401 when not authenticated', async () => {
+    const res = await request(app)
+      .put('/api/auth/me/avatar')
+      .send({ seed: 'beta' });
+
+    expect(res.status).toBe(401);
+  });
+});

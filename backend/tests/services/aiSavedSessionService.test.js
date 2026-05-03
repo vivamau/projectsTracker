@@ -51,6 +51,19 @@ describe('saveSession', () => {
     expect(session.content).toContain('**Assistant:** There are 12 active projects.');
   });
 
+  it('ignores messages with unrecognized roles in markdown', async () => {
+    const msgs = [
+      { role: 'user', content: 'Hello' },
+      { role: 'tool', content: 'tool result' },
+      { role: 'assistant', content: 'Hi there' },
+    ];
+    const result = await saveSession(db, { userId: 99, sessionId: 'sid-tool', title: 'Tool test', messages: msgs });
+    const session = await getSession(db, result.id, 99);
+    expect(session.content).not.toContain('tool result');
+    expect(session.content).toContain('**You:** Hello');
+    expect(session.content).toContain('**Assistant:** Hi there');
+  });
+
   it('excludes error messages from markdown and count', async () => {
     const msgs = [...MESSAGES, { role: 'error', content: 'Something failed' }];
     const result = await saveSession(db, { userId: 3, sessionId: 'sid-3', title: 'With error', messages: msgs });

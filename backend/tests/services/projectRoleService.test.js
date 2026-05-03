@@ -74,6 +74,26 @@ describe('projectRoleService', () => {
       expect(role.role_name).toBe('New Name');
       expect(role.role_description).toBe('Updated desc');
     });
+
+    it('should update only role_name', async () => {
+      const created = await projectRoleService.create(db, { role_name: 'OnlyNameOld' });
+      await projectRoleService.update(db, created.lastID, { role_name: 'OnlyNameNew' });
+      const role = await projectRoleService.getById(db, created.lastID);
+      expect(role.role_name).toBe('OnlyNameNew');
+    });
+
+    it('should update only role_description', async () => {
+      const created = await projectRoleService.create(db, { role_name: 'DescOnly', role_description: 'old' });
+      await projectRoleService.update(db, created.lastID, { role_description: 'new desc' });
+      const role = await projectRoleService.getById(db, created.lastID);
+      expect(role.role_description).toBe('new desc');
+    });
+
+    it('should return 0 changes when no fields provided', async () => {
+      const created = await projectRoleService.create(db, { role_name: 'NoChange' });
+      const result = await projectRoleService.update(db, created.lastID, {});
+      expect(result.changes).toBe(0);
+    });
   });
 
   describe('softDelete', () => {

@@ -74,5 +74,14 @@ When adding a user-active flag, enforce the constraint in the service layer (not
 ## AI agent LLMs sometimes return SQL as plain text
 Even with tool-calling set up, some models output the SQL query as plain text instead of invoking the execute_sql tool. Fix with two layers: (1) explicit system prompt rule "NEVER write SQL in reply text", (2) a post-response interceptor that detects SQL-shaped responses, runs the query directly, and re-prompts for a plain-language summary.
 
+## agentService.js requires mock-based tests for exported functions
+The `chat` function requires a live Ollama instance. Test only the exported helper functions (`getSettings`, `updateSettings`, `getOllamaModels`, `looksLikeSql`, `extractSql`, `stripSqlFromResponse`) which use the DB or mocked `global.fetch`. Do not attempt to test `chat` without a real Ollama server.
+
+## AI agent SQL leak: model outputs explanation+SQL before calling tool
+Models like Mistral/Llama often output multi-paragraph responses that START with explanation text and EMBED the SQL in the middle — not at the start of the content. The original `looksLikeSql` checked `^SELECT` (start of text only) and missed these. Fix: use `(?:^|\n)\s*(SELECT|WITH)` to match SQL on any line. Also add `stripSqlFromResponse` as a last-resort sanitizer that removes any SQL left in the final answer before returning to the user.
+
+## Catch blocks in route handlers require jest.spyOn to cover
+Error catch blocks in Express route handlers (returning 500) can only be triggered via `jest.spyOn(service, 'method').mockRejectedValueOnce(new Error(...))`. Always call `jest.restoreAllMocks()` in `afterEach` to avoid contaminating subsequent tests.
+
 ## react-leaflet onEachFeature runs outside React's render cycle
 `onEachFeature` is called by Leaflet when building layers, not during a React render. Hooks like `useNavigate` cannot be called inside it. Pattern: capture navigate and data in refs (`navigateRef`, `dataRef`), keep `onEachFeature` in a `useCallback([])` (empty deps = stable reference), and read refs at call time. Re-key the GeoJSON component when data changes to force a remount that picks up the latest ref values.

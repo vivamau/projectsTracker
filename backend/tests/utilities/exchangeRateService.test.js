@@ -45,6 +45,28 @@ describe('exchangeRateService', () => {
       expect(rates.USD).toBe(1);
       expect(typeof rates).toBe('object');
     });
+
+    it('should throw and return fallback when response is not ok', async () => {
+      global.fetch = jest.fn().mockResolvedValue({ ok: false, status: 503 });
+      const rates = await exchangeRateService.getRates();
+      expect(rates.USD).toBe(1);
+    });
+
+    it('should return cached rates when fetch fails after prior success', async () => {
+      mockFetch();
+      const firstRates = await exchangeRateService.getRates();
+      exchangeRateService.expireCache();
+      global.fetch = jest.fn().mockRejectedValue(new Error('Network error'));
+      const secondRates = await exchangeRateService.getRates();
+      expect(secondRates).toEqual(firstRates);
+    });
+  });
+
+  describe('expireCache', () => {
+    it('should be a no-op when cache is null', () => {
+      expect(() => exchangeRateService.expireCache()).not.toThrow();
+      expect(exchangeRateService.getLastFetchedAt()).toBeNull();
+    });
   });
 
   describe('getLastFetchedAt', () => {
@@ -83,6 +105,14 @@ describe('exchangeRateService', () => {
     it('should return 0 for null/undefined amount', () => {
       expect(exchangeRateService.convertToUSD(null, 'EUR', { USD: 1, EUR: 0.92 })).toBe(0);
       expect(exchangeRateService.convertToUSD(undefined, 'EUR', { USD: 1, EUR: 0.92 })).toBe(0);
+    });
+
+    it('should return amount unchanged when currencyCode is null', () => {
+      expect(exchangeRateService.convertToUSD(500, null, { USD: 1 })).toBe(500);
+    });
+
+    it('should return amount unchanged when currencyCode is empty string', () => {
+      expect(exchangeRateService.convertToUSD(500, '', { USD: 1 })).toBe(500);
     });
   });
 });

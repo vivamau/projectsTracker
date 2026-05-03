@@ -29,6 +29,8 @@ Key tables:
 Rules:
 - Only execute SELECT queries — never INSERT, UPDATE, DELETE, or DROP
 - ALWAYS use the execute_sql tool to run queries — NEVER write SQL in your reply text
+- NEVER include SQL statements, code blocks, or query syntax in your text responses
+- Do NOT explain what query you are about to run — just run it using the tool
 - After receiving tool results, respond ONLY with a human-readable answer in plain language
 - Be concise and format numbers clearly
 - When listing items, use clean formatting
@@ -126,14 +128,43 @@ async function callOllama(baseUrl, model, messages, tools, apiKey = '') {
 function looksLikeSql(text) {
   if (!text) return false;
   const stripped = text.replace(/```[\w]*\n?/g, '').trim();
-  return /^\s*(SELECT|WITH\s+\w)/i.test(stripped);
+  // Detect SELECT/WITH at the start of the text OR anywhere on a new line
+  return /(?:^|\n)\s*(SELECT\b|WITH\s+\w)/im.test(stripped);
 }
 
 function extractSql(text) {
-  // Strip markdown code fences if present
+  // 1. Try fenced code block first
   const fenced = text.match(/```(?:sql)?\s*([\s\S]*?)```/i);
   if (fenced) return fenced[1].trim();
-  return text.trim();
+
+  // 2. Find the SQL block that starts with SELECT/WITH and capture until semicolon
+  const lines = text.split('\n');
+  const sqlLines = [];
+  let inSql = false;
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!inSql && /^(SELECT|WITH\s+\w)\b/i.test(trimmed)) {
+      inSql = true;
+    }
+    if (inSql) {
+      sqlLines.push(line);
+      if (trimmed.endsWith(';')) break;
+    }
+  }
+
+  return sqlLines.length > 0 ? sqlLines.join('\n').trim() : text.trim();
+}
+
+function stripSqlFromResponse(text) {
+  if (!text) return text;
+  // Remove fenced SQL code blocks
+  let cleaned = text.replace(/```(?:sql)?\s*([\s\S]*?)```/gi, '');
+  // Remove bare SELECT/WITH blocks (lines starting with SQL keywords up to semicolon)
+  cleaned = cleaned.replace(/^[ \t]*(SELECT|WITH)\b[\s\S]*?;[ \t]*$/gim, '');
+  // Collapse multiple blank lines left by removal
+  cleaned = cleaned.replace(/\n{3,}/g, '\n\n').trim();
+  return cleaned;
 }
 
 async function runQueryDirectly(db, sql) {
@@ -198,7 +229,7 @@ async function chat(db, { message, history = [] }) {
 
       return {
         role: 'assistant',
-        content: assistantMsg.content,
+        content: stripSqlFromResponse(assistantMsg.content),
         model: ollama_model,
         promptTokens: totalPromptTokens,
         completionTokens: totalCompletionTokens,
@@ -231,11 +262,11 @@ async function chat(db, { message, history = [] }) {
   totalCompletionTokens += final.eval_count        || 0;
   return {
     role: 'assistant',
-    content: final.message.content,
+    content: stripSqlFromResponse(final.message.content),
     model: ollama_model,
     promptTokens: totalPromptTokens,
     completionTokens: totalCompletionTokens,
   };
 }
 
-module.exports = { getSettings, updateSettings, getOllamaModels, chat };
+module.exports = { getSettings, updateSettings, getOllamaModels, chat, looksLikeSql, extractSql, stripSqlFromResponse };

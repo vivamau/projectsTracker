@@ -37,6 +37,18 @@ afterAll(async () => {
 });
 
 describe('aiTokenLogService.logTokens', () => {
+  it('defaults promptTokens and completionTokens to 0 when omitted', async () => {
+    await aiTokenLogService.logTokens(auditDb, {
+      sessionId: 'sess-zero-tokens',
+      model: 'llama3.2',
+    });
+    const sessions = await aiTokenLogService.getSessions(auditDb, {});
+    const s = sessions.find(x => x.session_id === 'sess-zero-tokens');
+    expect(s).toBeDefined();
+    expect(Number(s.total_prompt_tokens)).toBe(0);
+    expect(Number(s.total_completion_tokens)).toBe(0);
+  });
+
   it('inserts a token log entry', async () => {
     await aiTokenLogService.logTokens(auditDb, {
       userId: 1,
@@ -86,6 +98,29 @@ describe('aiTokenLogService.getSessions', () => {
     const sessions = await aiTokenLogService.getSessions(auditDb, { model: 'mistral' });
     expect(sessions.every(s => s.model === 'mistral')).toBe(true);
   });
+
+  it('filters by userEmail', async () => {
+    await aiTokenLogService.logTokens(auditDb, { sessionId: 'sess-email', model: 'llama3.2', userEmail: 'filter@example.com', promptTokens: 15, completionTokens: 5 });
+    const sessions = await aiTokenLogService.getSessions(auditDb, { userEmail: 'filter@example.com' });
+    expect(sessions.every(s => s.user_email === 'filter@example.com')).toBe(true);
+  });
+
+  it('filters by dateFrom', async () => {
+    const futureTime = Date.now() + 999999999;
+    const sessions = await aiTokenLogService.getSessions(auditDb, { dateFrom: futureTime });
+    expect(sessions.length).toBe(0);
+  });
+
+  it('filters by dateTo', async () => {
+    const pastTime = Date.now() - 999999999;
+    const sessions = await aiTokenLogService.getSessions(auditDb, { dateTo: pastTime });
+    expect(sessions.length).toBe(0);
+  });
+
+  it('applies pagination', async () => {
+    const sessions = await aiTokenLogService.getSessions(auditDb, {}, { page: 1, limit: 2 });
+    expect(sessions.length).toBeLessThanOrEqual(2);
+  });
 });
 
 describe('aiTokenLogService.getSessionCount', () => {
@@ -93,6 +128,17 @@ describe('aiTokenLogService.getSessionCount', () => {
     const count = await aiTokenLogService.getSessionCount(auditDb, {});
     expect(typeof count).toBe('number');
     expect(count).toBeGreaterThanOrEqual(1);
+  });
+
+  it('filters by userEmail when counting', async () => {
+    const count = await aiTokenLogService.getSessionCount(auditDb, { userEmail: 'filter@example.com' });
+    expect(typeof count).toBe('number');
+    expect(count).toBeGreaterThanOrEqual(1);
+  });
+
+  it('returns 0 when no sessions match filter', async () => {
+    const count = await aiTokenLogService.getSessionCount(auditDb, { userEmail: 'nobody@example.com' });
+    expect(count).toBe(0);
   });
 });
 

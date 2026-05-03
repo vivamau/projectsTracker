@@ -105,10 +105,16 @@ describe('auditLogService.getLogs', () => {
     expect(rows.length).toBe(2);
   });
 
-  it('filters by date range', async () => {
+  it('filters by date range (dateFrom)', async () => {
     const now = Date.now();
     const future = now + 100000;
     const rows = await auditLogService.getLogs(auditDb, { dateFrom: future });
+    expect(rows.length).toBe(0);
+  });
+
+  it('filters by date range (dateTo)', async () => {
+    const past = Date.now() - 100000;
+    const rows = await auditLogService.getLogs(auditDb, { dateTo: past });
     expect(rows.length).toBe(0);
   });
 
@@ -145,6 +151,33 @@ describe('auditLogService.getLogCount', () => {
 
   it('returns filtered count', async () => {
     const count = await auditLogService.getLogCount(auditDb, { action: 'test.1' });
+    expect(count).toBe(1);
+  });
+
+  it('filters count by userEmail', async () => {
+    await auditLog(auditDb, { action: 'test.3', userEmail: 'count@test.com', entityType: 'user' });
+    const count = await auditLogService.getLogCount(auditDb, { userEmail: 'count@test.com' });
+    expect(count).toBe(1);
+  });
+
+  it('filters count by entityType', async () => {
+    const count = await auditLogService.getLogCount(auditDb, { entityType: 'user' });
+    expect(count).toBeGreaterThanOrEqual(1);
+  });
+
+  it('filters count by dateFrom', async () => {
+    const count = await auditLogService.getLogCount(auditDb, { dateFrom: Date.now() + 9999999 });
+    expect(count).toBe(0);
+  });
+
+  it('filters count by dateTo', async () => {
+    const count = await auditLogService.getLogCount(auditDb, { dateTo: Date.now() - 9999999 });
+    expect(count).toBe(0);
+  });
+
+  it('filters count by search', async () => {
+    await auditLog(auditDb, { action: 'test.search', details: { note: 'unique-search-term' } });
+    const count = await auditLogService.getLogCount(auditDb, { search: 'unique-search-term' });
     expect(count).toBe(1);
   });
 });
@@ -233,6 +266,16 @@ describe('auditLogService.cleanup', () => {
     const remaining = await auditLogService.getLogs(auditDb, {});
     expect(remaining.length).toBe(1);
     expect(remaining[0].action).toBe('recent.action');
+  });
+
+  it('returns 0 immediately for retentionDays = "never"', async () => {
+    const deleted = await auditLogService.cleanup(auditDb, 'never');
+    expect(deleted).toBe(0);
+  });
+
+  it('returns 0 immediately for null retentionDays', async () => {
+    const deleted = await auditLogService.cleanup(auditDb, null);
+    expect(deleted).toBe(0);
   });
 
   it('returns 0 when nothing to delete', async () => {

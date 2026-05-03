@@ -95,45 +95,6 @@ const HEALTH_COMMENTS = {
   1: ['Critical blocker identified', 'Significant schedule risk', 'Budget overrun likely', 'Requires escalation']
 };
 
-const VENDOR_CONTRACT_ROLES = ['Consultant', 'Senior Consultant', 'Manager', 'Senior Manager', 'Architect', 'Solution Architect', 'Developer', 'Senior Developer', 'QA Lead', 'Project Manager', 'Business Analyst'];
-
-const VENDOR_RESOURCES = [
-  { name: 'John', lastname: 'Smith', middlename: 'A.', email: 'john.smith@vendor.com', phone: '+1-555-1001' },
-  { name: 'Sarah', lastname: 'Johnson', middlename: 'B.', email: 'sarah.johnson@vendor.com', phone: '+1-555-1002' },
-  { name: 'Michael', lastname: 'Williams', middlename: null, email: 'michael.williams@vendor.com', phone: '+1-555-1003' },
-  { name: 'Emily', lastname: 'Brown', middlename: 'C.', email: 'emily.brown@vendor.com', phone: '+1-555-1004' },
-  { name: 'David', lastname: 'Davis', middlename: null, email: 'david.davis@vendor.com', phone: '+1-555-1005' },
-  { name: 'Lisa', lastname: 'Miller', middlename: 'D.', email: 'lisa.miller@vendor.com', phone: '+1-555-1006' },
-  { name: 'James', lastname: 'Wilson', middlename: null, email: 'james.wilson@vendor.com', phone: '+1-555-1007' },
-  { name: 'Jennifer', lastname: 'Moore', middlename: 'E.', email: 'jennifer.moore@vendor.com', phone: '+1-555-1008' },
-  { name: 'Robert', lastname: 'Taylor', middlename: null, email: 'robert.taylor@vendor.com', phone: '+1-555-1009' },
-  { name: 'Patricia', lastname: 'Anderson', middlename: 'F.', email: 'patricia.anderson@vendor.com', phone: '+1-555-1010' },
-  { name: 'Thomas', lastname: 'Garcia', middlename: null, email: 'thomas.garcia@vendor.com', phone: '+1-555-1011' },
-  { name: 'Maria', lastname: 'Martinez', middlename: 'G.', email: 'maria.martinez@vendor.com', phone: '+1-555-1012' },
-  { name: 'Daniel', lastname: 'Lopez', middlename: null, email: 'daniel.lopez@vendor.com', phone: '+1-555-1013' },
-  { name: 'Jessica', lastname: 'Lee', middlename: 'H.', email: 'jessica.lee@vendor.com', phone: '+1-555-1014' },
-  { name: 'Christopher', lastname: 'Clark', middlename: null, email: 'christopher.clark@vendor.com', phone: '+1-555-1015' },
-  { name: 'Amanda', lastname: 'Harris', middlename: 'I.', email: 'amanda.harris@vendor.com', phone: '+1-555-1016' },
-  { name: 'Matthew', lastname: 'Lewis', middlename: null, email: 'matthew.lewis@vendor.com', phone: '+1-555-1017' },
-  { name: 'Stephanie', lastname: 'Walker', middlename: 'J.', email: 'stephanie.walker@vendor.com', phone: '+1-555-1018' },
-  { name: 'Andrew', lastname: 'Hall', middlename: null, email: 'andrew.hall@vendor.com', phone: '+1-555-1019' },
-  { name: 'Nicole', lastname: 'Young', middlename: 'K.', email: 'nicole.young@vendor.com', phone: '+1-555-1020' }
-];
-
-const SENIORITIES = [
-  'Entry Level',
-  'Junior',
-  'Mid-Level',
-  'Senior',
-  'Lead',
-  'Principal',
-  'Architect',
-  'Director',
-  'Executive',
-  'Expert',
-  'Specialist'
-];
-
 function randomInt(min, max) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
@@ -144,7 +105,7 @@ function pick(arr) {
 
 function daysAgo(days) {
   return Date.now() - days * 24 * 60 * 60 * 1000;
-}
+}                                                                                                                                                                                              
 
 async function seedDummyData(db) {
   // Check if dummy data already exists (need both divisions and projects)
@@ -262,19 +223,6 @@ async function seedDummyData(db) {
       );
     }
 
-    // Link 0-2 random supporting divisions (excluding main division)
-    const numSupportingDivs = randomInt(0, 2);
-    const usedSupportingDivs = new Set();
-    for (let i = 0; i < numSupportingDivs && divisionIds.length > 0; i++) {
-      const supportingDivId = pick(divisionIds);
-      if (supportingDivId === divisionId || usedSupportingDivs.has(supportingDivId)) continue;
-      usedSupportingDivs.add(supportingDivId);
-      await runQuery(db,
-        'INSERT INTO projects_to_divisions (project_id, division_id) VALUES (?, ?)',
-        [projectId, supportingDivId]
-      );
-    }
-
     // Add 1-3 health statuses over time
     const numStatuses = randomInt(1, 3);
     for (let i = 0; i < numStatuses; i++) {
@@ -288,53 +236,40 @@ async function seedDummyData(db) {
       );
     }
 
-    // Add completion milestones with start/end dates
+    // Add completion milestones - pick a random completion % and add milestones up to it
     const targetCompletion = pick([20, 30, 40, 50, 60, 70, 80, 90, 100]);
     const relevantMilestones = MILESTONES.filter(m => m.value <= targetCompletion);
-
-    // Spread milestones across the project timeline
-    const projectDuration = endDate - startDate;
     for (let i = 0; i < relevantMilestones.length; i++) {
       const ms = relevantMilestones[i];
-      const progressPercent = ms.value / 100;
-      const estimatedMilestoneTime = startDate + (projectDuration * progressPercent);
-
-      // Create start date (1-2 weeks before estimated)
-      const msStartDate = estimatedMilestoneTime - randomInt(7, 14) * 24 * 60 * 60 * 1000;
-
-      // Create end date (1-4 weeks after start)
-      const msEndDate = msStartDate + randomInt(7, 28) * 24 * 60 * 60 * 1000;
-
-      // Creation date is when the milestone was recorded (could be in the past or today)
-      const msCreateDate = targetCompletion === 100
-        ? daysAgo(randomInt(0, 10))
-        : (relevantMilestones.length - i) * randomInt(3, 10) * 24 * 60 * 60 * 1000 - Date.now();
-
+      const msDate = daysAgo(targetCompletion === 100 ? randomInt(0, 10) : (relevantMilestones.length - i) * randomInt(3, 10));
       await runQuery(db,
-        'INSERT INTO completions (completion_value, completion_comment, completion_start_date, completion_end_date, completion_create_date, completion_update_date, project_id, user_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-        [ms.value, ms.comment, msStartDate, msEndDate, msCreateDate, msCreateDate, projectId, ownerId]
+        'INSERT INTO completions (completion_value, completion_comment, completion_create_date, completion_update_date, project_id, user_id) VALUES (?, ?, ?, ?, ?, ?)',
+        [ms.value, ms.comment, msDate, msDate, projectId, ownerId]
       );
     }
 
-    // Assign 1-2 project managers (role_id=1) from existing users
+    // Assign 1-2 project managers from existing users
     const numPMs = randomInt(1, 2);
     const usedPMUsers = new Set();
     for (let i = 0; i < numPMs; i++) {
       const pmUserId = randomInt(1, 4);
       if (usedPMUsers.has(pmUserId)) continue;
       usedPMUsers.add(pmUserId);
+      // Find or create projectmanager record
+      const existing = await getOne(db, 'SELECT id FROM projectmanagers WHERE user_id = ?', [pmUserId]);
+      let pmId;
+      if (existing) {
+        pmId = existing.id;
+      } else {
+        const pmResult = await runQuery(db,
+          'INSERT INTO projectmanagers (user_id, division_id) VALUES (?, ?)',
+          [pmUserId, divisionId]
+        );
+        pmId = pmResult.lastID;
+      }
       await runQuery(db,
-        'INSERT INTO project_assignments (project_id, user_id, project_role_id, division_id, assignment_create_date, assignment_start_date, assignment_update_date) VALUES (?, ?, ?, ?, ?, ?, ?)',
-        [projectId, pmUserId, 1, divisionId, daysAgo(randomInt(7, 60)), daysAgo(randomInt(0, 30)), now]
-      );
-    }
-
-    // Assign 0-1 solution architects (role_id=2)
-    const saUserId = randomInt(1, 4);
-    if (!usedPMUsers.has(saUserId) || Math.random() > 0.5) {
-      await runQuery(db,
-        'INSERT INTO project_assignments (project_id, user_id, project_role_id, division_id, assignment_create_date, assignment_start_date, assignment_update_date) VALUES (?, ?, ?, ?, ?, ?, ?)',
-        [projectId, saUserId, 2, divisionId, daysAgo(randomInt(7, 60)), daysAgo(randomInt(0, 30)), now]
+        'INSERT INTO projects_to_projectmanagers (project_id, projectmanager_id, division_id, project_to_projectmanager_create_date, project_to_projectmanager_start_date) VALUES (?, ?, ?, ?, ?)',
+        [projectId, pmId, divisionId, daysAgo(randomInt(7, 60)), daysAgo(randomInt(0, 30))]
       );
     }
 
@@ -378,140 +313,14 @@ async function seedDummyData(db) {
 
   // --- Vendors ---
   const existingVendors = await getOne(db, 'SELECT COUNT(*) as c FROM vendors WHERE vendor_is_deleted = 0 OR vendor_is_deleted IS NULL');
-  const vendorIds = [];
   if (existingVendors.c === 0) {
     for (const v of VENDORS) {
-      const result = await runQuery(db,
+      await runQuery(db,
         'INSERT INTO vendors (vendor_name, vendor_address, vendor_phone, vendor_email, vendor_website, vendor_create_date, vendor_update_date, user_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
         [v.name, v.address, v.phone, v.email, v.website, daysAgo(randomInt(30, 180)), now, ownerId]
       );
-      vendorIds.push(result.lastID);
     }
     console.log(`  Seeded ${VENDORS.length} vendors.`);
-  } else {
-    const allVendors = await getAll(db, 'SELECT id FROM vendors WHERE vendor_is_deleted = 0 OR vendor_is_deleted IS NULL');
-    for (const v of allVendors) {
-      vendorIds.push(v.id);
-    }
-  }
-
-  // --- Seniorities ---
-  const seniorityIds = [];
-  const existingSeniorities = await getOne(db, 'SELECT COUNT(*) as c FROM seniorities WHERE seniority_is_deleted = 0 OR seniority_is_deleted IS NULL');
-  if (existingSeniorities.c === 0) {
-    for (const desc of SENIORITIES) {
-      const result = await runQuery(db,
-        'INSERT INTO seniorities (seniority_description, seniority_create_date, seniority_update_date) VALUES (?, ?, ?)',
-        [desc, daysAgo(randomInt(30, 180)), now]
-      );
-      seniorityIds.push(result.lastID);
-    }
-    console.log(`  Seeded ${SENIORITIES.length} seniority levels.`);
-  } else {
-    const allSeniorities = await getAll(db, 'SELECT id FROM seniorities WHERE seniority_is_deleted = 0 OR seniority_is_deleted IS NULL');
-    for (const s of allSeniorities) {
-      seniorityIds.push(s.id);
-    }
-  }
-
-  // --- Vendor Contracts, Roles, and Rates ---
-  const existingContracts = await getOne(db, 'SELECT COUNT(*) as c FROM vendorcontracts WHERE vendorcontract_is_deleted = 0 OR vendorcontract_is_deleted IS NULL');
-  if (existingContracts.c === 0 && vendorIds.length > 0) {
-    let totalContracts = 0;
-    let totalRoles = 0;
-    let totalRates = 0;
-    let totalResources = 0;
-
-    for (const vendorId of vendorIds) {
-      // 1-3 contracts per vendor
-      const numContracts = randomInt(1, 3);
-      for (let c = 0; c < numContracts; c++) {
-        const cStartDate = daysAgo(randomInt(30, 365));
-        const cEndDate = cStartDate + randomInt(180, 730) * 24 * 60 * 60 * 1000;
-        const contractResult = await runQuery(db,
-          'INSERT INTO vendorcontracts (contract_name, contract_document_path, contract_start_date, contract_end_date, vendor_id, contract_create_date, contract_update_date) VALUES (?, ?, ?, ?, ?, ?, ?)',
-          [
-            `Contract ${c + 1}`,
-            `/documents/vendor_contracts/contract_${vendorId}_${c}.pdf`,
-            cStartDate,
-            cEndDate,
-            vendorId,
-            cStartDate,
-            now
-          ]
-        );
-        totalContracts++;
-        const contractId = contractResult.lastID;
-
-        // 2-4 roles per contract
-        const numRoles = randomInt(2, 4);
-        const selectedRoles = new Set();
-        for (let r = 0; r < numRoles; r++) {
-          const roleName = pick(VENDOR_CONTRACT_ROLES);
-          if (selectedRoles.has(roleName)) continue;
-          selectedRoles.add(roleName);
-
-          const roleResult = await runQuery(db,
-            'INSERT INTO vendorcontractroles (vendorcontractrole_name, vendorcontract_id, vendorcontractrole_create_date, vendorcontractrole_update_date) VALUES (?, ?, ?, ?)',
-            [roleName, contractId, daysAgo(randomInt(0, 60)), now]
-          );
-          totalRoles++;
-          const roleId = roleResult.lastID;
-
-          // 2-3 rates per role (different combinations of currency, seniority, and description)
-          const numRates = randomInt(2, 3);
-          const usedCombinations = new Set();
-          for (let rt = 0; rt < numRates; rt++) {
-            const currencyId = pick(currencyIds);
-            const seniorityId = pick(seniorityIds);
-            const combinationKey = `${currencyId}-${seniorityId}`;
-            if (usedCombinations.has(combinationKey)) continue;
-            usedCombinations.add(combinationKey);
-
-            const hourlyRate = randomInt(50, 300);
-            const descriptions = [
-              `Standard ${roleName} rate`,
-              `Contract rate for ${roleName}`,
-              `${roleName} on retainer`,
-              `Fixed-price ${roleName} engagement`,
-              `Time-and-materials for ${roleName}`,
-              undefined // No description for some rates
-            ];
-            const description = pick(descriptions);
-
-            await runQuery(db,
-              'INSERT INTO vendorrolerates (vendorrolerate_rate, vendorcontractrole_id, currency_id, seniority_id, vendorrolerate_description, vendorrolerate_create_date, vendorrolerate_update_date) VALUES (?, ?, ?, ?, ?, ?, ?)',
-              [hourlyRate, roleId, currencyId, seniorityId, description || null, daysAgo(randomInt(0, 60)), now]
-            );
-            totalRates++;
-          }
-        }
-
-        // 2-5 vendor resources assigned to this contract's vendor
-        const numResources = randomInt(2, 5);
-        const usedResourceNames = new Set();
-        for (let res = 0; res < numResources; res++) {
-          const resource = pick(VENDOR_RESOURCES);
-          const uniqueKey = `${resource.name}-${resource.lastname}`;
-          if (usedResourceNames.has(uniqueKey)) continue;
-          usedResourceNames.add(uniqueKey);
-
-          const existing = await getOne(db,
-            'SELECT id FROM vendorresources WHERE vendor_id = ? AND vendorresource_name = ? AND vendorresource_lastname = ?',
-            [vendorId, resource.name, resource.lastname]
-          );
-
-          if (!existing) {
-            await runQuery(db,
-              'INSERT INTO vendorresources (vendorresource_name, vendorresource_lastname, vendorresource_middlename, vendorresource_email, vendorresource_phone, vendor_id, vendorresource_create_date, vendorresource_update_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-              [resource.name, resource.lastname, resource.middlename || null, resource.email || null, resource.phone || null, vendorId, daysAgo(randomInt(0, 30)), now]
-            );
-            totalResources++;
-          }
-        }
-      }
-    }
-    console.log(`  Seeded ${totalContracts} vendor contracts with ${totalRoles} roles, ${totalRates} rates, and ${totalResources} resources.`);
   }
 }
 

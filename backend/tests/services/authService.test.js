@@ -40,6 +40,40 @@ describe('authService', () => {
       const result = await authService.login(db, 'deleted@test.com', 'testpassword');
       expect(result).toBeNull();
     });
+
+    it('should return null for inactive user (user_active=0)', async () => {
+      const { runQuery } = require('../../config/database');
+      await runQuery(db,
+        "INSERT INTO users (user_email, user_name, user_lastname, user_password_hash, user_create_date, userrole_id, user_active) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        ['inactive@test.com', 'Inactive', 'User', null, Date.now(), 4, 0]
+      );
+      const result = await authService.login(db, 'inactive@test.com', 'anypassword');
+      expect(result).toBeNull();
+    });
+
+    it('should return null for user with no password hash', async () => {
+      const { runQuery } = require('../../config/database');
+      await runQuery(db,
+        "INSERT INTO users (user_email, user_name, user_lastname, user_password_hash, user_create_date, userrole_id, user_active) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        ['nohash@test.com', 'NoHash', 'User', null, Date.now(), 4, 1]
+      );
+      const result = await authService.login(db, 'nohash@test.com', 'anypassword');
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('updateAvatarSeed', () => {
+    it('should update avatar seed for a user', async () => {
+      await authService.updateAvatarSeed(db, 1, 'alpha');
+      const user = await authService.getUserById(db, 1);
+      expect(user.user_avatar_seed).toBe('alpha');
+    });
+
+    it('should clear avatar seed when null is passed', async () => {
+      await authService.updateAvatarSeed(db, 1, null);
+      const user = await authService.getUserById(db, 1);
+      expect(user.user_avatar_seed).toBeNull();
+    });
   });
 
   describe('getUserById', () => {

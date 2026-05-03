@@ -43,6 +43,21 @@ describe('appSettingsService.set', () => {
   });
 });
 
+describe('appSettingsService.getWithMeta', () => {
+  it('returns null for non-existent key', async () => {
+    const row = await appSettingsService.getWithMeta(db, 'totally_missing_key');
+    expect(row).toBeNull();
+  });
+});
+
+describe('appSettingsService.set without updatedBy', () => {
+  it('allows null updatedBy', async () => {
+    await appSettingsService.set(db, 'no_by_key', 'value', null);
+    const row = await appSettingsService.getWithMeta(db, 'no_by_key');
+    expect(row.updated_by).toBeNull();
+  });
+});
+
 describe('appSettingsService.getAll', () => {
   it('returns all settings as array', async () => {
     await appSettingsService.set(db, 'key_a', 'val_a', 'admin@test.com');

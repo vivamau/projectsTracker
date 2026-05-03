@@ -25,6 +25,12 @@ describe('userService', () => {
       expect(result.data[0].user_password_hash).toBeUndefined();
     });
 
+    it('should include user_active field in results', async () => {
+      const result = await userService.getAll(db);
+      expect(result.data[0]).toHaveProperty('user_active');
+      expect(result.data[0].user_active).toBe(1);
+    });
+
     it('should paginate results', async () => {
       const result = await userService.getAll(db, { page: 1, limit: 2 });
       expect(result.data.length).toBe(2);
@@ -75,6 +81,12 @@ describe('userService', () => {
     it('should return null for non-existent id', async () => {
       const user = await userService.getById(db, 9999);
       expect(user).toBeNull();
+    });
+
+    it('should include user_active field', async () => {
+      const user = await userService.getById(db, 1);
+      expect(user).toHaveProperty('user_active');
+      expect(user.user_active).toBe(1);
     });
 
     it('should return null for deleted user', async () => {
@@ -128,9 +140,63 @@ describe('userService', () => {
         userrole_id: 3
       })).rejects.toThrow();
     });
+
+    it('should create inactive user with guest role and no password hash', async () => {
+      const result = await userService.create(db, {
+        user_email: 'inactive@test.com',
+        user_name: 'Inactive',
+        user_lastname: 'User',
+        userrole_id: 2,
+        user_active: 0
+      });
+      expect(result.lastID).toBeGreaterThan(0);
+      const user = await userService.getById(db, result.lastID);
+      expect(user.user_active).toBe(0);
+      expect(user.role).toBe('guest');
+    });
+
+    it('should create active user with requested role', async () => {
+      const result = await userService.create(db, {
+        user_email: 'activeuser@test.com',
+        user_name: 'Active',
+        user_lastname: 'User',
+        password: 'password123',
+        userrole_id: 2,
+        user_active: 1
+      });
+      const user = await userService.getById(db, result.lastID);
+      expect(user.user_active).toBe(1);
+      expect(user.role).toBe('admin');
+    });
   });
 
   describe('update', () => {
+    it('should update user lastname', async () => {
+      const created = await userService.create(db, {
+        user_email: 'updatelast@test.com',
+        user_name: 'First',
+        user_lastname: 'OldLast',
+        password: 'password',
+        userrole_id: 3
+      });
+      await userService.update(db, created.lastID, { user_lastname: 'NewLast' });
+      const user = await userService.getById(db, created.lastID);
+      expect(user.user_lastname).toBe('NewLast');
+    });
+
+    it('should update user middlename', async () => {
+      const created = await userService.create(db, {
+        user_email: 'updatemiddle@test.com',
+        user_name: 'First',
+        user_lastname: 'Last',
+        password: 'password',
+        userrole_id: 3
+      });
+      await userService.update(db, created.lastID, { user_middlename: 'Mid' });
+      const user = await userService.getById(db, created.lastID);
+      expect(user.user_middlename).toBe('Mid');
+    });
+
     it('should update user name', async () => {
       const created = await userService.create(db, {
         user_email: 'updatename@test.com',
@@ -194,6 +260,34 @@ describe('userService', () => {
     it('should return 0 changes with empty data', async () => {
       const result = await userService.update(db, 1, {});
       expect(result.changes).toBe(0);
+    });
+
+    it('should force guest role and null password when deactivating user', async () => {
+      const created = await userService.create(db, {
+        user_email: 'deactivate@test.com',
+        user_name: 'Deact',
+        user_lastname: 'User',
+        password: 'password123',
+        userrole_id: 2,
+        user_active: 1
+      });
+      await userService.update(db, created.lastID, { user_active: 0 });
+      const user = await userService.getById(db, created.lastID);
+      expect(user.user_active).toBe(0);
+      expect(user.role).toBe('guest');
+    });
+
+    it('should set user_active to 1 when activating', async () => {
+      const created = await userService.create(db, {
+        user_email: 'activate@test.com',
+        user_name: 'Act',
+        user_lastname: 'User',
+        userrole_id: 4,
+        user_active: 0
+      });
+      await userService.update(db, created.lastID, { user_active: 1 });
+      const user = await userService.getById(db, created.lastID);
+      expect(user.user_active).toBe(1);
     });
   });
 

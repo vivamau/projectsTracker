@@ -1,14 +1,20 @@
 const { initTestDb, seedTestDb, closeTestDb } = require('../helpers/testDb');
 const purchaseOrderService = require('../../services/purchaseOrderService');
 const budgetService = require('../../services/budgetService');
+const { runQuery } = require('../../config/database');
 
-let db, budgetId;
+let db, budgetId, vendorId;
 
 beforeAll(async () => {
   db = await initTestDb();
   await seedTestDb(db);
   const budget = await budgetService.create(db, { budget_amount: 100000 });
   budgetId = budget.lastID;
+  const vendor = await runQuery(db,
+    "INSERT INTO vendors (vendor_name, vendor_create_date, vendor_update_date) VALUES (?, ?, ?)",
+    ['Acme Corp', Date.now(), Date.now()]
+  );
+  vendorId = vendor.lastID;
 });
 
 afterAll(async () => {
@@ -158,6 +164,84 @@ describe('purchaseOrderService.update', () => {
       purchaseorder_description: 'Updated'
     });
     expect(result.changes).toBe(0);
+  });
+});
+
+describe('purchaseOrderService.getAllPaginated', () => {
+  it('should return paginated results with total', async () => {
+    const result = await purchaseOrderService.getAllPaginated(db);
+    expect(result).toHaveProperty('data');
+    expect(result).toHaveProperty('total');
+    expect(result).toHaveProperty('page');
+    expect(result).toHaveProperty('limit');
+    expect(result).toHaveProperty('totalPages');
+    expect(Array.isArray(result.data)).toBe(true);
+    expect(result.total).toBeGreaterThan(0);
+    expect(result.page).toBe(1);
+  });
+
+  it('should respect limit and page params', async () => {
+    const page1 = await purchaseOrderService.getAllPaginated(db, { page: 1, limit: 1 });
+    const page2 = await purchaseOrderService.getAllPaginated(db, { page: 2, limit: 1 });
+    expect(page1.data.length).toBe(1);
+    expect(page1.totalPages).toBeGreaterThanOrEqual(2);
+    expect(page2.data.length).toBe(1);
+    expect(page1.data[0].id).not.toBe(page2.data[0].id);
+  });
+
+  it('should filter by description search', async () => {
+    await purchaseOrderService.create(db, {
+      purchaseorder_description: 'Search target server',
+      purchaseorder_start_date: Date.now(),
+      budget_id: budgetId
+    });
+    const result = await purchaseOrderService.getAllPaginated(db, { search: 'Search target' });
+    expect(result.data.length).toBeGreaterThan(0);
+    expect(result.data[0].purchaseorder_description).toContain('Search target');
+  });
+
+  it('should return empty array when search matches nothing', async () => {
+    const result = await purchaseOrderService.getAllPaginated(db, { search: 'xyznonexistent' });
+    expect(result.data.length).toBe(0);
+    expect(result.total).toBe(0);
+  });
+
+  it('should filter by vendor name search', async () => {
+    await purchaseOrderService.create(db, {
+      purchaseorder_description: 'Vendor PO',
+      purchaseorder_start_date: Date.now(),
+      budget_id: budgetId,
+      vendor_id: vendorId
+    });
+    const result = await purchaseOrderService.getAllPaginated(db, { search: 'Acme' });
+    expect(result.data.length).toBeGreaterThan(0);
+    expect(result.data[0].vendor_name).toBe('Acme Corp');
+  });
+
+  it('should sort by description ascending', async () => {
+    const result = await purchaseOrderService.getAllPaginated(db, { sortBy: 'description', sortDir: 'asc' });
+    expect(result.data.length).toBeGreaterThan(0);
+  });
+
+  it('should sort by vendor ascending', async () => {
+    const result = await purchaseOrderService.getAllPaginated(db, { sortBy: 'vendor', sortDir: 'asc' });
+    expect(result.data.length).toBeGreaterThan(0);
+  });
+
+  it('should sort by items count', async () => {
+    const result = await purchaseOrderService.getAllPaginated(db, { sortBy: 'items', sortDir: 'desc' });
+    expect(result.data.length).toBeGreaterThan(0);
+  });
+
+  it('should fall back to start_date sort for unknown sortBy', async () => {
+    const result = await purchaseOrderService.getAllPaginated(db, { sortBy: 'unknown_column' });
+    expect(result.data.length).toBeGreaterThan(0);
+  });
+
+  it('should calculate totalPages correctly', async () => {
+    const all = await purchaseOrderService.getAllPaginated(db, { limit: 100 });
+    const onePerPage = await purchaseOrderService.getAllPaginated(db, { limit: 1 });
+    expect(onePerPage.totalPages).toBe(all.total);
   });
 });
 

@@ -155,6 +155,18 @@ describe('budgetService.update', () => {
     const result = await budgetService.update(db, 99999, { budget_amount: 1 });
     expect(result.changes).toBe(0);
   });
+
+  it('should update currency_id field', async () => {
+    const b = await budgetService.create(db, { budget_amount: 12000 });
+    const result = await budgetService.update(db, b.lastID, { currency_id: currencyId });
+    expect(result.changes).toBe(1);
+  });
+
+  it('should return changes=0 when no fields provided', async () => {
+    const b = await budgetService.create(db, { budget_amount: 13000 });
+    const result = await budgetService.update(db, b.lastID, {});
+    expect(result.changes).toBe(0);
+  });
 });
 
 describe('budgetService.softDelete', () => {
@@ -259,6 +271,12 @@ describe('getRecent', () => {
       });
       await budgetService.linkToProject(db, recentTestProjectId, b.lastID);
     }
+  });
+
+  it('should use default limit of 5 when none provided', async () => {
+    const budgets = await budgetService.getRecent(db);
+    expect(Array.isArray(budgets)).toBe(true);
+    expect(budgets.length).toBeLessThanOrEqual(5);
   });
 
   it('should return recent budgets with project info', async () => {

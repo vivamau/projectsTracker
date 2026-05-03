@@ -29,6 +29,52 @@ afterAll(async () => {
   await closeTestDb(db);
 });
 
+describe('GET /api/purchase-orders', () => {
+  it('should return paginated purchase orders when authenticated', async () => {
+    const res = await request(app)
+      .get('/api/purchase-orders')
+      .set('Cookie', ['token=' + adminToken()]);
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.data).toHaveProperty('data');
+    expect(res.body.data).toHaveProperty('total');
+    expect(res.body.data).toHaveProperty('page');
+    expect(res.body.data).toHaveProperty('totalPages');
+    expect(Array.isArray(res.body.data.data)).toBe(true);
+  });
+
+  it('should return 401 when not authenticated', async () => {
+    const res = await request(app).get('/api/purchase-orders');
+    expect(res.status).toBe(401);
+  });
+
+  it('should accept pagination params', async () => {
+    const res = await request(app)
+      .get('/api/purchase-orders?page=1&limit=5')
+      .set('Cookie', ['token=' + adminToken()]);
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.limit).toBe(5);
+  });
+
+  it('should accept search param', async () => {
+    const res = await request(app)
+      .get('/api/purchase-orders?search=Server')
+      .set('Cookie', ['token=' + adminToken()]);
+
+    expect(res.status).toBe(200);
+  });
+
+  it('should accept sortBy and sortDir params', async () => {
+    const res = await request(app)
+      .get('/api/purchase-orders?sortBy=description&sortDir=asc')
+      .set('Cookie', ['token=' + adminToken()]);
+
+    expect(res.status).toBe(200);
+  });
+});
+
 describe('GET /api/budgets/:id', () => {
   it('should return budget details', async () => {
     const res = await request(app)
