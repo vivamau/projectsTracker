@@ -2,6 +2,7 @@ const express = require('express');
 const { authenticate, authorize } = require('../middleware/auth');
 const agentService = require('../services/agentService');
 const aiTokenLogService = require('../services/aiTokenLogService');
+const aiSavedSessionService = require('../services/aiSavedSessionService');
 const { success, error } = require('../utilities/responseHelper');
 
 function createAgentRoutes(db, auditDb) {
@@ -59,6 +60,80 @@ function createAgentRoutes(db, auditDb) {
       return success(res, { role: result.role, content: result.content });
     } catch (err) {
       return error(res, err.message || 'Chat failed');
+    }
+  });
+
+  // ── Saved sessions (owner only) ───────────────────────────────────────────
+
+  router.post('/saved-sessions', authenticate, async (req, res) => {
+    const { sessionId, title, messages } = req.body;
+    if (!messages || !Array.isArray(messages) || messages.length === 0) {
+      return error(res, 'Messages are required', 400);
+    }
+    if (!title || !title.trim()) {
+      return error(res, 'Title is required', 400);
+    }
+    try {
+      const saved = await aiSavedSessionService.saveSession(db, {
+        userId: req.user.id,
+        sessionId: sessionId || '',
+        title: title.trim(),
+        messages,
+      });
+      return success(res, saved);
+    } catch (err) {
+      return error(res, 'Failed to save session');
+    }
+  });
+
+  router.get('/saved-sessions', authenticate, async (req, res) => {
+    try {
+      const sessions = await aiSavedSessionService.listSessions(db, req.user.id);
+      return success(res, sessions);
+    } catch (err) {
+      return error(res, 'Failed to list saved sessions');
+    }
+  });
+
+  router.get('/saved-sessions/:id', authenticate, async (req, res) => {
+    try {
+      const session = await aiSavedSessionService.getSession(db, req.params.id, req.user.id);
+      if (!session) return error(res, 'Not found', 404);
+      let messages = [];
+      try { messages = session.messages_json ? JSON.parse(session.messages_json) : []; } catch { messages = []; }
+      return success(res, {
+        id: session.id,
+        title: session.title,
+        session_id: session.session_id,
+        message_count: session.message_count,
+        created_at: session.created_at,
+        messages,
+      });
+    } catch (err) {
+      return error(res, 'Failed to load session');
+    }
+  });
+
+  router.get('/saved-sessions/:id/download', authenticate, async (req, res) => {
+    try {
+      const session = await aiSavedSessionService.getSession(db, req.params.id, req.user.id);
+      if (!session) return error(res, 'Not found', 404);
+      const filename = `${aiSavedSessionService.slugify(session.title)}.md`;
+      res.setHeader('Content-Type', 'text/markdown; charset=utf-8');
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      return res.send(session.content);
+    } catch (err) {
+      return error(res, 'Failed to download session');
+    }
+  });
+
+  router.delete('/saved-sessions/:id', authenticate, async (req, res) => {
+    try {
+      const deleted = await aiSavedSessionService.deleteSession(db, req.params.id, req.user.id);
+      if (!deleted) return error(res, 'Not found', 404);
+      return success(res, { deleted: true });
+    } catch (err) {
+      return error(res, 'Failed to delete saved session');
     }
   });
 

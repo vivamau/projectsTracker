@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { createBrowserRouter, createRoutesFromElements, RouterProvider, Route, Navigate } from 'react-router-dom';
 import ProtectedRoute from './commoncomponents/ProtectedRoute';
 import MainLayout from './layouts/MainLayout';
 import LoginPage from './pages/login/index';
@@ -26,9 +26,9 @@ import LogsPage from './pages/logs/index';
 import ProjectRolesPage from './pages/projectRoles/index';
 import SettingsPage from './pages/settings/index';
 
-export default function App() {
-  return (
-    <Routes>
+const router = createBrowserRouter(
+  createRoutesFromElements(
+    <>
       <Route path="/login" element={<LoginPage />} />
 
       <Route
@@ -65,6 +65,10 @@ export default function App() {
       </Route>
 
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
-    </Routes>
-  );
+    </>
+  )
+);
+
+export default function App() {
+  return <RouterProvider router={router} />;
 }
