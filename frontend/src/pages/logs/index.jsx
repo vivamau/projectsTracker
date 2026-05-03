@@ -39,7 +39,6 @@ import { getTokenLogs, getTokenLogStats, getSessionMessages } from "../../api/to
 
 const ACTION_COLORS = ["#22c55e","#3b82f6","#ef4444","#a855f7","#6b7280","#f59e0b","#06b6d4","#ec4899"];
 const ENTITY_COLORS = ["#f97316","#14b8a6","#8b5cf6","#f43f5e","#0ea5e9","#84cc16","#d946ef","#fbbf24"];
-const MODEL_COLORS  = ["#6366f1","#f59e0b","#10b981","#ef4444","#8b5cf6","#06b6d4","#ec4899","#84cc16"];
 
 const ACTION_ICONS = {
   CREATE: Plus, UPDATE: Pencil, DELETE: Trash,
@@ -519,66 +518,79 @@ function AIUsageTab() {
 
   const totalPages = Math.ceil(total / 50);
   const totals = stats?.totals || {};
+  const totalTokens = (totals.total_prompt_tokens || 0) + (totals.total_completion_tokens || 0);
+  const inPct  = totalTokens > 0 ? Math.round((totals.total_prompt_tokens  || 0) / totalTokens * 100) : 0;
+  const outPct = totalTokens > 0 ? 100 - inPct : 0;
 
   return (
     <div>
       {/* Summary cards */}
-      <div className="mb-6 grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="mb-4 grid grid-cols-2 md:grid-cols-4 gap-4">
         <StatCard label="Total Sessions"    value={statsLoading ? "…" : formatNum(totals.total_sessions)}    sub="distinct conversations" />
         <StatCard label="Total Messages"    value={statsLoading ? "…" : formatNum(totals.total_messages)}    sub="chat turns logged" />
         <StatCard label="Input Tokens"      value={statsLoading ? "…" : formatNum(totals.total_prompt_tokens)}     sub="tokens sent to model" />
         <StatCard label="Output Tokens"     value={statsLoading ? "…" : formatNum(totals.total_completion_tokens)}  sub="tokens generated" />
       </div>
 
-      {/* Per-model breakdown */}
-      {stats?.byModel?.length > 0 && (
-        <div className="mb-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <h2 className="text-sm font-semibold text-text-secondary mb-2 flex items-center gap-2"><Bot size={16} /> Usage by Model</h2>
-            <Card className="p-6">
-              <div className="flex flex-col items-center">
-                <RechartsDonutChart
-                  data={stats.byModel.map(m => ({ name: m.model, count: (m.prompt_tokens || 0) + (m.completion_tokens || 0) }))}
-                  colors={MODEL_COLORS} dataKey="count" nameKey="name" />
-                <div className="mt-4 w-full space-y-2">
-                  {stats.byModel.map((m, i) => (
-                    <div key={m.model} className="flex items-center gap-2 text-sm">
-                      <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: MODEL_COLORS[i % MODEL_COLORS.length] }} />
-                      <span className="font-medium flex-1 truncate">{m.model}</span>
-                      <span className="text-indigo-500 font-mono text-xs">{formatNum(m.prompt_tokens)} in</span>
-                      <span className="text-emerald-500 font-mono text-xs">{formatNum(m.completion_tokens)} out</span>
-                      <span className="text-text-secondary font-mono text-xs ml-1">{m.session_count} sess.</span>
+      {/* Token distribution */}
+      {!statsLoading && totalTokens > 0 && (
+        <Card className="mb-6 px-5 py-3.5">
+          {/* Totals — one line */}
+          <div className="flex items-center gap-5">
+            <div className="flex-1 h-2 rounded-full overflow-hidden flex bg-border">
+              <div className="h-full bg-indigo-500 transition-all" style={{ width: `${inPct}%` }} />
+              <div className="h-full bg-emerald-500 transition-all" style={{ width: `${outPct}%` }} />
+            </div>
+            <div className="flex items-center gap-5 text-sm shrink-0">
+              <div className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-full bg-indigo-500 shrink-0" />
+                <span className="text-text-secondary">In</span>
+                <span className="font-mono font-medium text-indigo-600 ml-1">{formatNum(totals.total_prompt_tokens)}</span>
+                <span className="text-text-secondary text-xs">({inPct}%)</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0" />
+                <span className="text-text-secondary">Out</span>
+                <span className="font-mono font-medium text-emerald-600 ml-1">{formatNum(totals.total_completion_tokens)}</span>
+                <span className="text-text-secondary text-xs">({outPct}%)</span>
+              </div>
+              <div className="flex items-center gap-1.5 border-l border-border pl-4">
+                <span className="text-text-secondary text-xs">Total</span>
+                <span className="font-mono font-bold text-text-primary ml-1">{formatNum(totalTokens)}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Per-model breakdown */}
+          {stats?.byModel?.length > 0 && (
+            <div className="mt-3 pt-3 border-t border-border space-y-2">
+              {stats.byModel.map(m => {
+                const mTotal = (m.prompt_tokens || 0) + (m.completion_tokens || 0);
+                const mInPct  = mTotal > 0 ? Math.round((m.prompt_tokens  || 0) / mTotal * 100) : 0;
+                const mOutPct = mTotal > 0 ? 100 - mInPct : 0;
+                const mSharePct = totalTokens > 0 ? Math.round(mTotal / totalTokens * 100) : 0;
+                return (
+                  <div key={m.model} className="flex items-center gap-4 text-sm">
+                    <div className="flex items-center gap-1.5 w-48 shrink-0">
+                      <Cpu size={12} className="text-text-secondary shrink-0" />
+                      <span className="font-medium text-text-primary truncate">{m.model}</span>
                     </div>
-                  ))}
-                </div>
-              </div>
-            </Card>
-          </div>
-          <div className="flex flex-col gap-3">
-            <h2 className="text-sm font-semibold text-text-secondary flex items-center gap-2"><BarChart3 size={16} /> Token Legend</h2>
-            <Card className="p-5 flex flex-col gap-3">
-              <div className="flex items-center gap-3 text-sm">
-                <span className="w-3 h-3 rounded-full bg-indigo-500 flex-shrink-0" />
-                <span className="text-text-secondary flex-1">Input tokens (prompt)</span>
-                <span className="font-mono font-medium text-indigo-600">{formatNum(totals.total_prompt_tokens)}</span>
-              </div>
-              <div className="flex items-center gap-3 text-sm">
-                <span className="w-3 h-3 rounded-full bg-emerald-500 flex-shrink-0" />
-                <span className="text-text-secondary flex-1">Output tokens (completion)</span>
-                <span className="font-mono font-medium text-emerald-600">{formatNum(totals.total_completion_tokens)}</span>
-              </div>
-              <div className="border-t border-border pt-2 flex items-center gap-3 text-sm">
-                <span className="w-3 h-3 rounded-full bg-text-secondary flex-shrink-0" />
-                <span className="text-text-secondary flex-1">Total tokens</span>
-                <span className="font-mono font-bold text-text-primary">{formatNum((totals.total_prompt_tokens || 0) + (totals.total_completion_tokens || 0))}</span>
-              </div>
-              <div className="border-t border-border pt-2 flex items-center gap-3 text-sm">
-                <span className="text-text-secondary flex-1">Unique users</span>
-                <span className="font-mono font-medium text-text-primary">{formatNum(totals.total_users)}</span>
-              </div>
-            </Card>
-          </div>
-        </div>
+                    <div className="flex-1 h-1.5 rounded-full overflow-hidden flex bg-border">
+                      <div className="h-full bg-indigo-400 transition-all" style={{ width: `${mInPct}%` }} />
+                      <div className="h-full bg-emerald-400 transition-all" style={{ width: `${mOutPct}%` }} />
+                    </div>
+                    <div className="flex items-center gap-4 text-xs shrink-0">
+                      <span className="font-mono text-indigo-600">{formatNum(m.prompt_tokens)} <span className="text-text-secondary">({mInPct}%)</span></span>
+                      <span className="font-mono text-emerald-600">{formatNum(m.completion_tokens)} <span className="text-text-secondary">({mOutPct}%)</span></span>
+                      <span className="font-mono font-medium text-text-primary w-16 text-right">{formatNum(mTotal)}</span>
+                      <span className="text-text-secondary w-10 text-right">{mSharePct}%</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </Card>
       )}
 
       {/* Filters */}

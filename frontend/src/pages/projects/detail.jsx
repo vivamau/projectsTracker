@@ -430,7 +430,7 @@ export default function ProjectDetailPage() {
                         {a.vendor_name}
                       </p>
                       {a.pvr_percentage < 100 && (
-                        <span className="mt-0.5 inline-block rounded-full bg-primary-50 px-1.5 py-0.5 text-xs text-primary-600 dark:bg-primary-900/30 dark:text-primary-300">
+                        <span className="mt-0.5 inline-block rounded-full bg-primary-100 px-1.5 py-0.5 text-xs text-primary-700 dark:bg-primary-900/30 dark:text-primary-300">
                           {a.pvr_percentage}%
                         </span>
                       )}
@@ -500,10 +500,10 @@ export default function ProjectDetailPage() {
           {/* Tech Stack */}
           {(() => {
             const typeConfig = {
-              fe:   { label: 'Frontend', color: 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' },
-              be:   { label: 'Backend',  color: 'bg-purple-50 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300' },
-              db:   { label: 'Database', color: 'bg-teal-50 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300' },
-              mob:  { label: 'Mobile',   color: 'bg-orange-50 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300' },
+              fe:   { label: 'Frontend', color: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300' },
+              be:   { label: 'Backend',  color: 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300' },
+              db:   { label: 'Database', color: 'bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-300' },
+              mob:  { label: 'Mobile',   color: 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300' },
               none: { label: 'Other',    color: 'bg-surface text-text-secondary border border-border' },
             };
             const canEdit = canEditProject;
