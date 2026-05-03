@@ -248,29 +248,25 @@ async function seedDummyData(db) {
       );
     }
 
-    // Assign 1-2 project managers from existing users
+    // Assign 1-2 project managers using the project_assignments table (migration 026)
+    const pmRoleRow = await getOne(db, "SELECT id FROM project_roles WHERE role_name = 'Project Manager' LIMIT 1");
+    const pmRoleId = pmRoleRow ? pmRoleRow.id : 1;
     const numPMs = randomInt(1, 2);
     const usedPMUsers = new Set();
     for (let i = 0; i < numPMs; i++) {
       const pmUserId = randomInt(1, 4);
       if (usedPMUsers.has(pmUserId)) continue;
       usedPMUsers.add(pmUserId);
-      // Find or create projectmanager record
-      const existing = await getOne(db, 'SELECT id FROM projectmanagers WHERE user_id = ?', [pmUserId]);
-      let pmId;
-      if (existing) {
-        pmId = existing.id;
-      } else {
-        const pmResult = await runQuery(db,
-          'INSERT INTO projectmanagers (user_id, division_id) VALUES (?, ?)',
-          [pmUserId, divisionId]
-        );
-        pmId = pmResult.lastID;
-      }
-      await runQuery(db,
-        'INSERT INTO projects_to_projectmanagers (project_id, projectmanager_id, division_id, project_to_projectmanager_create_date, project_to_projectmanager_start_date) VALUES (?, ?, ?, ?, ?)',
-        [projectId, pmId, divisionId, daysAgo(randomInt(7, 60)), daysAgo(randomInt(0, 30))]
+      const alreadyAssigned = await getOne(db,
+        'SELECT id FROM project_assignments WHERE project_id = ? AND user_id = ? AND project_role_id = ?',
+        [projectId, pmUserId, pmRoleId]
       );
+      if (!alreadyAssigned) {
+        await runQuery(db,
+          'INSERT INTO project_assignments (project_id, user_id, project_role_id, division_id, assignment_create_date, assignment_start_date, assignment_percentage) VALUES (?, ?, ?, ?, ?, ?, ?)',
+          [projectId, pmUserId, pmRoleId, divisionId, daysAgo(randomInt(7, 60)), daysAgo(randomInt(0, 30)), 100]
+        );
+      }
     }
 
     // Add 1-2 budgets per project
