@@ -39,11 +39,20 @@ describe('GET /api/tasks?project_id=:id', () => {
     expect(res.status).toBe(401);
   });
 
-  it('returns 400 without project_id', async () => {
+  it('returns all tasks when no project_id given', async () => {
     const res = await request(app)
       .get('/api/tasks')
       .set('Cookie', ['token=' + adminToken()]);
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(200);
+    expect(Array.isArray(res.body.data)).toBe(true);
+  });
+
+  it('filters by status=open', async () => {
+    const res = await request(app)
+      .get('/api/tasks?status=open')
+      .set('Cookie', ['token=' + adminToken()]);
+    expect(res.status).toBe(200);
+    res.body.data.forEach(t => expect(t.task_status).toBe('open'));
   });
 });
 

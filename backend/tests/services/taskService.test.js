@@ -63,6 +63,21 @@ describe('taskService.create', () => {
   });
 });
 
+describe('taskService.getAll', () => {
+  it('returns tasks across all projects', async () => {
+    const tasks = await taskService.getAll(db);
+    expect(Array.isArray(tasks)).toBe(true);
+    expect(tasks.length).toBeGreaterThan(0);
+    expect(tasks[0]).toHaveProperty('project_name');
+  });
+
+  it('filters by status', async () => {
+    await taskService.create(db, { project_id: projectId, task_title: 'Open one', created_by_user_id: userId });
+    const tasks = await taskService.getAll(db, { status: 'open' });
+    tasks.forEach(t => expect(t.task_status).toBe('open'));
+  });
+});
+
 describe('taskService.getByProjectId', () => {
   let localProjectId;
 

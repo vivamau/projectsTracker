@@ -1,5 +1,6 @@
 import api from './client';
 
+export const getAllTasks = (status) => api.get('/tasks', { params: status ? { status } : {} });
 export const getTasks = (projectId) => api.get(`/tasks?project_id=${projectId}`);
 export const getTask = (id) => api.get(`/tasks/${id}`);
 export const createTask = (data) => api.post('/tasks', data);

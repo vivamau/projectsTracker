@@ -13,13 +13,15 @@ import {
   ChevronLeft,
   Globe,
   Bot,
-  ShoppingCart
+  ShoppingCart,
+  CheckSquare,
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 
 const navItems = [
   { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
   { label: 'Projects', path: '/projects', icon: FolderKanban },
+  { label: 'Tasks', path: '/tasks', icon: CheckSquare },
   { label: 'Divisions', path: '/divisions', icon: Building2 },
   { label: 'Initiatives', path: '/initiatives', icon: Flag },
   { label: 'Delivery Paths', path: '/delivery-paths', icon: Route },

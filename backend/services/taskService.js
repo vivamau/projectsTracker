@@ -1,7 +1,26 @@
-const { runQuery, getOne, getAll } = require('../config/database');
+const { runQuery, getOne, getAll: getAll_ } = require('../config/database');
+
+async function getAll(db, { status } = {}) {
+  const where = ['(t.task_is_deleted = 0 OR t.task_is_deleted IS NULL)'];
+  const params = [];
+  if (status) { where.push('t.task_status = ?'); params.push(status); }
+  return getAll_(db,
+    `SELECT t.*,
+            p.project_name,
+            u.user_name AS assignee_name, u.user_lastname AS assignee_lastname,
+            c.user_name AS creator_name, c.user_lastname AS creator_lastname
+     FROM project_tasks t
+     LEFT JOIN projects p ON t.project_id = p.id
+     LEFT JOIN users u ON t.task_assigned_to_user_id = u.id
+     LEFT JOIN users c ON t.created_by_user_id = c.id
+     WHERE ${where.join(' AND ')}
+     ORDER BY t.task_create_date DESC, t.id DESC`,
+    params
+  );
+}
 
 async function getByProjectId(db, projectId) {
-  return getAll(db,
+  return getAll_(db,
     `SELECT t.*,
             u.user_name AS assignee_name, u.user_lastname AS assignee_lastname,
             c.user_name AS creator_name, c.user_lastname AS creator_lastname
@@ -81,7 +100,7 @@ async function softDelete(db, id) {
 }
 
 async function getFollowupsByTaskId(db, taskId) {
-  return getAll(db,
+  return getAll_(db,
     `SELECT f.*, u.user_name AS author_name, u.user_lastname AS author_lastname
      FROM project_task_followups f
      LEFT JOIN users u ON f.user_id = u.id
@@ -117,6 +136,6 @@ async function deleteFollowup(db, id) {
 }
 
 module.exports = {
-  getByProjectId, getById, create, update, close, softDelete,
+  getAll, getByProjectId, getById, create, update, close, softDelete,
   getFollowupsByTaskId, createFollowup, updateFollowup, deleteFollowup,
 };

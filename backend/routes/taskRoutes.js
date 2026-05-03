@@ -8,9 +8,13 @@ function createTaskRoutes(db) {
 
   router.get('/', authenticate, async (req, res) => {
     try {
-      const project_id = parseInt(req.query.project_id);
-      if (!project_id) return error(res, 'project_id is required', 400);
-      const tasks = await taskService.getByProjectId(db, project_id);
+      if (req.query.project_id) {
+        const project_id = parseInt(req.query.project_id);
+        if (!project_id) return error(res, 'project_id is required', 400);
+        const tasks = await taskService.getByProjectId(db, project_id);
+        return success(res, tasks);
+      }
+      const tasks = await taskService.getAll(db, { status: req.query.status || null });
       return success(res, tasks);
     } catch (err) {
       return error(res, 'Failed to list tasks');

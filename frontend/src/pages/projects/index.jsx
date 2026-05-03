@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { Plus, Eye, Pencil, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
-import { getProjects, deleteProject, getBudgets, getProjectStatuses } from '../../api/projectsApi';
+import { getProjects, deleteProject, getProjectStatuses } from '../../api/projectsApi';
 import { getDivisions } from '../../api/entitiesApi';
 import { useAuth } from '../../hooks/useAuth';
 import SearchInput from '../../commoncomponents/SearchInput';
@@ -47,7 +47,7 @@ function projectsByYear(projects) {
     });
 }
 
-function SectionTable({ projects, budgetsData, isAdmin, onDelete, formatDate, formatCurrency }) {
+function SectionTable({ projects, isAdmin, onDelete, formatDate }) {
   if (projects.length === 0) return null;
   return (
     <div className="overflow-x-auto">
@@ -58,7 +58,6 @@ function SectionTable({ projects, budgetsData, isAdmin, onDelete, formatDate, fo
             <th className="px-6 py-3 text-left font-medium text-text-secondary w-28">Status</th>
             <th className="px-6 py-3 text-left font-medium text-text-secondary w-32">Division</th>
             <th className="px-6 py-3 text-left font-medium text-text-secondary w-28">Health</th>
-            <th className="px-6 py-3 text-left font-medium text-text-secondary w-28">Budget</th>
             <th className="px-6 py-3 text-left font-medium text-text-secondary w-28">Start</th>
             <th className="px-6 py-3 text-left font-medium text-text-secondary w-28">End</th>
             <th className="px-6 py-3 text-right font-medium text-text-secondary w-24">Actions</th>
@@ -83,15 +82,6 @@ function SectionTable({ projects, budgetsData, isAdmin, onDelete, formatDate, fo
                 )}
               </td>
               <td className="px-6 py-3"><StatusBadge value={p.health_status} name={p.health_status_name} /></td>
-              <td className="px-6 py-3 truncate">
-                {budgetsData[p.id]?.budgets?.length > 0 ? (
-                  <span className="font-medium text-text-primary">
-                    {formatCurrency(budgetsData[p.id].total || 0)}
-                  </span>
-                ) : (
-                  <span className="text-text-secondary">-</span>
-                )}
-              </td>
               <td className="px-6 py-3 text-text-secondary">{formatDate(p.project_start_date)}</td>
               <td className="px-6 py-3 text-text-secondary">{formatDate(p.project_end_date)}</td>
               <td className="px-6 py-3">
@@ -175,7 +165,6 @@ export default function ProjectsPage() {
   const [projects, setProjects] = useState([]);
   const [divisions, setDivisions] = useState([]);
   const [projectStatuses, setProjectStatuses] = useState([]);
-  const [budgetsData, setBudgetsData] = useState({});
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [divisionFilter, setDivisionFilter] = useState('');
@@ -193,20 +182,6 @@ export default function ProjectsPage() {
       const res = await getProjects(params);
       const list = res.data.data;
       setProjects(list);
-
-      const budgetsByProject = {};
-      await Promise.all(list.map(async (project) => {
-        try {
-          const b = (await getBudgets(project.id)).data.data || [];
-          budgetsByProject[project.id] = {
-            total: b.reduce((sum, x) => sum + (x.budget_amount || 0), 0),
-            budgets: b
-          };
-        } catch {
-          budgetsByProject[project.id] = { total: 0, budgets: [] };
-        }
-      }));
-      setBudgetsData(budgetsByProject);
     } catch (err) {
       console.error('Failed to fetch projects', err);
     } finally {
@@ -249,7 +224,7 @@ export default function ProjectsPage() {
 
   const { queued, discovery, active, ended } = groupProjects(projects);
   const yearData = projectsByYear(projects);
-  const tableProps = { budgetsData, isAdmin, onDelete: setDeleteTarget, formatDate, formatCurrency };
+  const tableProps = { isAdmin, onDelete: setDeleteTarget, formatDate };
 
   const totalPages = (arr) => Math.max(1, Math.ceil(arr.length / PAGE_SIZE));
   const paginate = (arr, key) => arr.slice((groupPages[key] - 1) * PAGE_SIZE, groupPages[key] * PAGE_SIZE);
