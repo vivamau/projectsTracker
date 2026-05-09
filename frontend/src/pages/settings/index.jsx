@@ -25,6 +25,47 @@ const AVATAR_SEEDS = [
   'sierra', 'tango', 'ultra', 'victor', 'whiskey', 'xray',
 ];
 
+const PROVIDERS = [
+  { value: 'ollama',  label: 'Ollama (local)' },
+  { value: 'claude',  label: 'Claude (Anthropic)' },
+  { value: 'gemini',  label: 'Gemini (Google)' },
+  { value: 'gpt',     label: 'GPT (OpenAI)' },
+  { value: 'nvidia',      label: 'NVIDIA NIM' },
+  { value: 'openrouter',  label: 'OpenRouter' },
+];
+
+const CLAUDE_MODELS = ['claude-opus-4-7', 'claude-sonnet-4-6', 'claude-haiku-4-5-20251001'];
+const GEMINI_MODELS = [
+  'gemini-2.5-pro-preview-05-06',
+  'gemini-2.5-flash-preview-04-17',
+  'gemini-2.0-flash',
+  'gemini-2.0-flash-lite',
+  'gemini-1.5-pro',
+  'gemini-1.5-flash',
+];
+const GPT_MODELS    = ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo', 'gpt-3.5-turbo'];
+
+
+const NVIDIA_MODELS = [
+  'minimaxai/minimax-m2.7',
+  'meta/llama-3.3-70b-instruct',
+  'meta/llama-3.1-405b-instruct',
+  'mistralai/mistral-large-2-instruct',
+  'nvidia/llama-3.1-nemotron-70b-instruct',
+  'qwen/qwen2.5-72b-instruct',
+  'google/gemma-3-27b-it',
+];
+
+const EMPTY_FORM = {
+  ollama_url: '', ollama_model: '', ollama_api_key: '',
+  agent_provider: 'ollama',
+  claude_api_key: '', claude_model: 'claude-sonnet-4-6',
+  gemini_api_key: '', gemini_model: 'gemini-2.0-flash',
+  gpt_api_key: '',    gpt_model: 'gpt-4o',
+  nvidia_api_key: '',       nvidia_model: 'minimaxai/minimax-m2.7',
+  openrouter_api_key: '',   openrouter_model: 'meta-llama/llama-3.3-70b-instruct',
+};
+
 export default function SettingsPage() {
   const { user, role, refreshUser } = useAuth();
   const { settings, updateSetting } = useAppSettings();
@@ -37,14 +78,14 @@ export default function SettingsPage() {
   const [avatarPickerOpen, setAvatarPickerOpen] = useState(false);
   const [savingAvatar, setSavingAvatar] = useState(false);
 
-  const [agentForm, setAgentForm] = useState({ ollama_url: '', ollama_model: '', ollama_api_key: '' });
+  const [agentForm, setAgentForm] = useState(EMPTY_FORM);
   const [agentModels, setAgentModels] = useState([]);
   const [agentSaving, setAgentSaving] = useState(false);
   const [agentSaved, setAgentSaved] = useState(false);
 
   useEffect(() => {
     if (role !== 'superadmin' && role !== 'admin') return;
-    getAgentSettings().then(r => setAgentForm(r.data.data)).catch(() => {});
+    getAgentSettings().then(r => setAgentForm(f => ({ ...f, ...r.data.data }))).catch(() => {});
     getAgentModels().then(r => setAgentModels(r.data.data || [])).catch(() => {});
   }, [role]);
 
@@ -97,6 +138,8 @@ export default function SettingsPage() {
       setSavingStyle(false);
     }
   };
+
+  const activeProvider = agentForm.agent_provider || 'ollama';
 
   return (
     <div>
@@ -278,62 +321,236 @@ export default function SettingsPage() {
 
           {(role === 'superadmin' || role === 'admin') && (
             <Card title="AI Agent">
-              <p className="text-sm text-text-secondary mb-4">
-                Configure the Ollama instance used by the AI data assistant.
-              </p>
-              <form onSubmit={handleAgentSave} className="space-y-4">
-                <div>
-                  <label className="mb-1.5 block text-sm font-medium text-text-primary">Ollama URL</label>
-                  <input
-                    type="url"
-                    value={agentForm.ollama_url}
-                    onChange={e => setAgentForm(f => ({ ...f, ollama_url: e.target.value }))}
-                    placeholder="http://localhost:11434"
-                    className="w-full rounded-lg border border-border-dark px-3 py-2 text-sm outline-none focus:border-primary-500 bg-surface"
-                  />
-                  <p className="mt-1 text-xs text-text-secondary">Base URL of your Ollama server</p>
-                </div>
-                <div>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <label className="text-sm font-medium text-text-primary">Model</label>
-                    <button type="button" onClick={handleRefreshModels} className="text-xs text-primary-600 hover:underline">
-                      Refresh models
-                    </button>
+              <form onSubmit={handleAgentSave} className="space-y-5">
+
+                {/* ── Provider selector (superadmin only) ── */}
+                {role === 'superadmin' && (
+                  <div>
+                    <label className="mb-1.5 block text-sm font-medium text-text-primary">Provider</label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {PROVIDERS.map(p => (
+                        <button
+                          key={p.value}
+                          type="button"
+                          onClick={() => setAgentForm(f => ({ ...f, agent_provider: p.value }))}
+                          className={`rounded-lg border px-3 py-2 text-sm font-medium transition-colors text-left ${
+                            activeProvider === p.value
+                              ? 'border-primary-500 bg-primary-500/10 text-primary-700'
+                              : 'border-border bg-surface text-text-secondary hover:border-primary-300'
+                          }`}
+                        >
+                          {p.label}
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                  {agentModels.length > 0 ? (
-                    <select
-                      value={agentForm.ollama_model}
-                      onChange={e => setAgentForm(f => ({ ...f, ollama_model: e.target.value }))}
-                      className="w-full rounded-lg border border-border-dark px-3 py-2 text-sm outline-none focus:border-primary-500 bg-surface"
-                    >
-                      {agentModels.map(m => <option key={m.name} value={m.name}>{m.name}</option>)}
-                    </select>
-                  ) : (
-                    <input
-                      type="text"
-                      value={agentForm.ollama_model}
-                      onChange={e => setAgentForm(f => ({ ...f, ollama_model: e.target.value }))}
-                      placeholder="e.g. llama3.2, mistral, qwen2.5"
-                      className="w-full rounded-lg border border-border-dark px-3 py-2 text-sm outline-none focus:border-primary-500 bg-surface"
-                    />
-                  )}
-                  <p className="mt-1 text-xs text-text-secondary">
-                    {agentModels.length > 0
-                      ? `${agentModels.length} model${agentModels.length !== 1 ? 's' : ''} available`
-                      : 'No models found — enter model name manually or check that Ollama is running'}
-                  </p>
-                </div>
-                <div>
-                  <label className="mb-1.5 block text-sm font-medium text-text-primary">API Key</label>
-                  <input
-                    type="password"
-                    value={agentForm.ollama_api_key}
-                    onChange={e => setAgentForm(f => ({ ...f, ollama_api_key: e.target.value }))}
-                    placeholder="sk-…"
-                    className="w-full rounded-lg border border-border-dark px-3 py-2 text-sm outline-none focus:border-primary-500 bg-surface"
-                  />
-                  <p className="mt-1 text-xs text-text-secondary">Required for Ollama cloud; leave empty for local</p>
-                </div>
+                )}
+
+                {/* ── Ollama fields (admin + superadmin when provider = ollama) ── */}
+                {(role === 'admin' || activeProvider === 'ollama') && (
+                  <>
+                    {role === 'admin' && (
+                      <p className="text-sm text-text-secondary -mt-1">
+                        Configure the Ollama instance used by the AI data assistant.
+                      </p>
+                    )}
+                    <div>
+                      <label className="mb-1.5 block text-sm font-medium text-text-primary">Ollama URL</label>
+                      <input
+                        type="url"
+                        value={agentForm.ollama_url}
+                        onChange={e => setAgentForm(f => ({ ...f, ollama_url: e.target.value }))}
+                        placeholder="http://localhost:11434"
+                        className="w-full rounded-lg border border-border-dark px-3 py-2 text-sm outline-none focus:border-primary-500 bg-surface"
+                      />
+                      <p className="mt-1 text-xs text-text-secondary">Base URL of your Ollama server</p>
+                    </div>
+                    <div>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <label className="text-sm font-medium text-text-primary">Model</label>
+                        <button type="button" onClick={handleRefreshModels} className="text-xs text-primary-600 hover:underline">
+                          Refresh models
+                        </button>
+                      </div>
+                      {agentModels.length > 0 ? (
+                        <select
+                          value={agentForm.ollama_model}
+                          onChange={e => setAgentForm(f => ({ ...f, ollama_model: e.target.value }))}
+                          className="w-full rounded-lg border border-border-dark px-3 py-2 text-sm outline-none focus:border-primary-500 bg-surface appearance-none"
+                        >
+                          {agentModels.map(m => <option key={m.name} value={m.name}>{m.name}</option>)}
+                        </select>
+                      ) : (
+                        <input
+                          type="text"
+                          value={agentForm.ollama_model}
+                          onChange={e => setAgentForm(f => ({ ...f, ollama_model: e.target.value }))}
+                          placeholder="e.g. llama3.2, mistral, qwen2.5"
+                          className="w-full rounded-lg border border-border-dark px-3 py-2 text-sm outline-none focus:border-primary-500 bg-surface"
+                        />
+                      )}
+                      <p className="mt-1 text-xs text-text-secondary">
+                        {agentModels.length > 0
+                          ? `${agentModels.length} model${agentModels.length !== 1 ? 's' : ''} available`
+                          : 'No models found — enter model name manually or check that Ollama is running'}
+                      </p>
+                    </div>
+                    <div>
+                      <label className="mb-1.5 block text-sm font-medium text-text-primary">API Key</label>
+                      <input
+                        type="password"
+                        value={agentForm.ollama_api_key}
+                        onChange={e => setAgentForm(f => ({ ...f, ollama_api_key: e.target.value }))}
+                        placeholder="sk-…"
+                        className="w-full rounded-lg border border-border-dark px-3 py-2 text-sm outline-none focus:border-primary-500 bg-surface"
+                      />
+                      <p className="mt-1 text-xs text-text-secondary">Required for Ollama cloud; leave empty for local</p>
+                    </div>
+                  </>
+                )}
+
+                {/* ── Claude fields (superadmin only) ── */}
+                {role === 'superadmin' && activeProvider === 'claude' && (
+                  <>
+                    <div>
+                      <label className="mb-1.5 block text-sm font-medium text-text-primary">Anthropic API Key</label>
+                      <input
+                        type="password"
+                        value={agentForm.claude_api_key}
+                        onChange={e => setAgentForm(f => ({ ...f, claude_api_key: e.target.value }))}
+                        placeholder="sk-ant-…"
+                        className="w-full rounded-lg border border-border-dark px-3 py-2 text-sm outline-none focus:border-primary-500 bg-surface"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1.5 block text-sm font-medium text-text-primary">Model</label>
+                      <select
+                        value={agentForm.claude_model}
+                        onChange={e => setAgentForm(f => ({ ...f, claude_model: e.target.value }))}
+                        className="w-full rounded-lg border border-border-dark px-3 py-2 text-sm outline-none focus:border-primary-500 bg-surface appearance-none"
+                      >
+                        {CLAUDE_MODELS.map(m => <option key={m} value={m}>{m}</option>)}
+                      </select>
+                    </div>
+                  </>
+                )}
+
+                {/* ── Gemini fields (superadmin only) ── */}
+                {role === 'superadmin' && activeProvider === 'gemini' && (
+                  <>
+                    <div>
+                      <label className="mb-1.5 block text-sm font-medium text-text-primary">Google API Key</label>
+                      <input
+                        type="password"
+                        value={agentForm.gemini_api_key}
+                        onChange={e => setAgentForm(f => ({ ...f, gemini_api_key: e.target.value }))}
+                        placeholder="AIza…"
+                        className="w-full rounded-lg border border-border-dark px-3 py-2 text-sm outline-none focus:border-primary-500 bg-surface"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1.5 block text-sm font-medium text-text-primary">Model</label>
+                      <select
+                        value={agentForm.gemini_model}
+                        onChange={e => setAgentForm(f => ({ ...f, gemini_model: e.target.value }))}
+                        className="w-full rounded-lg border border-border-dark px-3 py-2 text-sm outline-none focus:border-primary-500 bg-surface appearance-none"
+                      >
+                        {GEMINI_MODELS.map(m => <option key={m} value={m}>{m}</option>)}
+                      </select>
+                    </div>
+                  </>
+                )}
+
+                {/* ── GPT fields (superadmin only) ── */}
+                {role === 'superadmin' && activeProvider === 'gpt' && (
+                  <>
+                    <div>
+                      <label className="mb-1.5 block text-sm font-medium text-text-primary">OpenAI API Key</label>
+                      <input
+                        type="password"
+                        value={agentForm.gpt_api_key}
+                        onChange={e => setAgentForm(f => ({ ...f, gpt_api_key: e.target.value }))}
+                        placeholder="sk-…"
+                        className="w-full rounded-lg border border-border-dark px-3 py-2 text-sm outline-none focus:border-primary-500 bg-surface"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1.5 block text-sm font-medium text-text-primary">Model</label>
+                      <select
+                        value={agentForm.gpt_model}
+                        onChange={e => setAgentForm(f => ({ ...f, gpt_model: e.target.value }))}
+                        className="w-full rounded-lg border border-border-dark px-3 py-2 text-sm outline-none focus:border-primary-500 bg-surface appearance-none"
+                      >
+                        {GPT_MODELS.map(m => <option key={m} value={m}>{m}</option>)}
+                      </select>
+                    </div>
+                  </>
+                )}
+
+                {/* ── OpenRouter fields (superadmin only) ── */}
+                {role === 'superadmin' && activeProvider === 'openrouter' && (
+                  <>
+                    <p className="text-xs text-text-secondary -mt-1">
+                      Get a free API key at{' '}
+                      <span className="font-mono text-text-primary">openrouter.ai</span>.
+                      Gives access to 300+ models from all providers.
+                    </p>
+                    <div>
+                      <label className="mb-1.5 block text-sm font-medium text-text-primary">OpenRouter API Key</label>
+                      <input
+                        type="password"
+                        value={agentForm.openrouter_api_key}
+                        onChange={e => setAgentForm(f => ({ ...f, openrouter_api_key: e.target.value }))}
+                        placeholder="sk-or-…"
+                        className="w-full rounded-lg border border-border-dark px-3 py-2 text-sm outline-none focus:border-primary-500 bg-surface"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1.5 block text-sm font-medium text-text-primary">Model</label>
+                      <input
+                        type="text"
+                        value={agentForm.openrouter_model}
+                        onChange={e => setAgentForm(f => ({ ...f, openrouter_model: e.target.value }))}
+                        placeholder="e.g. meta-llama/llama-3.3-70b-instruct"
+                        className="w-full rounded-lg border border-border-dark px-3 py-2 text-sm outline-none focus:border-primary-500 bg-surface"
+                      />
+                      <p className="mt-1 text-xs text-text-secondary">Find model IDs at openrouter.ai/models</p>
+                    </div>
+                  </>
+                )}
+
+                {/* ── NVIDIA NIM fields (superadmin only) ── */}
+                {role === 'superadmin' && activeProvider === 'nvidia' && (
+                  <>
+                    <p className="text-xs text-text-secondary -mt-1">
+                      Browse available models at{' '}
+                      <span className="font-mono text-text-primary">build.nvidia.com</span>.
+                      Base URL: <span className="font-mono text-text-primary">integrate.api.nvidia.com/v1</span>
+                    </p>
+                    <div>
+                      <label className="mb-1.5 block text-sm font-medium text-text-primary">NVIDIA API Key</label>
+                      <input
+                        type="password"
+                        value={agentForm.nvidia_api_key}
+                        onChange={e => setAgentForm(f => ({ ...f, nvidia_api_key: e.target.value }))}
+                        placeholder="nvapi-…"
+                        className="w-full rounded-lg border border-border-dark px-3 py-2 text-sm outline-none focus:border-primary-500 bg-surface"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1.5 block text-sm font-medium text-text-primary">Model</label>
+                      <select
+                        value={agentForm.nvidia_model}
+                        onChange={e => setAgentForm(f => ({ ...f, nvidia_model: e.target.value }))}
+                        className="w-full rounded-lg border border-border-dark px-3 py-2 text-sm outline-none focus:border-primary-500 bg-surface appearance-none"
+                      >
+                        {NVIDIA_MODELS.map(m => <option key={m} value={m}>{m}</option>)}
+                      </select>
+                      <p className="mt-1 text-xs text-text-secondary">Custom model IDs from build.nvidia.com are also accepted</p>
+                    </div>
+                  </>
+                )}
+
                 <div className="flex items-center gap-3 pt-1">
                   <button type="submit" disabled={agentSaving}
                     className="rounded-lg bg-primary-500 px-4 py-2 text-sm font-medium text-white hover:bg-primary-600 transition-colors disabled:opacity-60">

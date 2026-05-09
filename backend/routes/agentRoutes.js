@@ -19,7 +19,13 @@ function createAgentRoutes(db, auditDb) {
 
   router.put('/settings', authenticate, authorize('admin', 'superadmin'), async (req, res) => {
     try {
-      await agentService.updateSettings(db, req.body);
+      let body = req.body;
+      if (req.user.role !== 'superadmin') {
+        // Admin may only configure Ollama settings
+        const { ollama_url, ollama_model, ollama_api_key } = body;
+        body = { ollama_url, ollama_model, ollama_api_key };
+      }
+      await agentService.updateSettings(db, body);
       const updated = await agentService.getSettings(db);
       return success(res, updated);
     } catch (err) {
@@ -43,7 +49,9 @@ function createAgentRoutes(db, auditDb) {
       return error(res, 'Message is required', 400);
     }
     try {
+      const requestedAt = Date.now();
       const result = await agentService.chat(db, { message: message.trim(), history: history || [] });
+      const respondedAt = Date.now();
 
       if (auditDb && sessionId) {
         aiTokenLogService.logTokens(auditDb, {
@@ -54,6 +62,8 @@ function createAgentRoutes(db, auditDb) {
           promptTokens: result.promptTokens,
           completionTokens: result.completionTokens,
           messagePreview: message.trim(),
+          requestedAt,
+          respondedAt,
         }).catch(() => {});
       }
 

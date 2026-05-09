@@ -97,7 +97,18 @@ describe('agentService.getSettings', () => {
     expect(settings.ollama_api_key).toBe('');
   });
 
-  it('returns configured values when settings exist', async () => {
+  it('returns provider and proprietary model defaults', async () => {
+    const settings = await agentService.getSettings(db);
+    expect(settings.agent_provider).toBe('ollama');
+    expect(settings.claude_api_key).toBe('');
+    expect(settings.claude_model).toBe('claude-sonnet-4-6');
+    expect(settings.gemini_api_key).toBe('');
+    expect(settings.gemini_model).toBe('gemini-2.0-flash');
+    expect(settings.gpt_api_key).toBe('');
+    expect(settings.gpt_model).toBe('gpt-4o');
+  });
+
+  it('returns configured Ollama values when settings exist', async () => {
     await agentService.updateSettings(db, {
       ollama_url: 'http://myollama:11434',
       ollama_model: 'mistral',
@@ -123,6 +134,35 @@ describe('agentService.updateSettings', () => {
     await agentService.updateSettings(db, {});
     const after = await agentService.getSettings(db);
     expect(after.ollama_model).toBe(before.ollama_model);
+  });
+
+  it('updates agent_provider', async () => {
+    await agentService.updateSettings(db, { agent_provider: 'claude' });
+    const settings = await agentService.getSettings(db);
+    expect(settings.agent_provider).toBe('claude');
+    // Reset
+    await agentService.updateSettings(db, { agent_provider: 'ollama' });
+  });
+
+  it('updates Claude settings', async () => {
+    await agentService.updateSettings(db, { claude_api_key: 'sk-ant-test', claude_model: 'claude-opus-4-7' });
+    const settings = await agentService.getSettings(db);
+    expect(settings.claude_api_key).toBe('sk-ant-test');
+    expect(settings.claude_model).toBe('claude-opus-4-7');
+  });
+
+  it('updates Gemini settings', async () => {
+    await agentService.updateSettings(db, { gemini_api_key: 'AIza-test', gemini_model: 'gemini-1.5-pro' });
+    const settings = await agentService.getSettings(db);
+    expect(settings.gemini_api_key).toBe('AIza-test');
+    expect(settings.gemini_model).toBe('gemini-1.5-pro');
+  });
+
+  it('updates GPT settings', async () => {
+    await agentService.updateSettings(db, { gpt_api_key: 'sk-openai-test', gpt_model: 'gpt-4-turbo' });
+    const settings = await agentService.getSettings(db);
+    expect(settings.gpt_api_key).toBe('sk-openai-test');
+    expect(settings.gpt_model).toBe('gpt-4-turbo');
   });
 });
 

@@ -2,12 +2,13 @@ const { getAll, getOne, runQuery } = require('../config/database');
 
 const PREVIEW_LEN = 120;
 
-async function logTokens(auditDb, { userId, userEmail, sessionId, model, promptTokens, completionTokens, messagePreview }) {
+async function logTokens(auditDb, { userId, userEmail, sessionId, model, promptTokens, completionTokens, messagePreview, requestedAt, respondedAt }) {
   const preview = messagePreview ? messagePreview.slice(0, PREVIEW_LEN) : null;
+  const sentAt = requestedAt || Date.now();
   return runQuery(auditDb,
-    `INSERT INTO ai_token_logs (user_id, user_email, session_id, model, prompt_tokens, completion_tokens, message_preview, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    [userId || null, userEmail || null, sessionId, model, promptTokens || 0, completionTokens || 0, preview, Date.now()]
+    `INSERT INTO ai_token_logs (user_id, user_email, session_id, model, prompt_tokens, completion_tokens, message_preview, created_at, responded_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [userId || null, userEmail || null, sessionId, model, promptTokens || 0, completionTokens || 0, preview, sentAt, respondedAt || null]
   );
 }
 
@@ -58,7 +59,7 @@ async function getSessionCount(auditDb, filters = {}) {
 
 async function getMessages(auditDb, sessionId) {
   return getAll(auditDb,
-    `SELECT id, user_email, model, prompt_tokens, completion_tokens, message_preview, created_at
+    `SELECT id, user_email, model, prompt_tokens, completion_tokens, message_preview, created_at, responded_at
      FROM ai_token_logs
      WHERE session_id = ?
      ORDER BY created_at ASC`,

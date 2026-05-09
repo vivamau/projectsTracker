@@ -22,7 +22,8 @@ beforeAll(async () => {
         prompt_tokens INTEGER NOT NULL DEFAULT 0,
         completion_tokens INTEGER NOT NULL DEFAULT 0,
         message_preview TEXT,
-        created_at INTEGER NOT NULL
+        created_at INTEGER NOT NULL,
+        responded_at INTEGER
       );
       CREATE INDEX idx_ai_token_logs_session_id ON ai_token_logs(session_id);
       CREATE INDEX idx_ai_token_logs_created_at ON ai_token_logs(created_at);
@@ -162,5 +163,33 @@ describe('aiTokenLogService.getMessages', () => {
     expect(msgs.length).toBe(2);
     expect(msgs[0].message_preview).toBe('first');
     expect(msgs[1].message_preview).toBe('second');
+  });
+
+  it('records requested_at and responded_at timestamps', async () => {
+    const requestedAt = Date.now();
+    const respondedAt = requestedAt + 3200;
+    await aiTokenLogService.logTokens(auditDb, {
+      sessionId: 'sess-timestamps', model: 'llama3.2',
+      promptTokens: 10, completionTokens: 5,
+      messagePreview: 'timed message',
+      requestedAt,
+      respondedAt,
+    });
+
+    const msgs = await aiTokenLogService.getMessages(auditDb, 'sess-timestamps');
+    expect(msgs.length).toBe(1);
+    expect(msgs[0].created_at).toBe(requestedAt);
+    expect(msgs[0].responded_at).toBe(respondedAt);
+  });
+
+  it('stores null responded_at when not provided', async () => {
+    await aiTokenLogService.logTokens(auditDb, {
+      sessionId: 'sess-no-response', model: 'llama3.2',
+      promptTokens: 5, completionTokens: 2,
+    });
+
+    const msgs = await aiTokenLogService.getMessages(auditDb, 'sess-no-response');
+    expect(msgs.length).toBe(1);
+    expect(msgs[0].responded_at).toBeNull();
   });
 });

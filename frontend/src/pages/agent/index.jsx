@@ -3,8 +3,10 @@ import { useBlocker } from 'react-router-dom';
 import { Bot, User, Send, Trash2, Loader2, TriangleAlert, BookmarkPlus, FolderOpen, Download, X, Check, FilePlus, RotateCcw } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { sendChatMessage, saveAgentSession, listAgentSessions, loadAgentSession, downloadAgentSession, deleteAgentSession } from '../../api/agentApi';
+import { sendChatMessage, saveAgentSession, listAgentSessions, loadAgentSession, downloadAgentSession, deleteAgentSession, getAgentSettings } from '../../api/agentApi';
 import { useAuth } from '../../hooks/useAuth';
+
+const PROVIDER_LABELS = { ollama: 'Ollama', claude: 'Claude', gemini: 'Gemini', gpt: 'GPT', nvidia: 'NVIDIA NIM', openrouter: 'OpenRouter' };
 
 // ─── Message bubble ────────────────────────────────────────────────────────
 
@@ -275,6 +277,11 @@ export default function AgentPage() {
   const sessionIdRef = useRef(sessionId);
   const bottomRef = useRef(null);
   const inputRef = useRef(null);
+  const [activeProvider, setActiveProvider] = useState('ollama');
+
+  useEffect(() => {
+    getAgentSettings().then(r => setActiveProvider(r.data.data?.agent_provider || 'ollama')).catch(() => {});
+  }, []);
 
   // Save UI
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
@@ -489,7 +496,7 @@ export default function AgentPage() {
         </button>
       </div>
       <p className="mt-1.5 text-center text-xs text-text-secondary/60">
-        Powered by Ollama · data is read-only
+        Powered by {PROVIDER_LABELS[activeProvider] || 'Ollama'} · data is read-only
       </p>
 
       {/* Unsaved-session modal (New or Navigate away) */}

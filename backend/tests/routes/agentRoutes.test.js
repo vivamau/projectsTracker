@@ -7,6 +7,14 @@ jest.mock('../../services/agentService', () => ({
   getSettings: jest.fn().mockResolvedValue({
     ollama_url: 'http://localhost:11434',
     ollama_model: 'llama3.2',
+    ollama_api_key: '',
+    agent_provider: 'ollama',
+    claude_api_key: '',
+    claude_model: 'claude-sonnet-4-6',
+    gemini_api_key: '',
+    gemini_model: 'gemini-2.0-flash',
+    gpt_api_key: '',
+    gpt_model: 'gpt-4o',
   }),
   updateSettings: jest.fn().mockResolvedValue(undefined),
   getOllamaModels: jest.fn().mockResolvedValue([{ name: 'llama3.2' }, { name: 'mistral' }]),
@@ -30,7 +38,18 @@ afterAll(async () => {
 
 beforeEach(() => {
   jest.clearAllMocks();
-  agentService.getSettings.mockResolvedValue({ ollama_url: 'http://localhost:11434', ollama_model: 'llama3.2' });
+  agentService.getSettings.mockResolvedValue({
+    ollama_url: 'http://localhost:11434',
+    ollama_model: 'llama3.2',
+    ollama_api_key: '',
+    agent_provider: 'ollama',
+    claude_api_key: '',
+    claude_model: 'claude-sonnet-4-6',
+    gemini_api_key: '',
+    gemini_model: 'gemini-2.0-flash',
+    gpt_api_key: '',
+    gpt_model: 'gpt-4o',
+  });
   agentService.updateSettings.mockResolvedValue(undefined);
   agentService.getOllamaModels.mockResolvedValue([{ name: 'llama3.2' }, { name: 'mistral' }]);
   agentService.chat.mockResolvedValue({ role: 'assistant', content: 'Hello! I can help.' });
@@ -55,7 +74,7 @@ describe('Agent Routes', () => {
   });
 
   describe('PUT /api/agent/settings', () => {
-    it('should update settings as admin', async () => {
+    it('should update Ollama settings as admin', async () => {
       const res = await request(app)
         .put('/api/agent/settings')
         .set('Cookie', ['token=' + adminToken()])
@@ -63,6 +82,28 @@ describe('Agent Routes', () => {
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);
       expect(agentService.updateSettings).toHaveBeenCalled();
+    });
+
+    it('should strip proprietary settings when called by admin', async () => {
+      await request(app)
+        .put('/api/agent/settings')
+        .set('Cookie', ['token=' + adminToken()])
+        .send({ ollama_model: 'mistral', agent_provider: 'claude', claude_api_key: 'sk-ant-x' });
+      const call = agentService.updateSettings.mock.calls[0][1];
+      expect(call.ollama_model).toBe('mistral');
+      expect(call.agent_provider).toBeUndefined();
+      expect(call.claude_api_key).toBeUndefined();
+    });
+
+    it('should allow superadmin to update provider and proprietary settings', async () => {
+      await request(app)
+        .put('/api/agent/settings')
+        .set('Cookie', ['token=' + superadminToken()])
+        .send({ agent_provider: 'claude', claude_api_key: 'sk-ant-x', claude_model: 'claude-opus-4-7' });
+      const call = agentService.updateSettings.mock.calls[0][1];
+      expect(call.agent_provider).toBe('claude');
+      expect(call.claude_api_key).toBe('sk-ant-x');
+      expect(call.claude_model).toBe('claude-opus-4-7');
     });
 
     it('should return 403 for reader role', async () => {

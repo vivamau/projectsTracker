@@ -29,13 +29,19 @@ const AUDIT_SCHEMA = `
     prompt_tokens INTEGER NOT NULL DEFAULT 0,
     completion_tokens INTEGER NOT NULL DEFAULT 0,
     message_preview TEXT,
-    created_at INTEGER NOT NULL
+    created_at INTEGER NOT NULL,
+    responded_at INTEGER
   );
   CREATE INDEX IF NOT EXISTS idx_ai_token_logs_session_id ON ai_token_logs(session_id);
   CREATE INDEX IF NOT EXISTS idx_ai_token_logs_created_at ON ai_token_logs(created_at);
   CREATE INDEX IF NOT EXISTS idx_ai_token_logs_user_email ON ai_token_logs(user_email);
   CREATE INDEX IF NOT EXISTS idx_ai_token_logs_model ON ai_token_logs(model);
 `;
+
+function applyAuditColumnMigrations(instance) {
+  // Silently add new columns to existing tables — errors mean the column already exists
+  instance.run('ALTER TABLE ai_token_logs ADD COLUMN responded_at INTEGER', () => {});
+}
 
 function getAuditDb() {
   if (auditDb) return auditDb;
@@ -44,6 +50,7 @@ function getAuditDb() {
   auditDb = new sqlite3.Database(dbPath);
   auditDb.run('PRAGMA journal_mode = WAL');
   auditDb.exec(AUDIT_SCHEMA);
+  applyAuditColumnMigrations(auditDb);
 
   return auditDb;
 }
@@ -52,6 +59,7 @@ function createAuditDb(dbPath) {
   const instance = new sqlite3.Database(dbPath);
   instance.run('PRAGMA journal_mode = WAL');
   instance.exec(AUDIT_SCHEMA);
+  applyAuditColumnMigrations(instance);
   return instance;
 }
 

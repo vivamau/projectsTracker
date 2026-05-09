@@ -443,6 +443,13 @@ function SessionRow({ session, onExpand, expanded }) {
   );
 }
 
+function formatDuration(sentAt, respondedAt) {
+  if (!sentAt || !respondedAt) return null;
+  const ms = respondedAt - sentAt;
+  if (ms < 0) return null;
+  return ms < 1000 ? `${ms}ms` : `${(ms / 1000).toFixed(1)}s`;
+}
+
 function SessionMessages({ sessionId }) {
   const [messages, setMessages] = useState(null);
 
@@ -459,20 +466,34 @@ function SessionMessages({ sessionId }) {
     <tr><td colSpan={9} className="px-4 py-3 text-sm text-text-secondary text-center italic">No messages in this session</td></tr>
   );
 
-  return messages.map((msg, i) => (
-    <tr key={msg.id} className="bg-surface-card/60 border-l-2 border-primary-500/30">
-      <td className="px-4 py-2 text-xs text-text-secondary pl-10">{i + 1}</td>
-      <td className="px-4 py-2 text-xs text-text-secondary" colSpan={2}>
-        <span className="italic truncate block max-w-xs">{msg.message_preview || "—"}</span>
-      </td>
-      <td className="px-4 py-2 text-xs text-text-secondary text-center">—</td>
-      <td className="px-4 py-2 text-xs text-right font-mono text-indigo-500">{formatNum(msg.prompt_tokens)}</td>
-      <td className="px-4 py-2 text-xs text-right font-mono text-emerald-500">{formatNum(msg.completion_tokens)}</td>
-      <td className="px-4 py-2 text-xs text-right font-mono text-text-secondary">{formatNum((msg.prompt_tokens || 0) + (msg.completion_tokens || 0))}</td>
-      <td className="px-4 py-2 text-xs text-text-secondary">{formatDate(msg.created_at)}</td>
-      <td />
-    </tr>
-  ));
+  return messages.map((msg, i) => {
+    const duration = formatDuration(msg.created_at, msg.responded_at);
+    return (
+      <tr key={msg.id} className="bg-surface-card/60 border-l-2 border-primary-500/30">
+        <td className="px-4 py-2 text-xs text-text-secondary pl-10">{i + 1}</td>
+        <td className="px-4 py-2 text-xs text-text-secondary" colSpan={2}>
+          <span className="italic truncate block max-w-xs">{msg.message_preview || "—"}</span>
+        </td>
+        <td className="px-4 py-2 text-xs text-center">
+          {duration
+            ? <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 font-mono">{duration}</span>
+            : <span className="text-text-secondary">—</span>}
+        </td>
+        <td className="px-4 py-2 text-xs text-right font-mono text-indigo-500">{formatNum(msg.prompt_tokens)}</td>
+        <td className="px-4 py-2 text-xs text-right font-mono text-emerald-500">{formatNum(msg.completion_tokens)}</td>
+        <td className="px-4 py-2 text-xs text-right font-mono text-text-secondary">{formatNum((msg.prompt_tokens || 0) + (msg.completion_tokens || 0))}</td>
+        <td className="px-4 py-2 text-xs text-text-secondary">
+          <div>{formatDate(msg.created_at)}</div>
+          <div className="text-text-secondary/60 text-[10px] mt-0.5">sent</div>
+        </td>
+        <td className="px-4 py-2 text-xs text-text-secondary">
+          {msg.responded_at
+            ? <><div>{formatDate(msg.responded_at)}</div><div className="text-text-secondary/60 text-[10px] mt-0.5">replied</div></>
+            : <span className="text-text-secondary/40">—</span>}
+        </td>
+      </tr>
+    );
+  });
 }
 
 function AIUsageTab() {
