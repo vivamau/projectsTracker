@@ -25,7 +25,7 @@ const createTaskRoutes = require('./taskRoutes');
 function createRoutes(db, auditDb) {
   const router = express.Router();
 
-  router.use(createExpiryCheck(db));
+  router.use(createExpiryCheck(db, auditDb));
 
   router.use('/auth', createAuthRoutes(db, auditDb));
   router.use('/projects', createProjectRoutes(db, auditDb));

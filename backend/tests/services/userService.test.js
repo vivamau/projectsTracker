@@ -356,7 +356,7 @@ describe('userService', () => {
   });
 
   describe('deactivateExpiredUsers', () => {
-    it('should deactivate users whose expire date is in the past and keep the date', async () => {
+    it('should deactivate users whose expire date is in the past and return their records', async () => {
       const pastTs = Date.now() - 1000;
       const created = await userService.create(db, {
         user_email: 'willexpire@test.com',
@@ -367,13 +367,15 @@ describe('userService', () => {
         user_active: 1,
         user_expire_date: pastTs
       });
-      await userService.deactivateExpiredUsers(db);
+      const expired = await userService.deactivateExpiredUsers(db);
+      expect(Array.isArray(expired)).toBe(true);
+      expect(expired.some(u => u.user_email === 'willexpire@test.com')).toBe(true);
       const user = await userService.getById(db, created.lastID);
       expect(user.user_active).toBe(0);
       expect(user.user_expire_date).toBe(pastTs);
     });
 
-    it('should not deactivate users with a future expire date', async () => {
+    it('should not deactivate users with a future expire date and return empty array', async () => {
       const futureTs = Date.now() + 10 * 24 * 60 * 60 * 1000;
       const created = await userService.create(db, {
         user_email: 'future@test.com',
@@ -384,7 +386,8 @@ describe('userService', () => {
         user_active: 1,
         user_expire_date: futureTs
       });
-      await userService.deactivateExpiredUsers(db);
+      const expired = await userService.deactivateExpiredUsers(db);
+      expect(expired.some(u => u.user_email === 'future@test.com')).toBe(false);
       const user = await userService.getById(db, created.lastID);
       expect(user.user_active).toBe(1);
     });
@@ -398,7 +401,8 @@ describe('userService', () => {
         userrole_id: 3,
         user_active: 1
       });
-      await userService.deactivateExpiredUsers(db);
+      const expired = await userService.deactivateExpiredUsers(db);
+      expect(expired.some(u => u.user_email === 'noexpiry2@test.com')).toBe(false);
       const user = await userService.getById(db, created.lastID);
       expect(user.user_active).toBe(1);
     });

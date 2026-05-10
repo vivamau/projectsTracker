@@ -12,7 +12,18 @@ function createUserRoutes(db, auditDb) {
       const page = parseInt(req.query.page) || 1;
       const limit = parseInt(req.query.limit) || 20;
       const search = req.query.search || '';
-      await userService.deactivateExpiredUsers(db);
+      const expired = await userService.deactivateExpiredUsers(db);
+      for (const u of expired) {
+        await auditLog(auditDb, {
+          userId: null,
+          userEmail: 'system',
+          action: 'user.expired',
+          entityType: 'user',
+          entityId: u.id,
+          details: { user_email: u.user_email },
+          ip: req.ip
+        });
+      }
       const result = await userService.getAll(db, { page, limit, search });
       return paginated(res, result.data, result.total, page, limit);
     } catch (err) {
@@ -81,6 +92,17 @@ function createUserRoutes(db, auditDb) {
         details: { before: existing, after: req.body },
         ip: req.ip
       });
+      if (req.body.user_expire_date !== undefined && req.body.user_expire_date !== existing.user_expire_date) {
+        await auditLog(auditDb, {
+          userId: req.user.id,
+          userEmail: req.user.email,
+          action: req.body.user_expire_date ? 'user.set_expiry' : 'user.clear_expiry',
+          entityType: 'user',
+          entityId: id,
+          details: { user_email: existing.user_email, user_expire_date: req.body.user_expire_date },
+          ip: req.ip
+        });
+      }
       return success(res, { message: 'User updated' });
     } catch (err) {
       return error(res, 'Failed to update user');

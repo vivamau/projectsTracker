@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
 const { getOne, runQuery } = require('../config/database');
+const { auditLog } = require('../utilities/auditHelper');
 
 function authenticate(req, res, next) {
   const token = req.cookies && req.cookies.token;
@@ -28,7 +29,7 @@ function authorize(...roles) {
   };
 }
 
-function createExpiryCheck(db) {
+function createExpiryCheck(db, auditDb) {
   return async (req, res, next) => {
     const token = req.cookies && req.cookies.token;
     if (!token) return next();
@@ -43,7 +44,7 @@ function createExpiryCheck(db) {
 
     try {
       const user = await getOne(db,
-        'SELECT user_active, user_expire_date FROM users WHERE id = ? AND (user_is_deleted = 0 OR user_is_deleted IS NULL)',
+        'SELECT id, user_email, user_active, user_expire_date FROM users WHERE id = ? AND (user_is_deleted = 0 OR user_is_deleted IS NULL)',
         [payload.id]
       );
       if (!user) return next();
@@ -55,6 +56,17 @@ function createExpiryCheck(db) {
            user_update_date = ? WHERE id = ?`,
           [now, payload.id]
         );
+        if (auditDb) {
+          await auditLog(auditDb, {
+            userId: user.id,
+            userEmail: user.user_email,
+            action: 'user.expired',
+            entityType: 'user',
+            entityId: user.id,
+            details: { user_email: user.user_email, trigger: 'session' },
+            ip: req.ip
+          });
+        }
         res.clearCookie('token', { path: '/' });
         return res.status(401).json({ error: 'Account has expired' });
       }

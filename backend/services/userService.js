@@ -169,13 +169,21 @@ async function getProjectsByUserId(db, userId) {
 
 async function deactivateExpiredUsers(db) {
   const now = Date.now();
-  return runQuery(db,
+  const expired = await getAll(db,
+    `SELECT id, user_email FROM users
+     WHERE user_active = 1 AND user_expire_date IS NOT NULL AND user_expire_date < ?
+     AND (user_is_deleted = 0 OR user_is_deleted IS NULL)`,
+    [now]
+  );
+  if (expired.length === 0) return [];
+  await runQuery(db,
     `UPDATE users SET user_active = 0, userrole_id = 4, user_password_hash = NULL,
      user_update_date = ?
      WHERE user_active = 1 AND user_expire_date IS NOT NULL AND user_expire_date < ?
      AND (user_is_deleted = 0 OR user_is_deleted IS NULL)`,
     [now, now]
   );
+  return expired;
 }
 
 module.exports = { getAll: getAllUsers, getById, create, update, softDelete, getProjectsByUserId, deactivateExpiredUsers };
