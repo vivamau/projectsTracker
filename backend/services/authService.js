@@ -2,6 +2,15 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { getOne, runQuery } = require('../config/database');
 
+async function deactivateExpired(db, userId) {
+  const now = Date.now();
+  await runQuery(db,
+    `UPDATE users SET user_active = 0, userrole_id = 4, user_password_hash = NULL,
+     user_update_date = ? WHERE id = ?`,
+    [now, userId]
+  );
+}
+
 async function login(db, email, password) {
   const user = await getOne(db,
     `SELECT u.*, ur.userrole_name as role
@@ -12,8 +21,12 @@ async function login(db, email, password) {
   );
 
   if (!user) return null;
-  if (user.user_active === 0) return null; // inactive users cannot log in
+  if (user.user_active === 0) return null;
   if (!user.user_password_hash) return null;
+  if (user.user_expire_date && Date.now() > user.user_expire_date) {
+    await deactivateExpired(db, user.id);
+    return { expired: true };
+  }
 
   const valid = await bcrypt.compare(password, user.user_password_hash);
   if (!valid) return null;

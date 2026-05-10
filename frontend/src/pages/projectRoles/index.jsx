@@ -1,151 +1,93 @@
 import { useState, useEffect } from 'react';
-import { Plus, Pencil, Trash2 } from 'lucide-react';
-import { getProjectRoles, createProjectRole, updateProjectRole, deleteProjectRole } from '../../api/projectsApi';
-import { useAuth } from '../../hooks/useAuth';
-import Card from '../../commoncomponents/Card';
-import Modal from '../../commoncomponents/Modal';
-import ConfirmDialog from '../../commoncomponents/ConfirmDialog';
+import { useNavigate } from 'react-router-dom';
+import { Users } from 'lucide-react';
+import { getProjectRoles } from '../../api/projectsApi';
+import { getProjectStats } from '../../api/projectsApi';
 import LoadingSpinner from '../../commoncomponents/LoadingSpinner';
 
 export default function ProjectRolesPage() {
-  const { role } = useAuth();
-  const isSuperAdmin = role === 'superadmin';
+  const navigate = useNavigate();
   const [roles, setRoles] = useState([]);
+  const [countByRole, setCountByRole] = useState({});
   const [loading, setLoading] = useState(true);
-  const [modal, setModal] = useState(false);
-  const [editItem, setEditItem] = useState(null);
-  const [form, setForm] = useState({ role_name: '', role_description: '' });
-  const [deleteTarget, setDeleteTarget] = useState(null);
-  const [error, setError] = useState('');
 
-  const fetchData = () => {
-    setLoading(true);
-    getProjectRoles()
-      .then(r => setRoles(r.data.data))
-      .catch(() => setRoles([]))
+  useEffect(() => {
+    Promise.all([getProjectRoles(), getProjectStats()])
+      .then(([rolesRes, statsRes]) => {
+        setRoles(rolesRes.data.data || []);
+        const counts = {};
+        (statsRes.data.data?.roleAssignmentCounts || []).forEach(r => {
+          counts[r.role_id] = { assignments: Number(r.count) };
+        });
+        (statsRes.data.data?.roleAssignments || []).forEach(ra => {
+          if (!counts[ra.role_id]) counts[ra.role_id] = { assignments: 0 };
+          counts[ra.role_id].uniqueUsers = (counts[ra.role_id].uniqueUsers || new Set());
+          counts[ra.role_id].uniqueUsers.add(ra.user_id);
+        });
+        // Convert Sets to counts
+        Object.values(counts).forEach(c => {
+          if (c.uniqueUsers instanceof Set) c.users = c.uniqueUsers.size;
+          delete c.uniqueUsers;
+        });
+        setCountByRole(counts);
+      })
+      .catch(() => {})
       .finally(() => setLoading(false));
-  };
+  }, []);
 
-  useEffect(() => { fetchData(); }, []);
-
-  const openCreate = () => {
-    setEditItem(null);
-    setForm({ role_name: '', role_description: '' });
-    setError('');
-    setModal(true);
-  };
-
-  const openEdit = (item) => {
-    setEditItem(item);
-    setForm({ role_name: item.role_name || '', role_description: item.role_description || '' });
-    setError('');
-    setModal(true);
-  };
-
-  const handleSave = async (e) => {
-    e.preventDefault();
-    setError('');
-    if (!form.role_name.trim()) {
-      setError('Role name is required');
-      return;
-    }
-    try {
-      if (editItem) {
-        await updateProjectRole(editItem.id, form);
-      } else {
-        await createProjectRole(form);
-      }
-      setModal(false);
-      fetchData();
-    } catch (err) {
-      setError(err.response?.data?.error || 'Failed to save role');
-    }
-  };
-
-  const handleDelete = async () => {
-    await deleteProjectRole(deleteTarget.id);
-    setDeleteTarget(null);
-    fetchData();
-  };
+  if (loading) return <LoadingSpinner className="py-12" />;
 
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-bold">Project Roles</h1>
-          <p className="text-sm text-text-secondary">Manage roles that can be assigned to project team members</p>
-        </div>
-        {isSuperAdmin && (
-          <button onClick={openCreate} className="inline-flex items-center gap-2 rounded-lg bg-primary-500 px-4 py-2.5 text-sm font-semibold text-white hover:bg-primary-600 transition-colors">
-            <Plus size={18} /> New Role
-          </button>
-        )}
+      <div className="mb-6">
+        <h1 className="text-xl font-bold">Project Roles</h1>
+        <p className="text-sm text-text-secondary">Browse people by their project role</p>
       </div>
 
-      <Card noPadding>
-        {loading ? <LoadingSpinner className="py-12" /> : (
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border bg-surface/50">
-                <th className="px-6 py-3 text-left font-medium text-text-secondary">Name</th>
-                <th className="px-6 py-3 text-left font-medium text-text-secondary">Description</th>
-                {isSuperAdmin && <th className="px-6 py-3 text-right font-medium text-text-secondary">Actions</th>}
-              </tr>
-            </thead>
-            <tbody>
-              {roles.length === 0 ? (
-                <tr><td colSpan={isSuperAdmin ? 3 : 2} className="px-6 py-12 text-center text-text-secondary">No project roles defined</td></tr>
-              ) : roles.map(r => (
-                <tr key={r.id} className="border-b border-border last:border-0 hover:bg-surface/30 transition-colors">
-                  <td className="px-6 py-3 font-medium text-text-primary">{r.role_name}</td>
-                  <td className="px-6 py-3 text-text-secondary">{r.role_description || '-'}</td>
-                  {isSuperAdmin && (
-                    <td className="px-6 py-3">
-                      <div className="flex justify-end gap-1">
-                        <button onClick={() => openEdit(r)} className="rounded-lg p-1.5 text-text-secondary hover:bg-surface hover:text-primary-500 transition-colors"><Pencil size={16} /></button>
-                        <button onClick={() => setDeleteTarget(r)} className="rounded-lg p-1.5 text-text-secondary hover:bg-error-50 hover:text-error-500 transition-colors"><Trash2 size={16} /></button>
-                      </div>
-                    </td>
-                  )}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </Card>
+      {roles.length === 0 ? (
+        <div className="rounded-lg border border-border bg-surface-card p-12 text-center text-text-secondary">
+          No project roles defined yet.
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {roles.map(r => {
+            const counts = countByRole[r.id] || {};
+            const userCount = counts.users || 0;
+            const assignmentCount = counts.assignments || 0;
 
-      <Modal open={modal} onClose={() => setModal(false)} title={editItem ? 'Edit Role' : 'New Role'} maxWidth="max-w-md">
-        <form onSubmit={handleSave} className="space-y-4">
-          {error && <div className="rounded-lg bg-error-50 px-4 py-3 text-sm text-error-600">{error}</div>}
-          <div>
-            <label className="mb-1 block text-sm font-medium">Name</label>
-            <input
-              type="text"
-              value={form.role_name}
-              onChange={e => setForm(f => ({ ...f, role_name: e.target.value }))}
-              className="w-full rounded-lg border border-border-dark bg-surface px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 appearance-none"
-              placeholder="e.g. Product Owner"
-              required
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium">Description</label>
-            <textarea
-              value={form.role_description}
-              onChange={e => setForm(f => ({ ...f, role_description: e.target.value }))}
-              rows={3}
-              className="w-full rounded-lg border border-border-dark bg-surface px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 resize-none"
-              placeholder="Optional description..."
-            />
-          </div>
-          <div className="flex justify-end gap-3">
-            <button type="button" onClick={() => setModal(false)} className="rounded-lg border border-border-dark px-4 py-2 text-sm font-medium hover:bg-surface transition-colors">Cancel</button>
-            <button type="submit" className="rounded-lg bg-primary-500 px-4 py-2 text-sm font-medium text-white hover:bg-primary-600 transition-colors">{editItem ? 'Update' : 'Create'}</button>
-          </div>
-        </form>
-      </Modal>
+            return (
+              <button
+                key={r.id}
+                onClick={() => navigate(`/project-roles/${r.id}`)}
+                className="group rounded-xl border border-border bg-surface-card p-5 text-left shadow-sm hover:border-primary-400 hover:shadow-md transition-all duration-200"
+              >
+                <div className="mb-3 flex items-start justify-between">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary-500/10 text-primary-500 group-hover:bg-primary-500/20 transition-colors">
+                    <Users size={20} />
+                  </div>
+                  <span className="rounded-full bg-surface px-2.5 py-0.5 text-xs font-medium text-text-secondary border border-border">
+                    {userCount} {userCount === 1 ? 'person' : 'people'}
+                  </span>
+                </div>
 
-      <ConfirmDialog open={!!deleteTarget} onClose={() => setDeleteTarget(null)} onConfirm={handleDelete} title="Delete Role" message={`Delete "${deleteTarget?.role_name}"? This will not remove existing assignments.`} />
+                <h3 className="mb-1 font-semibold text-text-primary group-hover:text-primary-600 transition-colors">
+                  {r.role_name}
+                </h3>
+
+                {r.role_description ? (
+                  <p className="text-xs text-text-secondary line-clamp-2">{r.role_description}</p>
+                ) : (
+                  <p className="text-xs text-text-secondary italic">No description</p>
+                )}
+
+                <div className="mt-3 border-t border-border pt-3 text-xs text-text-secondary">
+                  {assignmentCount} {assignmentCount === 1 ? 'assignment' : 'assignments'} across all projects
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

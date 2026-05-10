@@ -52,16 +52,19 @@ export default function UsersPage() {
     }
   }, [isSuperAdmin]);
 
+  const tsToDate = (ts) => ts ? new Date(ts).toISOString().split('T')[0] : '';
+  const dateToTs = (str) => str ? new Date(str).getTime() : null;
+
   const openCreate = () => {
     setEditItem(null);
-    setForm({ user_email: '', user_name: '', user_lastname: '', password: '', userrole_id: 3, user_active: 1 });
+    setForm({ user_email: '', user_name: '', user_lastname: '', password: '', userrole_id: 3, user_active: 1, user_expire_date: '' });
     setError('');
     setModal(true);
   };
 
   const openEdit = (u) => {
     setEditItem(u);
-    setForm({ user_email: u.user_email, user_name: u.user_name || '', user_lastname: u.user_lastname || '', password: '', userrole_id: u.userrole_id, user_active: u.user_active ?? 1 });
+    setForm({ user_email: u.user_email, user_name: u.user_name || '', user_lastname: u.user_lastname || '', password: '', userrole_id: u.userrole_id, user_active: u.user_active ?? 1, user_expire_date: tsToDate(u.user_expire_date) });
     setError('');
     setModal(true);
   };
@@ -70,21 +73,21 @@ export default function UsersPage() {
     e.preventDefault();
     setError('');
     const isActive = form.user_active === 1;
+    const payload = { ...form, user_expire_date: isActive ? dateToTs(form.user_expire_date) : null };
     try {
       if (editItem) {
-        const data = { ...form };
-        if (!data.password) delete data.password;
-        await updateUser(editItem.id, data);
+        if (!payload.password) delete payload.password;
+        await updateUser(editItem.id, payload);
       } else {
-        if (!form.user_email) {
+        if (!payload.user_email) {
           setError('Email is required');
           return;
         }
-        if (isActive && !form.password) {
+        if (isActive && !payload.password) {
           setError('Password is required for active users');
           return;
         }
-        await createUser(form);
+        await createUser(payload);
       }
       setModal(false);
       fetchData();
@@ -127,13 +130,14 @@ export default function UsersPage() {
                 <th className="px-6 py-3 text-left font-medium text-text-secondary">Email</th>
                 <th className="px-6 py-3 text-left font-medium text-text-secondary">Role</th>
                 <th className="px-6 py-3 text-left font-medium text-text-secondary">Active</th>
+                <th className="px-6 py-3 text-left font-medium text-text-secondary">Expires</th>
                 <th className="px-6 py-3 text-left font-medium text-text-secondary">Act as</th>
                 {isSuperAdmin && <th className="px-6 py-3 text-right font-medium text-text-secondary">Actions</th>}
               </tr>
             </thead>
             <tbody>
               {users.length === 0 ? (
-                <tr><td colSpan={5} className="px-6 py-12 text-center text-text-secondary">No users</td></tr>
+                <tr><td colSpan={6} className="px-6 py-12 text-center text-text-secondary">No users</td></tr>
               ) : users.map(u => {
                 const userRoles = (stats?.roleAssignments || [])
                   .filter(ra => ra.user_id === u.id)
@@ -159,6 +163,14 @@ export default function UsersPage() {
                     {(u.user_active ?? 1) === 1
                       ? <span className="rounded-full bg-success-100 px-2.5 py-0.5 text-xs font-medium text-success-700">Yes</span>
                       : <span className="rounded-full bg-surface border border-border px-2.5 py-0.5 text-xs font-medium text-text-secondary">No</span>
+                    }
+                  </td>
+                  <td className="px-6 py-3 text-xs">
+                    {u.user_expire_date
+                      ? <span className={Date.now() > u.user_expire_date ? 'text-error-500 font-medium' : 'text-text-secondary'}>
+                          {new Date(u.user_expire_date).toLocaleDateString()}
+                        </span>
+                      : <span className="text-text-secondary">—</span>
                     }
                   </td>
                   <td className="px-6 py-3 text-sm text-text-secondary">{actAs}</td>
@@ -238,6 +250,12 @@ export default function UsersPage() {
                 <select value={form.userrole_id} onChange={e => setForm(f => ({ ...f, userrole_id: parseInt(e.target.value) }))} className="w-full rounded-lg border border-border-dark bg-surface px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 appearance-none">
                   {ROLES.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
                 </select>
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium">
+                  Expiry Date <span className="text-text-secondary font-normal">(optional)</span>
+                </label>
+                <input type="date" value={form.user_expire_date} onChange={e => setForm(f => ({ ...f, user_expire_date: e.target.value }))} className="w-full rounded-lg border border-border-dark bg-surface px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 appearance-none" />
               </div>
             </>
           )}

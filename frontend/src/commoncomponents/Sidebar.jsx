@@ -15,6 +15,7 @@ import {
   Bot,
   ShoppingCart,
   CheckSquare,
+  Briefcase,
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 
@@ -22,6 +23,7 @@ const navItems = [
   { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
   { label: 'Projects', path: '/projects', icon: FolderKanban },
   { label: 'Tasks', path: '/tasks', icon: CheckSquare },
+  { label: 'Project Roles', path: '/project-roles', icon: Briefcase },
   { label: 'Divisions', path: '/divisions', icon: Building2 },
   { label: 'Initiatives', path: '/initiatives', icon: Flag },
   { label: 'Delivery Paths', path: '/delivery-paths', icon: Route },

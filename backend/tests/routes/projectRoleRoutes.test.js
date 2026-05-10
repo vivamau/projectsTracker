@@ -122,6 +122,32 @@ describe('PUT /api/project-roles/:id', () => {
   });
 });
 
+describe('GET /api/project-roles/:id/users', () => {
+  it('should return role and empty assignments when no users assigned', async () => {
+    const res = await request(app)
+      .get('/api/project-roles/1/users')
+      .set('Cookie', ['token=' + adminToken()]);
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.role).toBeDefined();
+    expect(res.body.data.role.role_name).toBe('Project Manager');
+    expect(Array.isArray(res.body.data.assignments)).toBe(true);
+  });
+
+  it('should return 404 for non-existent role', async () => {
+    const res = await request(app)
+      .get('/api/project-roles/999/users')
+      .set('Cookie', ['token=' + adminToken()]);
+
+    expect(res.status).toBe(404);
+  });
+
+  it('should require authentication', async () => {
+    const res = await request(app).get('/api/project-roles/1/users');
+    expect(res.status).toBe(401);
+  });
+});
+
 describe('DELETE /api/project-roles/:id', () => {
   let roleId;
 

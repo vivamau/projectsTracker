@@ -60,6 +60,40 @@ describe('authService', () => {
       const result = await authService.login(db, 'nohash@test.com', 'anypassword');
       expect(result).toBeNull();
     });
+
+    it('should return { expired: true } for user with past expire date', async () => {
+      const bcrypt = require('bcryptjs');
+      const { runQuery, getOne } = require('../../config/database');
+      const hash = await bcrypt.hash('testpassword', 10);
+      const pastTs = Date.now() - 1000;
+      await runQuery(db,
+        "INSERT INTO users (user_email, user_name, user_lastname, user_password_hash, user_create_date, userrole_id, user_active, user_expire_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        ['expired@test.com', 'Exp', 'User', hash, Date.now(), 3, 1, pastTs]
+      );
+      const result = await authService.login(db, 'expired@test.com', 'testpassword');
+      expect(result).toEqual({ expired: true });
+
+      // user must be deactivated but expire date preserved
+      const user = await getOne(db, "SELECT user_active, userrole_id, user_password_hash, user_expire_date FROM users WHERE user_email = 'expired@test.com'", []);
+      expect(user.user_active).toBe(0);
+      expect(user.userrole_id).toBe(4);
+      expect(user.user_password_hash).toBeNull();
+      expect(user.user_expire_date).toBe(pastTs);
+    });
+
+    it('should allow login when expire date is in the future', async () => {
+      const bcrypt = require('bcryptjs');
+      const { runQuery } = require('../../config/database');
+      const hash = await bcrypt.hash('testpassword', 10);
+      const futureTs = Date.now() + 10 * 24 * 60 * 60 * 1000;
+      await runQuery(db,
+        "INSERT INTO users (user_email, user_name, user_lastname, user_password_hash, user_create_date, userrole_id, user_active, user_expire_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        ['notexpired@test.com', 'NotExp', 'User', hash, Date.now(), 3, 1, futureTs]
+      );
+      const result = await authService.login(db, 'notexpired@test.com', 'testpassword');
+      expect(result).toBeDefined();
+      expect(result.token).toBeDefined();
+    });
   });
 
   describe('updateAvatarSeed', () => {

@@ -143,6 +143,12 @@ function UserDetailPage() {
               <span className="text-xs text-text-secondary">
                 <span className="font-medium">Updated:</span> {formatDate(user.user_update_date)}
               </span>
+              {user.user_expire_date && (
+                <span className={`text-xs font-medium ${Date.now() > user.user_expire_date ? 'text-error-500' : 'text-text-secondary'}`}>
+                  <span className="font-medium">Expires:</span> {new Date(user.user_expire_date).toLocaleDateString()}
+                  {Date.now() > user.user_expire_date && ' (expired)'}
+                </span>
+              )}
               <span className="text-xs font-mono text-text-secondary">
                 #{user.id}
               </span>

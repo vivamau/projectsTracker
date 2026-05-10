@@ -168,6 +168,35 @@ describe('userService', () => {
       expect(user.user_active).toBe(1);
       expect(user.role).toBe('admin');
     });
+
+    it('should store user_expire_date for active users', async () => {
+      const expireTs = Date.now() + 30 * 24 * 60 * 60 * 1000;
+      const result = await userService.create(db, {
+        user_email: 'expiry@test.com',
+        user_name: 'Expiry',
+        user_lastname: 'User',
+        password: 'password123',
+        userrole_id: 3,
+        user_active: 1,
+        user_expire_date: expireTs
+      });
+      const user = await userService.getById(db, result.lastID);
+      expect(user.user_expire_date).toBe(expireTs);
+    });
+
+    it('should not store user_expire_date for inactive users', async () => {
+      const expireTs = Date.now() + 30 * 24 * 60 * 60 * 1000;
+      const result = await userService.create(db, {
+        user_email: 'inactiveexpiry@test.com',
+        user_name: 'InactExp',
+        user_lastname: 'User',
+        userrole_id: 3,
+        user_active: 0,
+        user_expire_date: expireTs
+      });
+      const user = await userService.getById(db, result.lastID);
+      expect(user.user_expire_date).toBeNull();
+    });
   });
 
   describe('update', () => {
@@ -277,6 +306,41 @@ describe('userService', () => {
       expect(user.role).toBe('guest');
     });
 
+    it('should set and clear user_expire_date', async () => {
+      const created = await userService.create(db, {
+        user_email: 'expupdate@test.com',
+        user_name: 'Exp',
+        user_lastname: 'User',
+        password: 'password123',
+        userrole_id: 3,
+        user_active: 1
+      });
+      const expireTs = Date.now() + 7 * 24 * 60 * 60 * 1000;
+      await userService.update(db, created.lastID, { user_expire_date: expireTs });
+      let user = await userService.getById(db, created.lastID);
+      expect(user.user_expire_date).toBe(expireTs);
+
+      await userService.update(db, created.lastID, { user_expire_date: null });
+      user = await userService.getById(db, created.lastID);
+      expect(user.user_expire_date).toBeNull();
+    });
+
+    it('should preserve user_expire_date when deactivating', async () => {
+      const expireTs = Date.now() + 7 * 24 * 60 * 60 * 1000;
+      const created = await userService.create(db, {
+        user_email: 'deactexpiry@test.com',
+        user_name: 'DeactExp',
+        user_lastname: 'User',
+        password: 'password123',
+        userrole_id: 3,
+        user_active: 1,
+        user_expire_date: expireTs
+      });
+      await userService.update(db, created.lastID, { user_active: 0 });
+      const user = await userService.getById(db, created.lastID);
+      expect(user.user_expire_date).toBe(expireTs);
+    });
+
     it('should set user_active to 1 when activating', async () => {
       const created = await userService.create(db, {
         user_email: 'activate@test.com',
@@ -286,6 +350,55 @@ describe('userService', () => {
         user_active: 0
       });
       await userService.update(db, created.lastID, { user_active: 1 });
+      const user = await userService.getById(db, created.lastID);
+      expect(user.user_active).toBe(1);
+    });
+  });
+
+  describe('deactivateExpiredUsers', () => {
+    it('should deactivate users whose expire date is in the past and keep the date', async () => {
+      const pastTs = Date.now() - 1000;
+      const created = await userService.create(db, {
+        user_email: 'willexpire@test.com',
+        user_name: 'Will',
+        user_lastname: 'Expire',
+        password: 'password123',
+        userrole_id: 3,
+        user_active: 1,
+        user_expire_date: pastTs
+      });
+      await userService.deactivateExpiredUsers(db);
+      const user = await userService.getById(db, created.lastID);
+      expect(user.user_active).toBe(0);
+      expect(user.user_expire_date).toBe(pastTs);
+    });
+
+    it('should not deactivate users with a future expire date', async () => {
+      const futureTs = Date.now() + 10 * 24 * 60 * 60 * 1000;
+      const created = await userService.create(db, {
+        user_email: 'future@test.com',
+        user_name: 'Future',
+        user_lastname: 'Exp',
+        password: 'password123',
+        userrole_id: 3,
+        user_active: 1,
+        user_expire_date: futureTs
+      });
+      await userService.deactivateExpiredUsers(db);
+      const user = await userService.getById(db, created.lastID);
+      expect(user.user_active).toBe(1);
+    });
+
+    it('should not deactivate users with no expire date', async () => {
+      const created = await userService.create(db, {
+        user_email: 'noexpiry2@test.com',
+        user_name: 'No',
+        user_lastname: 'Expiry',
+        password: 'password123',
+        userrole_id: 3,
+        user_active: 1
+      });
+      await userService.deactivateExpiredUsers(db);
       const user = await userService.getById(db, created.lastID);
       expect(user.user_active).toBe(1);
     });

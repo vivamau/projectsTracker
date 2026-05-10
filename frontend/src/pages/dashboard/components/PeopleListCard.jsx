@@ -5,7 +5,7 @@ import UserAvatar from '../../../commoncomponents/UserAvatar';
 
 const PAGE_SIZE = 9;
 
-export default function PeopleListCard({ title, people = [], isSuperAdmin = false }) {
+export default function PeopleListCard({ title, people = [], isSuperAdmin = false, roleId }) {
   const [page, setPage] = useState(1);
   const totalPages = Math.max(1, Math.ceil(people.length / PAGE_SIZE));
   const slice = people.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
@@ -13,7 +13,13 @@ export default function PeopleListCard({ title, people = [], isSuperAdmin = fals
   return (
     <div className="rounded-lg border border-border bg-surface-card p-5 shadow-sm flex flex-col h-full">
       <div className="flex items-center justify-between mb-3">
-        <h3 className="text-base font-semibold text-text-primary">{title}</h3>
+        {roleId ? (
+          <Link to={`/project-roles/${roleId}`} className="text-base font-semibold text-primary-600 hover:underline">
+            {title}
+          </Link>
+        ) : (
+          <h3 className="text-base font-semibold text-text-primary">{title}</h3>
+        )}
         <span className="text-xs text-text-secondary">{people.length} total</span>
       </div>
 

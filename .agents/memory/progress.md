@@ -404,3 +404,25 @@
   - [x] Chat loop: auto-executes raw SQL responses and re-prompts for human-readable summary
   - [x] System prompt: explicit rule to never return SQL in reply text
   - [x] Iteration cap raised 6→8 to accommodate extra round-trip
+- [x] Multi-provider AI assistant <!-- id: 300 -->
+  - [x] Migrations 033–035: seeded app_settings rows for provider, Claude, Gemini, GPT, NVIDIA NIM, OpenRouter
+  - [x] agentService.js: shared callOpenAICompat() abstraction; per-provider tool format builders; dispatch by agent_provider setting
+  - [x] agentRoutes.js: role-based field stripping (admin → Ollama only); requestedAt/respondedAt timestamps
+  - [x] settings/index.jsx: provider picker grid (superadmin); conditional fields; OpenRouter free-text model; admin sees Ollama only
+  - [x] agent/index.jsx: shows active provider name in footer
+  - [x] Tests updated: provider settings + role-based stripping coverage
+- [x] AI log timestamps <!-- id: 301 -->
+  - [x] auditDatabase.js: responded_at INTEGER column + silent migration for existing DBs
+  - [x] aiTokenLogService: logTokens accepts requestedAt/respondedAt; getMessages returns responded_at
+  - [x] logs/index.jsx: formatDuration() helper; sent/replied timestamps + amber duration badge in session messages
+  - [x] Tests: 2 new tests for timestamp storage
+- [x] Login password visibility toggle <!-- id: 302 -->
+  - [x] login/index.jsx: Eye/EyeOff toggle button; showPassword state; resolved git merge conflict using HEAD version
+- [x] User expiry date <!-- id: 303 -->
+  - [x] Migration 036: user_expire_date INTEGER column on users table
+  - [x] userService: create stores expiry only for active users; update handles set/clear; deactivation clears expiry
+  - [x] authService: login returns { expired: true } when Date.now() > user_expire_date
+  - [x] authRoutes: HTTP 401 "Account has expired" + audit log auth.login_expired
+  - [x] users/index.jsx: date picker (active users only), cleared on deactivation, ts ↔ date string conversion
+  - [x] users/detail.jsx: expiry date in header metadata, red + "(expired)" when past
+  - [x] 7 new tests (create/update/deactivate/login expiry scenarios); 1028 backend tests all passing

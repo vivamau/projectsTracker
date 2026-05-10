@@ -28,6 +28,18 @@ function createProjectRoleRoutes(db, auditDb) {
     }
   });
 
+  router.get('/:id/users', authenticate, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const role = await projectRoleService.getById(db, id);
+      if (!role) return error(res, 'Project role not found', 404);
+      const rows = await projectRoleService.getUsersByRoleId(db, id);
+      return success(res, { role, assignments: rows });
+    } catch (err) {
+      return error(res, 'Failed to get project role users');
+    }
+  });
+
   router.post('/', authenticate, authorize('superadmin'), async (req, res) => {
     try {
       const { role_name } = req.body;

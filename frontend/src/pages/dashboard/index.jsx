@@ -191,11 +191,11 @@ export default function DashboardPage() {
         {(() => {
           const byRole = {};
           (stats?.roleAssignments || []).forEach(ra => {
-            if (!byRole[ra.role_name]) byRole[ra.role_name] = [];
-            byRole[ra.role_name].push(ra);
+            if (!byRole[ra.role_id]) byRole[ra.role_id] = { roleId: ra.role_id, roleName: ra.role_name, people: [] };
+            byRole[ra.role_id].people.push(ra);
           });
-          return Object.entries(byRole).map(([roleName, people]) => (
-            <PeopleListCard key={roleName} title={roleName + 's'} people={people} isSuperAdmin={isSuperAdmin} />
+          return Object.values(byRole).map(({ roleId, roleName, people }) => (
+            <PeopleListCard key={roleId} title={roleName + 's'} people={people} isSuperAdmin={isSuperAdmin} roleId={roleId} />
           ));
         })()}
       </div>

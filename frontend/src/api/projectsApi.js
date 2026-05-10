@@ -76,6 +76,9 @@ export const updateProjectRole = (id, data) =>
 export const deleteProjectRole = (id) =>
   client.delete(`/project-roles/${id}`);
 
+export const getProjectRoleUsers = (id) =>
+  client.get(`/project-roles/${id}/users`);
+
 // Budget detail & Purchase Orders
 export const getAllBudgets = () =>
   client.get(`/budgets`);

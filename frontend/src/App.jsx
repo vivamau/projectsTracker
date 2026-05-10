@@ -23,6 +23,8 @@ import CountriesPage from './pages/countries/index';
 import CountryDetailPage from './pages/countries/detail';
 import AgentPage from './pages/agent/index';
 import PurchaseOrdersPage from './pages/purchaseOrders/index';
+import ProjectRolesPage from './pages/projectRoles/index';
+import ProjectRoleDetailPage from './pages/projectRoles/detail';
 import TasksPage from './pages/tasks/index';
 import LogsPage from './pages/logs/index';
 import SettingsPage from './pages/settings/index';
@@ -61,6 +63,8 @@ const router = createBrowserRouter(
         <Route path="/users/:id" element={<UserDetailPage />} />
         <Route path="/agent" element={<AgentPage />} />
         <Route path="/purchase-orders" element={<PurchaseOrdersPage />} />
+        <Route path="/project-roles" element={<ProjectRolesPage />} />
+        <Route path="/project-roles/:id" element={<ProjectRoleDetailPage />} />
         <Route path="/tasks" element={<TasksPage />} />
         <Route path="/logs" element={<LogsPage />} />
         <Route path="/settings" element={<SettingsPage />} />

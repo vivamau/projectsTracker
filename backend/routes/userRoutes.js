@@ -12,6 +12,7 @@ function createUserRoutes(db, auditDb) {
       const page = parseInt(req.query.page) || 1;
       const limit = parseInt(req.query.limit) || 20;
       const search = req.query.search || '';
+      await userService.deactivateExpiredUsers(db);
       const result = await userService.getAll(db, { page, limit, search });
       return paginated(res, result.data, result.total, page, limit);
     } catch (err) {

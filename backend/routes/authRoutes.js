@@ -27,6 +27,18 @@ function createAuthRoutes(db, auditDb) {
         });
         return error(res, 'Invalid email or password', 401);
       }
+      if (result.expired) {
+        await auditLog(auditDb, {
+          userId: null,
+          userEmail: email,
+          action: 'auth.login_expired',
+          entityType: 'user',
+          entityId: null,
+          details: {},
+          ip: req.ip
+        });
+        return error(res, 'Account has expired', 401);
+      }
 
       res.cookie('token', result.token, {
         httpOnly: true,

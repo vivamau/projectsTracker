@@ -45,4 +45,24 @@ async function softDelete(db, id) {
   );
 }
 
-module.exports = { getAll: getAll_, getById, create, update, softDelete };
+async function getUsersByRoleId(db, roleId) {
+  return getAll(db,
+    `SELECT u.id as user_id, u.user_name, u.user_lastname, u.user_email,
+            p.id as project_id, p.project_name,
+            d.division_name,
+            ps.project_status_name,
+            pa.assignment_start_date, pa.assignment_end_date, pa.assignment_percentage
+     FROM project_assignments pa
+     JOIN users u ON pa.user_id = u.id
+     JOIN projects p ON pa.project_id = p.id
+     LEFT JOIN divisions d ON pa.division_id = d.id
+     LEFT JOIN project_statuses ps ON p.project_status_id = ps.id
+     WHERE pa.project_role_id = ?
+       AND (p.project_is_deleted = 0 OR p.project_is_deleted IS NULL)
+       AND (u.user_is_deleted = 0 OR u.user_is_deleted IS NULL)
+     ORDER BY u.user_name, u.user_lastname, p.project_name`,
+    [roleId]
+  );
+}
+
+module.exports = { getAll: getAll_, getById, create, update, softDelete, getUsersByRoleId };

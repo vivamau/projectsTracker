@@ -1,4 +1,5 @@
 const express = require('express');
+const { createExpiryCheck } = require('../middleware/auth');
 const createAuthRoutes = require('./authRoutes');
 const createProjectRoutes = require('./projectRoutes');
 const createDivisionRoutes = require('./divisionRoutes');
@@ -23,6 +24,8 @@ const createTaskRoutes = require('./taskRoutes');
 
 function createRoutes(db, auditDb) {
   const router = express.Router();
+
+  router.use(createExpiryCheck(db));
 
   router.use('/auth', createAuthRoutes(db, auditDb));
   router.use('/projects', createProjectRoutes(db, auditDb));
