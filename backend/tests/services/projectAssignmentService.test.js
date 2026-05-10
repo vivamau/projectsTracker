@@ -43,6 +43,28 @@ describe('projectAssignmentService', () => {
       expect(result[0].division_name).toBeDefined();
     });
 
+    it('should not return assignments for soft-deleted roles', async () => {
+      const roleRes = await runQuery(db,
+        'INSERT INTO project_roles (role_name, role_create_date) VALUES (?, ?)',
+        ['Temp Role', Date.now()]
+      );
+      const roleId = roleRes.lastID;
+      const projRes = await runQuery(db,
+        'INSERT INTO projects (project_name, project_create_date) VALUES (?, ?)',
+        ['Soft Delete Role Test', Date.now()]
+      );
+      await projectAssignmentService.syncForProject(db, projRes.lastID, [
+        { user_id: 1, project_role_id: roleId, division_id: null, start_date: null, end_date: null, percentage: null }
+      ]);
+      let result = await projectAssignmentService.getByProjectId(db, projRes.lastID);
+      expect(result.length).toBe(1);
+
+      await runQuery(db, 'UPDATE project_roles SET role_is_deleted = 1 WHERE id = ?', [roleId]);
+
+      result = await projectAssignmentService.getByProjectId(db, projRes.lastID);
+      expect(result.length).toBe(0);
+    });
+
     it('should return assignments ordered by role_name then user_name', async () => {
       // Add a second user as SA
       await runQuery(db,

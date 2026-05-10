@@ -11,6 +11,7 @@ async function getByProjectId(db, projectId) {
      JOIN project_roles pr ON pr.id = pa.project_role_id
      LEFT JOIN divisions d ON d.id = pa.division_id
      WHERE pa.project_id = ?
+       AND (pr.role_is_deleted = 0 OR pr.role_is_deleted IS NULL)
      ORDER BY pr.role_name, u.user_name`,
     [projectId]
   );
