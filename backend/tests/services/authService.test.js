@@ -96,6 +96,58 @@ describe('authService', () => {
     });
   });
 
+  describe('createPasswordResetToken', () => {
+    it('should return a token for a valid active user', async () => {
+      const token = await authService.createPasswordResetToken(db, 'superadmin@test.com');
+      expect(typeof token).toBe('string');
+      expect(token.length).toBeGreaterThan(0);
+    });
+
+    it('should return null for unknown email without revealing it', async () => {
+      const token = await authService.createPasswordResetToken(db, 'nobody@test.com');
+      expect(token).toBeNull();
+    });
+
+    it('should store a hashed token (not the raw token) in the DB', async () => {
+      const { getOne } = require('../../config/database');
+      const crypto = require('crypto');
+      const raw = await authService.createPasswordResetToken(db, 'superadmin@test.com');
+      const hashed = crypto.createHash('sha256').update(raw).digest('hex');
+      const user = await getOne(db, "SELECT password_reset_token FROM users WHERE user_email = 'superadmin@test.com'", []);
+      expect(user.password_reset_token).toBe(hashed);
+    });
+  });
+
+  describe('resetPassword', () => {
+    it('should update the password and clear the token', async () => {
+      const raw = await authService.createPasswordResetToken(db, 'admin@test.com');
+      const ok = await authService.resetPassword(db, raw, 'newSecurePass1');
+      expect(ok).toBe(true);
+      // can now log in with new password
+      const result = await authService.login(db, 'admin@test.com', 'newSecurePass1');
+      expect(result).toBeDefined();
+      expect(result.token).toBeDefined();
+    });
+
+    it('should return false for an invalid token', async () => {
+      const ok = await authService.resetPassword(db, 'invalidtoken', 'newpassword123');
+      expect(ok).toBe(false);
+    });
+
+    it('should return false for an expired token', async () => {
+      const { runQuery, getOne } = require('../../config/database');
+      const crypto = require('crypto');
+      const raw = 'expiredtoken123';
+      const hashed = crypto.createHash('sha256').update(raw).digest('hex');
+      await runQuery(db,
+        "UPDATE users SET password_reset_token = ?, password_reset_expires = ? WHERE user_email = 'reader@test.com'",
+        [hashed, Date.now() - 1000]
+      );
+      const ok = await authService.resetPassword(db, raw, 'newpassword123');
+      expect(ok).toBe(false);
+    });
+  });
+
   describe('updateAvatarSeed', () => {
     it('should update avatar seed for a user', async () => {
       await authService.updateAvatarSeed(db, 1, 'alpha');

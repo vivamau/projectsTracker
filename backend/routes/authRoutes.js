@@ -3,6 +3,7 @@ const { authenticate } = require('../middleware/auth');
 const authService = require('../services/authService');
 const { success, error } = require('../utilities/responseHelper');
 const { auditLog } = require('../utilities/auditHelper');
+const { sendPasswordReset } = require('../utilities/emailHelper');
 
 function createAuthRoutes(db, auditDb) {
   const router = express.Router();
@@ -61,6 +62,59 @@ function createAuthRoutes(db, auditDb) {
       return success(res, { user: result.user });
     } catch (err) {
       return error(res, 'Login failed');
+    }
+  });
+
+  router.post('/forgot-password', async (req, res) => {
+    try {
+      const { email } = req.body;
+      if (!email) return error(res, 'Email is required', 400);
+
+      const rawToken = await authService.createPasswordResetToken(db, email);
+      if (rawToken) {
+        const frontendUrl = process.env.CORS_ORIGIN || 'http://localhost:5173';
+        const resetUrl = `${frontendUrl}/reset-password?token=${rawToken}`;
+        await sendPasswordReset(email, resetUrl);
+        await auditLog(auditDb, {
+          userId: null,
+          userEmail: email,
+          action: 'auth.password_reset_requested',
+          entityType: 'user',
+          entityId: null,
+          details: {},
+          ip: req.ip
+        });
+      }
+
+      // Always respond the same way to avoid email enumeration
+      return success(res, { message: 'If that email exists, a reset link has been sent.' });
+    } catch (err) {
+      return error(res, 'Failed to process request');
+    }
+  });
+
+  router.post('/reset-password', async (req, res) => {
+    try {
+      const { token, password } = req.body;
+      if (!token || !password) return error(res, 'Token and password are required', 400);
+      if (password.length < 8) return error(res, 'Password must be at least 8 characters', 400);
+
+      const ok = await authService.resetPassword(db, token, password);
+      if (!ok) return error(res, 'Invalid or expired reset link', 400);
+
+      await auditLog(auditDb, {
+        userId: null,
+        userEmail: null,
+        action: 'auth.password_reset_completed',
+        entityType: 'user',
+        entityId: null,
+        details: {},
+        ip: req.ip
+      });
+
+      return success(res, { message: 'Password updated. You can now log in.' });
+    } catch (err) {
+      return error(res, 'Failed to reset password');
     }
   });
 

@@ -1,6 +1,10 @@
+const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { getOne, runQuery } = require('../config/database');
+
+const RESET_TOKEN_EXPIRES_MS = 60 * 60 * 1000; // 1 hour
+const SALT_ROUNDS = 10;
 
 async function deactivateExpired(db, userId) {
   const now = Date.now();
@@ -59,4 +63,43 @@ async function updateAvatarSeed(db, id, seed) {
   await runQuery(db, 'UPDATE users SET user_avatar_seed = ? WHERE id = ?', [seed || null, id]);
 }
 
-module.exports = { login, getUserById, updateAvatarSeed };
+async function createPasswordResetToken(db, email) {
+  const user = await getOne(db,
+    `SELECT id FROM users WHERE user_email = ? AND user_active = 1
+     AND (user_is_deleted = 0 OR user_is_deleted IS NULL)`,
+    [email]
+  );
+  if (!user) return null; // don't reveal whether email exists
+
+  const rawToken = crypto.randomBytes(32).toString('hex');
+  const hashedToken = crypto.createHash('sha256').update(rawToken).digest('hex');
+  const expires = Date.now() + RESET_TOKEN_EXPIRES_MS;
+
+  await runQuery(db,
+    'UPDATE users SET password_reset_token = ?, password_reset_expires = ? WHERE id = ?',
+    [hashedToken, expires, user.id]
+  );
+
+  return rawToken;
+}
+
+async function resetPassword(db, rawToken, newPassword) {
+  const hashedToken = crypto.createHash('sha256').update(rawToken).digest('hex');
+  const user = await getOne(db,
+    `SELECT id FROM users
+     WHERE password_reset_token = ? AND password_reset_expires > ?
+     AND (user_is_deleted = 0 OR user_is_deleted IS NULL)`,
+    [hashedToken, Date.now()]
+  );
+  if (!user) return false;
+
+  const hash = await bcrypt.hash(newPassword, SALT_ROUNDS);
+  await runQuery(db,
+    `UPDATE users SET user_password_hash = ?, password_reset_token = NULL,
+     password_reset_expires = NULL, user_update_date = ? WHERE id = ?`,
+    [hash, Date.now(), user.id]
+  );
+  return true;
+}
+
+module.exports = { login, getUserById, updateAvatarSeed, createPasswordResetToken, resetPassword };
