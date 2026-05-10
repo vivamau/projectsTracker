@@ -25,6 +25,7 @@ import MilestoneTimeline from './components/MilestoneTimeline';
 import ActivitiesChart from './components/ActivitiesChart';
 import Map from './components/Map';
 import TasksCard from './components/TasksCard';
+import EntityNotes from '../../commoncomponents/EntityNotes';
 
 export default function ProjectDetailPage() {
   const { id } = useParams();
@@ -713,6 +714,7 @@ export default function ProjectDetailPage() {
             )}
           </Card>
 
+          <EntityNotes entityType="project" entityId={id} />
         </div>
       </div>
 

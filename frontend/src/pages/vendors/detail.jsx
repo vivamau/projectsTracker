@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, Globe, Mail, Phone, MapPin, FolderKanban, Users } from 'lucide-react';
-import { getVendor, getVendors, getVendorContracts, getVendorContractRoles, getVendorRoleRates } from '../../api/entitiesApi';
-import { getProjects, getBudgets, getPurchaseOrders, getPurchaseOrderItems } from '../../api/projectsApi';
+import { ArrowLeft, Globe, Mail, Phone, MapPin, FolderKanban, Users, ChevronDown, ChevronRight } from 'lucide-react';
+import { getVendor, getVendorContracts, getVendorContractRoles, getVendorRoleRates, getVendorPurchaseOrders } from '../../api/entitiesApi';
 import Card from '../../commoncomponents/Card';
 import LoadingSpinner from '../../commoncomponents/LoadingSpinner';
+import EntityNotes from '../../commoncomponents/EntityNotes';
+
+const TABS = ['Contracts', 'Purchase Orders'];
 
 export default function VendorDetailPage() {
   const { id } = useParams();
@@ -14,132 +16,72 @@ export default function VendorDetailPage() {
   const [contracts, setContracts] = useState([]);
   const [contractRoles, setContractRoles] = useState({});
   const [ratesByRole, setRatesByRole] = useState({});
-  const [projects, setProjects] = useState([]);
-  const [totalPoAmount, setTotalPoAmount] = useState(0);
-  const [poCurrencies, setPoCurrencies] = useState([]);
+  const [purchaseOrders, setPurchaseOrders] = useState([]);
+  const [expandedPos, setExpandedPos] = useState({});
+  const [activeTab, setActiveTab] = useState('Contracts');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Fetch vendor
-        const vendorRes = await getVendor(parseInt(id));
+        const [vendorRes, contractsRes, posRes] = await Promise.all([
+          getVendor(parseInt(id)),
+          getVendorContracts(parseInt(id)),
+          getVendorPurchaseOrders(parseInt(id)),
+        ]);
+
         const vendorData = vendorRes.data.data;
         setVendor(vendorData);
         setResources(vendorData.resources || []);
-
-        // Fetch contracts
-        const contractsRes = await getVendorContracts(parseInt(id));
         setContracts(contractsRes.data.data || []);
+        setPurchaseOrders(posRes.data.data || []);
 
-        // Fetch roles and rates for each contract
         const rolesData = {};
         const ratesData = {};
-
         for (const contract of contractsRes.data.data || []) {
           const rolesRes = await getVendorContractRoles(parseInt(id), contract.id);
           rolesData[contract.id] = rolesRes.data.data || [];
-
           for (const role of rolesRes.data.data || []) {
             const ratesRes = await getVendorRoleRates(parseInt(id), contract.id, role.id);
             ratesData[role.id] = ratesRes.data.data || [];
           }
         }
-
         setContractRoles(rolesData);
         setRatesByRole(ratesData);
-
-        // Fetch projects where vendor is involved
-        const projectsRes = await getProjects({ limit: 100 });
-        const allProjects = projectsRes.data.data || [];
-        const vendorProjects = new Set();
-        let total = 0;
-        const currencies = new Set();
-
-        for (const project of allProjects) {
-          try {
-            const budgetsRes = await getBudgets(project.id);
-            const budgets = budgetsRes.data.data || [];
-
-            for (const budget of budgets) {
-              try {
-                const posRes = await getPurchaseOrders(budget.id);
-                const pos = posRes.data.data || [];
-
-                const vendorPos = pos.filter(po => po.vendor_id === parseInt(id));
-                if (vendorPos.length > 0) {
-                  vendorProjects.add(project);
-                  if (budget.currency_name) currencies.add(budget.currency_name);
-
-                  // Calculate PO totals from items
-                  for (const po of vendorPos) {
-                    try {
-                      const itemsRes = await getPurchaseOrderItems(budget.id, po.id);
-                      const items = itemsRes.data.data || [];
-                      const poTotal = items.reduce((sum, item) => {
-                        const days = item.purchaseorderitems_days || 0;
-                        const rate = item.purchaseorderitems_discounted_rate || 0;
-                        return sum + (days * rate);
-                      }, 0);
-                      total += poTotal;
-                    } catch {
-                      // Continue if items fetch fails
-                    }
-                  }
-                }
-              } catch {
-                // Continue if POs fail
-              }
-            }
-          } catch {
-            // Continue if budgets fail
-          }
-        }
-
-        setProjects(Array.from(vendorProjects));
-        setTotalPoAmount(total);
-        setPoCurrencies(Array.from(currencies));
       } catch (err) {
         console.error('Failed to fetch vendor details:', err);
       } finally {
         setLoading(false);
       }
     };
-
     fetchData();
   }, [id]);
 
   if (loading) return <LoadingSpinner size="lg" className="mt-20" />;
   if (!vendor) return null;
 
-  const formatDate = (ts) => {
+  const fmt = (ts) => {
     if (!ts) return '-';
     return new Date(ts).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
   };
 
-  const formatCurrency = (amount) => {
-    if (amount === null || amount === undefined) return '-';
-    return Number(amount).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
-  };
+  const fmtNum = (n) => Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 
-  const getRateForSeniority = (roleId, seniority) => {
-    const rates = ratesByRole[roleId] || [];
-    return rates.filter(r => r.seniority_description === seniority);
-  };
-
-  // Collect all unique seniorities and currencies across all rates
   const allSeniorities = new Set();
   const allCurrencies = new Set();
-
   Object.values(ratesByRole).forEach(rates => {
-    rates.forEach(rate => {
-      if (rate.seniority_description) allSeniorities.add(rate.seniority_description);
-      allCurrencies.add(rate.currency_name);
+    rates.forEach(r => {
+      if (r.seniority_description) allSeniorities.add(r.seniority_description);
+      allCurrencies.add(r.currency_name);
     });
   });
-
   const seniorities = Array.from(allSeniorities).sort();
   const currencies = Array.from(allCurrencies).sort();
+
+  const totalPoAmount = purchaseOrders.reduce((sum, po) => sum + (po.total || 0), 0);
+  const poCurrencies = [...new Set(purchaseOrders.map(po => po.currency_name).filter(Boolean))];
+
+  const togglePo = (poId) => setExpandedPos(prev => ({ ...prev, [poId]: !prev[poId] }));
 
   return (
     <div>
@@ -154,18 +96,14 @@ export default function VendorDetailPage() {
 
         <div className="bg-surface rounded-lg border border-border p-6">
           <h1 className="text-2xl font-bold text-text-primary mb-4">{vendor.vendor_name}</h1>
-
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Contact Info */}
             <div className="space-y-3">
               {vendor.vendor_email && (
                 <div className="flex items-start gap-3">
                   <Mail size={18} className="text-primary-500 mt-0.5 flex-shrink-0" />
                   <div>
                     <p className="text-xs text-text-secondary uppercase tracking-wide">Email</p>
-                    <a href={`mailto:${vendor.vendor_email}`} className="text-sm font-medium text-primary-600 hover:underline">
-                      {vendor.vendor_email}
-                    </a>
+                    <a href={`mailto:${vendor.vendor_email}`} className="text-sm font-medium text-primary-600 hover:underline">{vendor.vendor_email}</a>
                   </div>
                 </div>
               )}
@@ -179,8 +117,6 @@ export default function VendorDetailPage() {
                 </div>
               )}
             </div>
-
-            {/* Address & Website */}
             <div className="space-y-3">
               {vendor.vendor_address && (
                 <div className="flex items-start gap-3">
@@ -207,10 +143,9 @@ export default function VendorDetailPage() {
         </div>
       </div>
 
-      {/* Resources and Contracts */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
-          {/* Resources Card */}
+          {/* Resources */}
           {resources.length > 0 && (
             <Card title="Resources" noPadding className="mb-6">
               <div className="overflow-x-auto">
@@ -228,22 +163,15 @@ export default function VendorDetailPage() {
                         <td className="px-6 py-3">
                           <div className="flex items-center gap-2">
                             <Users size={14} className="text-primary-500 flex-shrink-0" />
-                            <div>
-                              <Link to={`/vendors/${id}/resources/${r.id}`} className="font-medium text-primary-600 hover:underline">
-                                {r.vendorresource_name} {r.vendorresource_lastname}
-                              </Link>
-                              {r.vendorresource_middlename && (
-                                <span className="text-text-secondary ml-1">{r.vendorresource_middlename}</span>
-                              )}
-                            </div>
+                            <Link to={`/vendors/${id}/resources/${r.id}`} className="font-medium text-primary-600 hover:underline">
+                              {r.vendorresource_name} {r.vendorresource_lastname}
+                            </Link>
                           </div>
                         </td>
                         <td className="px-6 py-3">
-                          {r.vendorresource_email ? (
-                            <a href={`mailto:${r.vendorresource_email}`} className="text-sm text-primary-600 hover:underline">{r.vendorresource_email}</a>
-                          ) : (
-                            <span className="text-text-secondary">-</span>
-                          )}
+                          {r.vendorresource_email
+                            ? <a href={`mailto:${r.vendorresource_email}`} className="text-sm text-primary-600 hover:underline">{r.vendorresource_email}</a>
+                            : <span className="text-text-secondary">-</span>}
                         </td>
                         <td className="px-6 py-3 text-text-secondary">{r.vendorresource_phone || '-'}</td>
                       </tr>
@@ -254,121 +182,188 @@ export default function VendorDetailPage() {
             </Card>
           )}
 
-          {contracts.length === 0 ? (
-            <Card>
-              <p className="text-center py-8 text-text-secondary">No contracts for this vendor</p>
-            </Card>
-          ) : (
-            <div className="space-y-6">
-              {contracts.map(contract => {
-            const roles = contractRoles[contract.id] || [];
-            return (
-              <Card key={contract.id} title={contract.contract_name} noPadding>
-                <div className="px-6 py-3 border-b border-border bg-surface/30 text-sm text-text-secondary">
-                  <span>{formatDate(contract.contract_start_date)} – {formatDate(contract.contract_end_date)}</span>
-                </div>
-
-                {roles.length === 0 ? (
-                  <p className="px-6 py-8 text-center text-text-secondary text-sm">No roles defined for this contract</p>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-xs">
-                      <thead>
-                        <tr className="border-b border-border">
-                          <th className="px-6 py-3 text-left font-medium text-text-secondary bg-surface/50">Role</th>
-                          {seniorities.map(sen => (
-                            <th key={sen} colSpan={currencies.length} className="px-3 py-3 text-center font-medium text-text-secondary bg-surface/50 border-l border-border">
-                              {sen}
-                            </th>
-                          ))}
-                        </tr>
-                        <tr className="border-b border-border">
-                          <th className="px-6 py-3 text-left font-medium text-text-secondary bg-surface/30"></th>
-                          {seniorities.map(sen =>
-                            currencies.map(curr => (
-                              <th key={`${sen}-${curr}`} className="px-3 py-2 text-center text-xs font-medium text-text-secondary bg-surface/30">
-                                {curr}
-                              </th>
-                            ))
-                          )}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {roles.map(role => {
-                          const rates = ratesByRole[role.id] || [];
-                          return (
-                            <tr key={role.id} className="border-b border-border last:border-0 hover:bg-surface/20">
-                              <td className="px-6 py-3 font-medium text-text-primary whitespace-nowrap sticky left-0 bg-surface-card z-10">
-                                {role.vendorcontractrole_name}
-                              </td>
-                              {seniorities.map(sen =>
-                                currencies.map(curr => {
-                                  const rate = rates.find(r => r.seniority_description === sen && r.currency_name === curr);
-                                  return (
-                                    <td key={`${sen}-${curr}`} className="px-3 py-3 text-center text-text-secondary border-l border-border">
-                                      {rate ? (
-                                        <span className="font-medium text-text-primary">
-                                          {rate.currency_symbol || ''}{rate.vendorrolerate_rate?.toFixed(2)}
-                                        </span>
-                                      ) : (
-                                        <span className="text-text-secondary text-xs">-</span>
-                                      )}
-                                    </td>
-                                  );
-                                })
-                              )}
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
+          {/* Tabs */}
+          <div className="border-b border-border mb-4 flex gap-1">
+            {TABS.map(tab => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={`px-4 py-2 text-sm font-medium rounded-t transition-colors ${
+                  activeTab === tab
+                    ? 'text-primary-600 border-b-2 border-primary-500 -mb-px bg-surface-card'
+                    : 'text-text-secondary hover:text-text-primary'
+                }`}
+              >
+                {tab}
+                {tab === 'Purchase Orders' && purchaseOrders.length > 0 && (
+                  <span className="ml-1.5 rounded-full bg-primary-100 text-primary-700 px-1.5 py-0.5 text-xs">
+                    {purchaseOrders.length}
+                  </span>
                 )}
-              </Card>
-            );
-              })}
-            </div>
+              </button>
+            ))}
+          </div>
+
+          {/* Contracts tab */}
+          {activeTab === 'Contracts' && (
+            contracts.length === 0 ? (
+              <Card><p className="text-center py-8 text-text-secondary">No contracts for this vendor</p></Card>
+            ) : (
+              <div className="space-y-6">
+                {contracts.map(contract => {
+                  const roles = contractRoles[contract.id] || [];
+                  return (
+                    <Card key={contract.id} title={contract.contract_name} noPadding>
+                      <div className="px-6 py-3 border-b border-border bg-surface/30 text-sm text-text-secondary">
+                        {fmt(contract.contract_start_date)} – {fmt(contract.contract_end_date)}
+                      </div>
+                      {roles.length === 0 ? (
+                        <p className="px-6 py-8 text-center text-text-secondary text-sm">No roles defined</p>
+                      ) : (
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-xs">
+                            <thead>
+                              <tr className="border-b border-border">
+                                <th className="px-6 py-3 text-left font-medium text-text-secondary bg-surface/50">Role</th>
+                                {seniorities.map(sen => (
+                                  <th key={sen} colSpan={currencies.length} className="px-3 py-3 text-center font-medium text-text-secondary bg-surface/50 border-l border-border">
+                                    {sen}
+                                  </th>
+                                ))}
+                              </tr>
+                              <tr className="border-b border-border">
+                                <th className="px-6 py-3 bg-surface/30" />
+                                {seniorities.map(sen => currencies.map(curr => (
+                                  <th key={`${sen}-${curr}`} className="px-3 py-2 text-center text-xs font-medium text-text-secondary bg-surface/30">{curr}</th>
+                                )))}
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {roles.map(role => {
+                                const rates = ratesByRole[role.id] || [];
+                                return (
+                                  <tr key={role.id} className="border-b border-border last:border-0 hover:bg-surface/20">
+                                    <td className="px-6 py-3 font-medium text-text-primary whitespace-nowrap sticky left-0 bg-surface-card z-10">
+                                      {role.vendorcontractrole_name}
+                                    </td>
+                                    {seniorities.map(sen => currencies.map(curr => {
+                                      const rate = rates.find(r => r.seniority_description === sen && r.currency_name === curr);
+                                      return (
+                                        <td key={`${sen}-${curr}`} className="px-3 py-3 text-center border-l border-border">
+                                          {rate
+                                            ? <span className="font-medium text-text-primary">{rate.currency_symbol || ''}{rate.vendorrolerate_rate?.toFixed(2)}</span>
+                                            : <span className="text-text-secondary text-xs">-</span>}
+                                        </td>
+                                      );
+                                    }))}
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </Card>
+                  );
+                })}
+              </div>
+            )
+          )}
+
+          {/* Purchase Orders tab */}
+          {activeTab === 'Purchase Orders' && (
+            purchaseOrders.length === 0 ? (
+              <Card><p className="text-center py-8 text-text-secondary">No purchase orders for this vendor</p></Card>
+            ) : (
+              <div className="space-y-3">
+                {purchaseOrders.map(po => {
+                  const isOpen = expandedPos[po.id];
+                  return (
+                    <div key={po.id} className="rounded-xl border border-border bg-surface-card overflow-hidden">
+                      <button
+                        onClick={() => togglePo(po.id)}
+                        className="w-full flex items-center justify-between px-5 py-3 text-left hover:bg-surface/30 transition-colors"
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          {isOpen ? <ChevronDown size={15} className="text-text-secondary flex-shrink-0" /> : <ChevronRight size={15} className="text-text-secondary flex-shrink-0" />}
+                          <div className="min-w-0">
+                            <p className="font-medium text-text-primary truncate">{po.purchaseorder_description || `PO #${po.id}`}</p>
+                            <div className="flex items-center gap-2 mt-0.5 text-xs text-text-secondary">
+                              <Link
+                                to={`/projects/${po.project_id}`}
+                                onClick={e => e.stopPropagation()}
+                                className="text-primary-600 hover:underline flex items-center gap-1"
+                              >
+                                <FolderKanban size={11} /> {po.project_name}
+                              </Link>
+                              {po.status_name && (
+                                <span className="rounded-full bg-surface px-2 py-0.5 border border-border">{po.status_name}</span>
+                              )}
+                              <span>{fmt(po.purchaseorder_start_date)} – {fmt(po.purchaseorder_end_date)}</span>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-4 flex-shrink-0 ml-4">
+                          {po.currency_name && <span className="text-xs text-text-secondary">{po.currency_name}</span>}
+                          <span className="font-semibold text-text-primary">{fmtNum(po.total)}</span>
+                        </div>
+                      </button>
+
+                      {isOpen && po.items.length > 0 && (
+                        <div className="border-t border-border overflow-x-auto">
+                          <table className="w-full text-xs">
+                            <thead>
+                              <tr className="border-b border-border bg-surface/40">
+                                <th className="px-5 py-2 text-left font-medium text-text-secondary">Description</th>
+                                <th className="px-3 py-2 text-left font-medium text-text-secondary">Role</th>
+                                <th className="px-3 py-2 text-left font-medium text-text-secondary">Resource</th>
+                                <th className="px-3 py-2 text-right font-medium text-text-secondary">Days</th>
+                                <th className="px-3 py-2 text-right font-medium text-text-secondary">Rate</th>
+                                <th className="px-3 py-2 text-right font-medium text-text-secondary">Total</th>
+                                <th className="px-3 py-2 text-left font-medium text-text-secondary">Period</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {po.items.map(item => {
+                                const itemTotal = (item.purchaseorderitems_days || 0) * (item.purchaseorderitems_discounted_rate || 0);
+                                return (
+                                  <tr key={item.id} className="border-b border-border last:border-0 hover:bg-surface/20">
+                                    <td className="px-5 py-2 text-text-primary">{item.purchaseorderitem_description || '-'}</td>
+                                    <td className="px-3 py-2 text-text-secondary">{item.role_name || '-'}</td>
+                                    <td className="px-3 py-2 text-text-secondary">{item.resource_name?.trim() || '-'}</td>
+                                    <td className="px-3 py-2 text-right text-text-primary">{item.purchaseorderitems_days ?? '-'}</td>
+                                    <td className="px-3 py-2 text-right text-text-secondary">{item.purchaseorderitems_discounted_rate != null ? fmtNum(item.purchaseorderitems_discounted_rate) : '-'}</td>
+                                    <td className="px-3 py-2 text-right font-medium text-text-primary">{fmtNum(itemTotal)}</td>
+                                    <td className="px-3 py-2 text-text-secondary whitespace-nowrap">{fmt(item.purchaseorderitem_start_date)} – {fmt(item.purchaseorderitem_end_date)}</td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                      {isOpen && po.items.length === 0 && (
+                        <p className="px-5 py-4 text-xs text-text-secondary border-t border-border">No line items</p>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )
           )}
         </div>
 
-        {/* Projects Sidebar */}
+        {/* Sidebar */}
         <div className="space-y-6">
-          {/* Total POs Card */}
           <Card>
-            <div>
-              <p className="text-sm text-text-secondary">Total Purchase Orders</p>
-              <p className="text-2xl font-bold text-text-primary mt-2">{formatCurrency(totalPoAmount)}</p>
-              {poCurrencies.length > 0 && (
-                <p className="text-xs text-text-secondary mt-2">
-                  {poCurrencies.length === 1 ? poCurrencies[0] : poCurrencies.join(', ')}
-                </p>
-              )}
-            </div>
-          </Card>
-
-          <Card title="Projects" noPadding>
-            {projects.length === 0 ? (
-              <p className="px-6 py-8 text-center text-text-secondary text-sm">No projects using this vendor</p>
-            ) : (
-              <div className="divide-y divide-border">
-                {projects.map(project => (
-                  <Link
-                    key={project.id}
-                    to={`/projects/${project.id}`}
-                    className="block px-6 py-3 hover:bg-surface/30 transition-colors"
-                  >
-                    <div className="flex items-start gap-2">
-                      <FolderKanban size={16} className="text-primary-500 mt-0.5 flex-shrink-0" />
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-primary-600 hover:text-primary-700 truncate">{project.project_name}</p>
-                        <p className="text-xs text-text-secondary mt-1">{project.division_name || 'No division'}</p>
-                      </div>
-                    </div>
-                  </Link>
-                ))}
-              </div>
+            <p className="text-sm text-text-secondary">Total Purchase Orders</p>
+            <p className="text-2xl font-bold text-text-primary mt-2">{fmtNum(totalPoAmount)}</p>
+            {poCurrencies.length > 0 && (
+              <p className="text-xs text-text-secondary mt-2">{poCurrencies.join(', ')}</p>
             )}
           </Card>
+
+          <EntityNotes entityType="vendor" entityId={id} />
         </div>
       </div>
     </div>

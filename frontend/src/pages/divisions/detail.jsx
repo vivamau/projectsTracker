@@ -11,6 +11,7 @@ import { getBudgets, getPurchaseOrders, getPurchaseOrderItems } from '../../api/
 import { useAuth } from '../../hooks/useAuth';
 import UserAvatar from '../../commoncomponents/UserAvatar';
 import Card from '../../commoncomponents/Card';
+import EntityNotes from '../../commoncomponents/EntityNotes';
 import StatusBadge from '../../commoncomponents/StatusBadge';
 import ConfirmDialog from '../../commoncomponents/ConfirmDialog';
 import Modal from '../../commoncomponents/Modal';
@@ -375,6 +376,8 @@ export default function DivisionDetailPage() {
               </div>
             </div>
           </Card>
+
+          <EntityNotes entityType="division" entityId={id} />
         </div>
       </div>
 

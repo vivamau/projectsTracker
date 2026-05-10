@@ -426,3 +426,52 @@
   - [x] users/index.jsx: date picker (active users only), cleared on deactivation, ts ↔ date string conversion
   - [x] users/detail.jsx: expiry date in header metadata, red + "(expired)" when past
   - [x] 7 new tests (create/update/deactivate/login expiry scenarios); 1028 backend tests all passing
+- [x] Forgot password / password reset via email <!-- id: 304 -->
+  - [x] Migration 037: password_reset_token TEXT + password_reset_expires INTEGER on users table
+  - [x] authService: createPasswordResetToken() (crypto SHA-256 hash, 1h expiry); resetPassword()
+  - [x] emailHelper.js: nodemailer with 3 modes (console log / Ethereal / real SMTP); SMTP_HOST env config
+  - [x] authRoutes: POST /forgot-password + POST /reset-password with audit logging
+  - [x] pages/forgotPassword/index.jsx + pages/resetPassword/index.jsx (public routes)
+  - [x] login/index.jsx: success message from router state; "Forgot password?" link
+  - [x] client.js: 401 interceptor excludes /forgot-password and /reset-password from redirect
+- [x] Project roles hub page + per-role user pages <!-- id: 305 -->
+  - [x] projectRoleService: getUsersByRoleId() JOIN assignments→users→projects→divisions
+  - [x] projectRoleRoutes: GET /:id/users
+  - [x] pages/projectRoles/index.jsx: hub page with clickable role cards + user counts
+  - [x] pages/projectRoles/detail.jsx: per-role page listing users with their project assignments
+  - [x] Sidebar: Project Roles nav item with Briefcase icon
+  - [x] dashboard/index.jsx: groups roleAssignments by role_id; PeopleListCard gets roleId prop → linked title
+- [x] Audit log entries for user expiry and project role events <!-- id: 306 -->
+  - [x] userRoutes: logs user.expired (batch), user.set_expiry, user.clear_expiry per user update
+  - [x] middleware/auth.js: createExpiryCheck() → logs user.expired (trigger: 'session') on mid-session expiry
+  - [x] projectRoleRoutes: logs projectrole.create, projectrole.update, projectrole.delete
+- [x] Project role deletion cascade <!-- id: 307 -->
+  - [x] projectAssignmentService.getByProjectId: excludes assignments where role_is_deleted=1
+  - [x] Test added: soft-deleted role → assignment disappears from project detail
+  - [x] 1055 backend tests all passing
+- [x] project_code field (code repository URL) <!-- id: 308 -->
+  - [x] Migration 038: project_code TEXT column on projects table
+  - [x] projectService: create + update handle project_code
+  - [x] projects/form.jsx: "Code Repository" URL input field
+  - [x] Project Info box on detail page: renders as "Code" link or "N/A"
+- [x] project_links feature <!-- id: 309 -->
+  - [x] Migration 039: project_links table (project_id, label, URL, createdate, updatedate, is_deleted)
+  - [x] projectLinkService.js: getByProjectId, create, update, softDelete (14 tests)
+  - [x] projectRoutes: GET/POST /:id/links + PUT/DELETE /:id/links/:linkId with audit logging
+  - [x] projectsApi: getProjectLinks, createProjectLink, updateProjectLink, deleteProjectLink
+  - [x] Project detail: Links card in sidebar with add/edit/delete modal; Link2 + ExternalLink icons
+- [x] UI fixes (2026-05-10 session) <!-- id: 310 -->
+  - [x] ActivityStatsCard: restructured to 2-row layout (Tickets row / Bugs row) for all viewport widths
+  - [x] Project detail: show only budgets with amount > 0
+  - [x] Project detail: tech stack displayed in 2-column grid
+  - [x] Project detail: "Metadata" card renamed to "Project Info" and moved before Budgets in sidebar
+- [ ] Obsidian-like Notes feature <!-- id: 311 -->
+  - [ ] Migration 040: meeting_notes + meeting_note_entities tables
+  - [ ] backend/data/notes/ directory created
+  - [ ] meetingNoteService.js with TDD (filesystem + DB operations)
+  - [ ] noteRoutes.js: CRUD + GET /mentions search endpoint
+  - [ ] Frontend: MdEditor.jsx (toggle mode) + MentionDropdown.jsx (autocomplete [[)
+  - [ ] notesApi.js
+  - [ ] pages/notes/index.jsx (list, type tabs) + detail.jsx + form.jsx
+  - [ ] App.jsx + Sidebar.jsx updated
+  - [ ] Tasks: task_description + followup_note render as Markdown

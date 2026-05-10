@@ -5,6 +5,7 @@ import { getCountries, getCountryProjects } from '../../api/entitiesApi';
 import Card from '../../commoncomponents/Card';
 import LoadingSpinner from '../../commoncomponents/LoadingSpinner';
 import StatusBadge from '../../commoncomponents/StatusBadge';
+import EntityNotes from '../../commoncomponents/EntityNotes';
 
 export default function CountryDetailPage() {
   const { code } = useParams();
@@ -127,6 +128,8 @@ export default function CountryDetailPage() {
           </div>
         )}
       </Card>
+
+      <EntityNotes entityType="country" entityId={code} />
     </div>
   );
 }

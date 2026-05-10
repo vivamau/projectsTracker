@@ -4,11 +4,14 @@ import {
   Plus, CheckCircle2, Clock, AlertCircle, Trash2, FolderKanban,
   Users, User, Calendar, ChevronDown, ChevronUp,
 } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { getAllTasks, createTask, closeTask, deleteTask, createFollowup } from '../../api/tasksApi';
 import { getProjects, getRoleAssignments } from '../../api/projectsApi';
 import { useAuth } from '../../hooks/useAuth';
 import Modal from '../../commoncomponents/Modal';
 import LoadingSpinner from '../../commoncomponents/LoadingSpinner';
+import MdEditor from '../../commoncomponents/MdEditor';
 
 const STATUS_CONFIG = {
   open:        { label: 'Open',        icon: Clock,         color: 'text-warning-500',  bg: 'bg-warning-50',  border: 'border-warning-200' },
@@ -139,7 +142,9 @@ function TaskRow({ task, isSuperAdmin, onClosed, onDeleted }) {
       {expanded && (
         <div className="border-t border-border px-4 pb-4 pt-3 bg-surface space-y-3">
           {task.task_description && (
-            <p className="text-sm text-text-secondary whitespace-pre-wrap">{task.task_description}</p>
+            <div className="prose prose-sm max-w-none text-text-secondary">
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>{task.task_description}</ReactMarkdown>
+            </div>
           )}
           <div className="text-xs text-text-secondary">
             Created by {task.creator_name} {task.creator_lastname} · {formatDate(task.task_create_date)}
@@ -337,12 +342,11 @@ export default function TasksPage() {
           </div>
           <div>
             <label className="block text-xs font-semibold uppercase text-text-secondary mb-1">Description</label>
-            <textarea
-              rows={3}
-              className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
-              placeholder="Optional description…"
+            <MdEditor
               value={form.task_description}
-              onChange={e => setForm(f => ({ ...f, task_description: e.target.value }))}
+              onChange={v => setForm(f => ({ ...f, task_description: v }))}
+              placeholder="Optional description…"
+              minHeight={120}
             />
           </div>
           <div className="grid grid-cols-2 gap-3">

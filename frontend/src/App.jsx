@@ -28,6 +28,9 @@ import PurchaseOrdersPage from './pages/purchaseOrders/index';
 import ProjectRolesPage from './pages/projectRoles/index';
 import ProjectRoleDetailPage from './pages/projectRoles/detail';
 import TasksPage from './pages/tasks/index';
+import NotesPage from './pages/notes/index';
+import NoteFormPage from './pages/notes/form';
+import NoteDetailPage from './pages/notes/detail';
 import LogsPage from './pages/logs/index';
 import SettingsPage from './pages/settings/index';
 
@@ -70,6 +73,9 @@ const router = createBrowserRouter(
         <Route path="/project-roles" element={<ProjectRolesPage />} />
         <Route path="/project-roles/:id" element={<ProjectRoleDetailPage />} />
         <Route path="/tasks" element={<TasksPage />} />
+        <Route path="/notes" element={<NotesPage />} />
+        <Route path="/notes/new" element={<NoteFormPage />} />
+        <Route path="/notes/:id" element={<NoteDetailPage />} />
         <Route path="/logs" element={<LogsPage />} />
         <Route path="/settings" element={<SettingsPage />} />
       </Route>

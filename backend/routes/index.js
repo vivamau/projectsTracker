@@ -21,6 +21,7 @@ const createProjectRoleRoutes = require('./projectRoleRoutes');
 const createAgentRoutes = require('./agentRoutes');
 const createPurchaseOrderRoutes = require('./purchaseOrderRoutes');
 const createTaskRoutes = require('./taskRoutes');
+const createNoteRoutes = require('./noteRoutes');
 
 function createRoutes(db, auditDb) {
   const router = express.Router();
@@ -47,6 +48,7 @@ function createRoutes(db, auditDb) {
   router.use('/agent', createAgentRoutes(db, auditDb));
   router.use('/purchase-orders', createPurchaseOrderRoutes(db));
   router.use('/tasks', createTaskRoutes(db));
+  router.use('/notes', createNoteRoutes(db, auditDb));
 
   return router;
 }

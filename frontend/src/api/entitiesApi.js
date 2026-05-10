@@ -20,6 +20,7 @@ export const createVendor = (data) => client.post('/vendors', data);
 export const updateVendor = (id, data) => client.put(`/vendors/${id}`, data);
 export const deleteVendor = (id) => client.delete(`/vendors/${id}`);
 
+export const getVendorPurchaseOrders = (vendorId) => client.get(`/vendors/${vendorId}/purchase-orders`);
 export const getVendorContracts = (vendorId) => client.get(`/vendors/${vendorId}/contracts`);
 export const getVendorContract = (vendorId, contractId) => client.get(`/vendors/${vendorId}/contracts/${contractId}`);
 export const createVendorContract = (vendorId, data) => client.post(`/vendors/${vendorId}/contracts`, data);

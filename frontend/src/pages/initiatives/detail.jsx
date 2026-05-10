@@ -6,6 +6,7 @@ import { getProjects, getBudgets, getPurchaseOrders, getPurchaseOrderItems } fro
 import Card from '../../commoncomponents/Card';
 import LoadingSpinner from '../../commoncomponents/LoadingSpinner';
 import StatusBadge from '../../commoncomponents/StatusBadge';
+import EntityNotes from '../../commoncomponents/EntityNotes';
 
 export default function InitiativeDetailPage() {
   const { id } = useParams();
@@ -203,6 +204,8 @@ export default function InitiativeDetailPage() {
           </div>
         )}
       </Card>
+
+      <EntityNotes entityType="initiative" entityId={id} />
     </div>
   );
 }

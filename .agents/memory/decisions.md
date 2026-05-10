@@ -1,5 +1,41 @@
 # Architectural Decisions
 
+## Notes feature — Hybrid DB + Filesystem storage
+**Date:** 2026-05-10
+**Decision:** Meeting/admin notes use a hybrid approach: SQLite stores metadata and entity associations (`meeting_notes` + `meeting_note_entities` tables); actual note content is stored as `.md` files in `backend/data/notes/`. Filename: `{YYYY-MM-DD}_{note_id}.md`. DB tracks soft-delete; `.md` files are never deleted (preserve history).
+**Why:** Enables full-text search on content via filesystem tools without bloating SQLite with large TEXT blobs; files are human-readable and portable; mirrors Obsidian's filesystem-first approach.
+**Status:** Planned (implementation next).
+
+## Notes feature — note_type field (meeting vs admin)
+**Date:** 2026-05-10
+**Decision:** A single `meeting_notes` table with a `note_type TEXT DEFAULT 'meeting'` field handles both meeting notes and admin notes. Two sidebar entries filter by type. No separate tables.
+**Why:** Same CRUD, same editor, same entity association model — type is just a filter/badge.
+**Status:** Planned.
+
+## Notes feature — Many-to-many entity associations
+**Date:** 2026-05-10
+**Decision:** `meeting_note_entities` table stores (`note_id`, `entity_type`, `entity_id`) tuples. Supported entity types: 'project', 'country', 'division', 'initiative', 'vendor', 'user'. `entity_id` is TEXT to accommodate both integer IDs and UN country codes. Associations are synced (DELETE + re-INSERT) on each save.
+**Why:** A note can reference multiple entities of different types simultaneously (a meeting touching projects + people + vendors). A polymorphic join table is simpler than separate FK columns.
+**Status:** Planned.
+
+## Notes feature — Autocomplete mentions via [[ trigger
+**Date:** 2026-05-10
+**Decision:** Typing `[[` in the Markdown editor triggers a mention dropdown that searches all entity types via `GET /api/notes/mentions?q=`. Selecting an entity inserts `[Label](url)` replacing the `[[query` fragment. Position computed with `textarea-caret` npm package (1 KB, positions dropdown at cursor).
+**Why:** User explicitly requested autocomplete (not manual link typing). `[[` is the Obsidian convention. Standard Markdown links (`[text](url)`) are inserted so the output is valid, portable Markdown.
+**Status:** Planned. Package to install: `textarea-caret`.
+
+## Notes feature — Toggle editor (not split pane)
+**Date:** 2026-05-10
+**Decision:** The Markdown editor uses toggle mode: one button switches between raw textarea (edit) and ReactMarkdown (preview). Already-installed `react-markdown` + `remark-gfm` handle rendering.
+**Why:** User selected toggle over split pane. Simpler implementation, cleaner UI for a sidebar-heavy layout where split pane would be too cramped.
+**Status:** Planned.
+
+## 401 interceptor — public paths exclusion list
+**Date:** 2026-05-10
+**Decision:** `client.js` axios interceptor excludes `/login`, `/forgot-password`, and `/reset-password` from the automatic redirect-to-login on 401. These three paths are all public (no auth required) and call `getMe()` via AuthProvider which returns 401 for unauthenticated users.
+**Why:** Without exclusion, unauthenticated users visiting `/reset-password` via email link were immediately redirected to `/login` before the page could render.
+**Status:** Implemented.
+
 ## Cookie-only JWT Auth
 **Date:** 2026-03-29
 **Decision:** JWT stored in HttpOnly cookies only, never in response body. SameSite=Lax, Secure in production.

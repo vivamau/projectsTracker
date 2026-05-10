@@ -56,5 +56,8 @@ temp/
 .claude/
 .kiro/
 
-# Backend Assets (Ignore contents, preserve folders)
+# Backend data — ignore everything except the notes folder structure
 backend/data/*
+!backend/data/notes/
+backend/data/notes/*.md
+!backend/data/notes/.gitkeep

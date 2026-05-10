@@ -6,6 +6,7 @@ import { useAuth } from '../../hooks/useAuth';
 import Card from '../../commoncomponents/Card';
 import LoadingSpinner from '../../commoncomponents/LoadingSpinner';
 import Pagination from '../../commoncomponents/Pagination';
+import EntityNotes from '../../commoncomponents/EntityNotes';
 import ProjectStatusBadge from '../../commoncomponents/ProjectStatusBadge';
 import UserAvatar from '../../commoncomponents/UserAvatar';
 
@@ -314,6 +315,8 @@ function UserDetailPage() {
               />
             )}
           </Card>
+
+      <EntityNotes entityType="user" entityId={id} />
       </div>
     </div>
   );

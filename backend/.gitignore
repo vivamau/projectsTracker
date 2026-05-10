@@ -1,6 +1,9 @@
 node_modules/
 .env
-data/
+data/*
+!data/notes/
+data/notes/*.md
+!data/notes/.gitkeep
 coverage/
 *.log
 

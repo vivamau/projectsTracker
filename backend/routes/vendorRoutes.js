@@ -29,6 +29,64 @@ function createVendorRoutes(db, auditDb) {
     }
   });
 
+  router.get('/:id/purchase-orders', authenticate, async (req, res) => {
+    try {
+      const vendorId = parseInt(req.params.id);
+      const { getAll } = require('../config/database');
+
+      const pos = await getAll(db, `
+        SELECT po.id, po.purchaseorder_description, po.purchaseorder_start_date, po.purchaseorder_end_date,
+               po.budget_id, p.id AS project_id, p.project_name,
+               c.currency_name, s.purchaseorderstatus_name AS status_name
+        FROM purchaseorders po
+        JOIN projects_to_budgets pb ON po.budget_id = pb.budget_id
+        JOIN projects p ON pb.project_id = p.id
+        LEFT JOIN budgets b ON po.budget_id = b.id
+        LEFT JOIN currencies c ON b.currency_id = c.id
+        LEFT JOIN purchaseorderstatuses s ON po.purchaseorderitem_status_id = s.id
+        WHERE po.vendor_id = ? AND (po.purchaseorder_is_deleted = 0 OR po.purchaseorder_is_deleted IS NULL)
+        ORDER BY po.purchaseorder_start_date DESC, po.id DESC
+      `, [vendorId]);
+
+      if (pos.length === 0) return success(res, []);
+
+      const poIds = pos.map(p => p.id);
+      const placeholders = poIds.map(() => '?').join(',');
+      const items = await getAll(db, `
+        SELECT i.id, i.purchaseorder_id, i.purchaseorderitem_description,
+               i.purchaseorderitems_days, i.purchaseorderitems_discounted_rate,
+               i.purchaseorderitem_start_date, i.purchaseorderitem_end_date,
+               c.currency_name AS item_currency,
+               vcr.vendorcontractrole_name AS role_name,
+               TRIM(vr.vendorresource_name || ' ' || COALESCE(vr.vendorresource_lastname,'')) AS resource_name
+        FROM purchaseorderitems i
+        LEFT JOIN currencies c ON i.currency_id = c.id
+        LEFT JOIN vendorcontractroles vcr ON i.vendorcontractrole_id = vcr.id
+        LEFT JOIN vendorresources vr ON i.vendorresource_id = vr.id
+        WHERE i.purchaseorder_id IN (${placeholders})
+          AND (i.purchaseorderitem_is_deleted = 0 OR i.purchaseorderitem_is_deleted IS NULL)
+        ORDER BY i.id
+      `, poIds);
+
+      const itemsByPo = {};
+      for (const item of items) {
+        if (!itemsByPo[item.purchaseorder_id]) itemsByPo[item.purchaseorder_id] = [];
+        itemsByPo[item.purchaseorder_id].push(item);
+      }
+
+      const result = pos.map(po => {
+        const poItems = itemsByPo[po.id] || [];
+        const total = poItems.reduce((sum, i) =>
+          sum + (i.purchaseorderitems_days || 0) * (i.purchaseorderitems_discounted_rate || 0), 0);
+        return { ...po, items: poItems, total };
+      });
+
+      return success(res, result);
+    } catch (err) {
+      return error(res, 'Failed to get purchase orders');
+    }
+  });
+
   router.get('/:id', authenticate, async (req, res) => {
     try {
       const vendor = await vendorService.getById(db, parseInt(req.params.id));
