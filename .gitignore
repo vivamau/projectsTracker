@@ -54,6 +54,7 @@ coverage/
 tmp/
 temp/
 .claude/
+.kiro/
 
 # Backend Assets (Ignore contents, preserve folders)
 backend/data/*
