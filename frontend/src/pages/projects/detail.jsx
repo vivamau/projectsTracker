@@ -284,7 +284,13 @@ export default function ProjectDetailPage() {
                 <InfoItem icon={Calendar} label="Plan Date" value={formatDate(project.project_plan_date)} />
                 <InfoItem icon={Calendar} label="Start Date" value={formatDate(project.project_start_date)} />
                 <InfoItem icon={Calendar} label="End Date" value={formatDate(project.project_end_date)} />
-                <InfoItem icon={User} label="Owner" value={project.owner_name ? `${project.owner_name} ${project.owner_lastname || ''}`.trim() : '-'} />
+                <InfoItem
+                  icon={User}
+                  label="Owner"
+                  value={project.user_id
+                    ? <Link to={`/users/${project.user_id}`} className="text-primary-500 hover:text-primary-600 underline transition-colors">{`${project.owner_name} ${project.owner_lastname || ''}`.trim()}</Link>
+                    : '-'}
+                />
               </div>
               {project.initiative_name && (
                 <InfoItem
@@ -413,7 +419,9 @@ export default function ProjectDetailPage() {
                         <div key={ra.id} className="flex items-center gap-2.5">
                           <UserAvatar seed={ra.user_email} name={ra.user_name} size={32} />
                           <div className="min-w-0">
-                            <p className="text-sm font-medium text-text-primary truncate">{ra.user_name} {ra.user_lastname}</p>
+                            <Link to={`/users/${ra.user_id}`} className="text-sm font-medium text-primary-500 hover:text-primary-600 underline truncate block transition-colors">
+                              {ra.user_name} {ra.user_lastname}
+                            </Link>
                             <p className="text-xs text-text-secondary truncate">
                               {ra.user_email}
                               {ra.division_name && <span className="ml-1.5 text-primary-500">· {ra.division_name}</span>}
