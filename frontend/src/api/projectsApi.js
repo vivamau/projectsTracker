@@ -160,3 +160,12 @@ export const syncTecStacks = (projectId, tec_stack_ids) =>
 export const getAllPurchaseOrders = (params) =>
   client.get('/purchase-orders', { params });
 
+export const getProjectLinks = (projectId) =>
+  client.get(`/projects/${projectId}/links`);
+export const createProjectLink = (projectId, data) =>
+  client.post(`/projects/${projectId}/links`, data);
+export const updateProjectLink = (projectId, linkId, data) =>
+  client.put(`/projects/${projectId}/links/${linkId}`, data);
+export const deleteProjectLink = (projectId, linkId) =>
+  client.delete(`/projects/${projectId}/links/${linkId}`);
+

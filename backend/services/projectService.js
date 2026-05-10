@@ -146,13 +146,14 @@ async function getById(db, id) {
 async function create(db, data) {
   const now = Date.now();
   const result = await runQuery(db,
-    `INSERT INTO projects (project_name, project_description, project_create_date,
+    `INSERT INTO projects (project_name, project_description, project_code, project_create_date,
      project_plan_date, project_start_date, project_end_date,
      division_id, user_id, initiative_id, deliverypath_id)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       data.project_name,
       data.project_description || null,
+      data.project_code || null,
       now,
       data.project_plan_date || null,
       data.project_start_date || null,
@@ -206,6 +207,10 @@ async function update(db, id, data) {
   if (data.project_description !== undefined) {
     fields.push('project_description = ?');
     params.push(data.project_description);
+  }
+  if (data.project_code !== undefined) {
+    fields.push('project_code = ?');
+    params.push(data.project_code || null);
   }
   if (data.project_plan_date !== undefined) {
     fields.push('project_plan_date = ?');

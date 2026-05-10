@@ -11,3 +11,9 @@ export const getMe = () =>
 
 export const updateAvatar = (seed) =>
   client.put('/auth/me/avatar', { seed });
+
+export const forgotPassword = (email) =>
+  client.post('/auth/forgot-password', { email });
+
+export const resetPassword = (token, password) =>
+  client.post('/auth/reset-password', { token, password });

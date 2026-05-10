@@ -7,6 +7,7 @@ const budgetService = require('../services/budgetService');
 const projectAssignmentService = require('../services/projectAssignmentService');
 const vendorResourceService = require('../services/vendorResourceService');
 const activityService = require('../services/activityService');
+const projectLinkService = require('../services/projectLinkService');
 const { runQuery, getOne } = require('../config/database');
 const { success, error, paginated } = require('../utilities/responseHelper');
 const { auditLog } = require('../utilities/auditHelper');
@@ -434,6 +435,63 @@ function createProjectRoutes(db, auditDb) {
       return success(res, { message: 'Tech stacks updated' });
     } catch (err) {
       return error(res, 'Failed to update tec stacks');
+    }
+  });
+
+  router.get('/:id/links', authenticate, async (req, res) => {
+    try {
+      const links = await projectLinkService.getByProjectId(db, parseInt(req.params.id));
+      return success(res, links);
+    } catch (err) {
+      return error(res, 'Failed to get project links');
+    }
+  });
+
+  router.post('/:id/links', authenticate, authorizeProjectMember, async (req, res) => {
+    try {
+      const { projectlink_label, projectlink_URL } = req.body;
+      if (!projectlink_label || !projectlink_URL) {
+        return error(res, 'projectlink_label and projectlink_URL are required', 400);
+      }
+      const result = await projectLinkService.create(db, parseInt(req.params.id), { projectlink_label, projectlink_URL });
+      await auditLog(auditDb, {
+        userId: req.user.id, userEmail: req.user.email,
+        action: 'project.link.create', entityType: 'project_link', entityId: result.lastID,
+        details: { projectId: req.params.id, projectlink_label, projectlink_URL }, ip: req.ip
+      });
+      return success(res, { id: result.lastID }, 201);
+    } catch (err) {
+      return error(res, 'Failed to create project link');
+    }
+  });
+
+  router.put('/:id/links/:linkId', authenticate, authorizeProjectMember, async (req, res) => {
+    try {
+      const result = await projectLinkService.update(db, parseInt(req.params.linkId), req.body);
+      if (result.changes === 0) return error(res, 'Link not found', 404);
+      await auditLog(auditDb, {
+        userId: req.user.id, userEmail: req.user.email,
+        action: 'project.link.update', entityType: 'project_link', entityId: parseInt(req.params.linkId),
+        details: { data: req.body }, ip: req.ip
+      });
+      return success(res, { message: 'Link updated' });
+    } catch (err) {
+      return error(res, 'Failed to update project link');
+    }
+  });
+
+  router.delete('/:id/links/:linkId', authenticate, authorizeProjectMember, async (req, res) => {
+    try {
+      const result = await projectLinkService.softDelete(db, parseInt(req.params.linkId));
+      if (result.changes === 0) return error(res, 'Link not found', 404);
+      await auditLog(auditDb, {
+        userId: req.user.id, userEmail: req.user.email,
+        action: 'project.link.delete', entityType: 'project_link', entityId: parseInt(req.params.linkId),
+        details: { projectId: req.params.id }, ip: req.ip
+      });
+      return success(res, { message: 'Link deleted' });
+    } catch (err) {
+      return error(res, 'Failed to delete project link');
     }
   });
 

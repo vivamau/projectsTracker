@@ -10,7 +10,8 @@ client.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response && error.response.status === 401) {
-      if (!window.location.pathname.includes('/login')) {
+      const publicPaths = ['/login', '/forgot-password', '/reset-password'];
+      if (!publicPaths.some(p => window.location.pathname.startsWith(p))) {
         window.location.href = '/login';
       }
     }

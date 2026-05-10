@@ -26,6 +26,7 @@ export default function ProjectFormPage() {
   const [form, setForm] = useState({
     project_name: '',
     project_description: '',
+    project_code: '',
     division_id: '',
     initiative_id: '',
     deliverypath_id: '',
@@ -70,6 +71,7 @@ export default function ProjectFormPage() {
           setForm({
             project_name: p.project_name || '',
             project_description: p.project_description || '',
+            project_code: p.project_code || '',
             division_id: p.division_id || '',
             initiative_id: p.initiative_id || '',
             deliverypath_id: p.deliverypath_id || '',
@@ -208,6 +210,7 @@ export default function ProjectFormPage() {
       const payload = {
         project_name: form.project_name.trim(),
         project_description: form.project_description.trim(),
+        project_code: form.project_code.trim() || null,
         division_id: form.division_id || null,
         initiative_id: form.initiative_id || null,
         deliverypath_id: form.deliverypath_id || null,
@@ -283,6 +286,17 @@ export default function ProjectFormPage() {
                 rows={3}
                 className="w-full rounded-lg border border-border-dark px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 resize-none"
                 placeholder="Project description..."
+              />
+            </FormField>
+
+            {/* Code Repository */}
+            <FormField label="Code Repository">
+              <input
+                type="url"
+                value={form.project_code}
+                onChange={e => handleChange('project_code', e.target.value)}
+                className="w-full rounded-lg border border-border-dark bg-surface px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 appearance-none"
+                placeholder="https://github.com/org/repo"
               />
             </FormField>
 

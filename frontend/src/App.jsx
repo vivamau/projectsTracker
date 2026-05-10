@@ -2,6 +2,8 @@ import { createBrowserRouter, createRoutesFromElements, RouterProvider, Route, N
 import ProtectedRoute from './commoncomponents/ProtectedRoute';
 import MainLayout from './layouts/MainLayout';
 import LoginPage from './pages/login/index';
+import ForgotPasswordPage from './pages/forgotPassword/index';
+import ResetPasswordPage from './pages/resetPassword/index';
 import DashboardPage from './pages/dashboard/index';
 import ProjectsPage from './pages/projects/index';
 import ProjectDetailPage from './pages/projects/detail';
@@ -33,6 +35,8 @@ const router = createBrowserRouter(
   createRoutesFromElements(
     <>
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+      <Route path="/reset-password" element={<ResetPasswordPage />} />
 
       <Route
         element={

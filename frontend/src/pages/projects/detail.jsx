@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { Pencil, Trash2, Plus, MapPin, Calendar, User, Users, Target, DollarSign, Settings2 } from 'lucide-react';
+import { Pencil, Trash2, Plus, MapPin, Calendar, User, Users, Target, DollarSign, Settings2, Link2, ExternalLink } from 'lucide-react';
 import {
   getProject, deleteProject,
   getHealthStatuses, createHealthStatus,
@@ -8,7 +8,8 @@ import {
   getBudgets, createBudget, deleteBudget,
   getVendorResources, getActivities,
   getTecStacks, syncTecStacks,
-  getProjectAssignments, syncProjectAssignments
+  getProjectAssignments, syncProjectAssignments,
+  getProjectLinks, createProjectLink, updateProjectLink, deleteProjectLink
 } from '../../api/projectsApi';
 import { getCurrencies, getHealthStatusTypes } from '../../api/entitiesApi';
 import { useAuth } from '../../hooks/useAuth';
@@ -51,6 +52,10 @@ export default function ProjectDetailPage() {
   const [assignments, setAssignments] = useState([]);
   const [assignmentModal, setAssignmentModal] = useState(false);
   const [editingAssignments, setEditingAssignments] = useState([]);
+  const [links, setLinks] = useState([]);
+  const [linkModal, setLinkModal] = useState(false);
+  const [linkForm, setLinkForm] = useState({ projectlink_label: '', projectlink_URL: '' });
+  const [editingLink, setEditingLink] = useState(null);
   const [loading, setLoading] = useState(true);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [healthModal, setHealthModal] = useState(false);
@@ -71,7 +76,8 @@ export default function ProjectDetailPage() {
       getActivities(id).then(r => setActivities(r.data.data)).catch(() => {}),
       getTecStacks().then(r => setAllTecStacks(r.data.data)).catch(() => {}),
       getProjectAssignments(id).then(r => setAssignments(r.data.data)).catch(() => {}),
-      getHealthStatusTypes().then(r => setHealthStatusTypes(r.data.data)).catch(() => {})
+      getHealthStatusTypes().then(r => setHealthStatusTypes(r.data.data)).catch(() => {}),
+      getProjectLinks(id).then(r => setLinks(r.data.data)).catch(() => {})
     ])
       .catch(() => navigate('/projects'))
       .finally(() => setLoading(false));
@@ -167,6 +173,34 @@ export default function ProjectDetailPage() {
     setBudgets(res.data.data);
   };
 
+  const handleOpenLinkModal = (link = null) => {
+    setEditingLink(link);
+    setLinkForm(link
+      ? { projectlink_label: link.projectlink_label, projectlink_URL: link.projectlink_URL }
+      : { projectlink_label: '', projectlink_URL: '' }
+    );
+    setLinkModal(true);
+  };
+
+  const handleSaveLink = async (e) => {
+    e.preventDefault();
+    if (editingLink) {
+      await updateProjectLink(id, editingLink.id, linkForm);
+    } else {
+      await createProjectLink(id, linkForm);
+    }
+    const res = await getProjectLinks(id);
+    setLinks(res.data.data);
+    setLinkModal(false);
+    setEditingLink(null);
+  };
+
+  const handleDeleteLink = async (linkId) => {
+    await deleteProjectLink(id, linkId);
+    const res = await getProjectLinks(id);
+    setLinks(res.data.data);
+  };
+
   const formatDate = (ts) => {
     if (!ts) return '-';
     return new Date(ts).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
@@ -181,7 +215,8 @@ export default function ProjectDetailPage() {
   // Derive current completion %
   const latestCompletion = completions.length > 0 ? completions[0] : null;
   const completionPercent = latestCompletion ? latestCompletion.completion_value : 0;
-  const budgetTotal = budgets.reduce((sum, b) => sum + (b.budget_amount || 0), 0);
+  const visibleBudgets = budgets.filter(b => (b.budget_amount || 0) > 0);
+  const budgetTotal = visibleBudgets.reduce((sum, b) => sum + (b.budget_amount || 0), 0);
 
   if (loading) return <LoadingSpinner size="lg" className="mt-20" />;
   if (!project) return null;
@@ -458,6 +493,31 @@ export default function ProjectDetailPage() {
 
         {/* Sidebar */}
         <div className="space-y-6">
+          {/* Project Info */}
+          <Card title="Project Info">
+            <div className="space-y-3 text-sm">
+              <div className="flex justify-between">
+                <span className="text-text-secondary">Created</span>
+                <span className="font-medium">{formatDate(project.project_create_date)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-text-secondary">Updated</span>
+                <span className="font-medium">{formatDate(project.project_update_date)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-text-secondary">ID</span>
+                <span className="font-mono text-text-secondary">#{project.id}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-text-secondary">Repository</span>
+                {project.project_code
+                  ? <a href={project.project_code} target="_blank" rel="noopener noreferrer" className="text-primary-500 hover:text-primary-600 hover:underline truncate max-w-[160px]" title={project.project_code}>Code</a>
+                  : <span className="text-text-secondary">N/A</span>
+                }
+              </div>
+            </div>
+          </Card>
+
           {/* Budgets */}
           <Card
             title="Budgets"
@@ -472,11 +532,11 @@ export default function ProjectDetailPage() {
               )
             }
           >
-            {budgets.length === 0 ? (
+            {visibleBudgets.length === 0 ? (
               <p className="text-sm text-text-secondary">No budgets allocated</p>
             ) : (
               <div className="space-y-3">
-                {budgets.map(b => (
+                {visibleBudgets.map(b => (
                   <div key={b.id} className="flex items-start justify-between rounded-lg border border-border px-3 py-2.5">
                     <div>
                       <Link to={`/budgets/${b.id}`} className="text-sm font-semibold text-primary-500 hover:text-primary-600 hover:underline flex items-center gap-1.5">
@@ -501,7 +561,7 @@ export default function ProjectDetailPage() {
                     )}
                   </div>
                 ))}
-                {budgets.length > 1 && (
+                {visibleBudgets.length > 1 && (
                   <div className="border-t border-border pt-2 flex justify-between text-sm">
                     <span className="font-medium text-text-secondary">Total</span>
                     <span className="font-bold text-text-primary">{budgetTotal.toLocaleString('en-US')}</span>
@@ -548,7 +608,7 @@ export default function ProjectDetailPage() {
                 {stacks.length === 0 ? (
                   <p className="text-sm text-text-secondary">No tech stack available yet</p>
                 ) : (
-                  <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
                     {Object.entries(groups).map(([type, items]) => {
                       const { label, tagStyle } = typeConfig[type] || typeConfig.none;
                       return (
@@ -600,23 +660,59 @@ export default function ProjectDetailPage() {
             )}
           </Card>
 
-          {/* Metadata */}
-          <Card title="Metadata">
-            <div className="space-y-3 text-sm">
-              <div className="flex justify-between">
-                <span className="text-text-secondary">Created</span>
-                <span className="font-medium">{formatDate(project.project_create_date)}</span>
+          {/* Links */}
+          <Card
+            title="Links"
+            extra={canEditProject && (
+              <button
+                onClick={() => handleOpenLinkModal()}
+                className="inline-flex items-center gap-1 rounded-lg bg-primary-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-primary-600 transition-colors"
+              >
+                <Plus size={14} /> Add
+              </button>
+            )}
+          >
+            {links.length === 0 ? (
+              <p className="text-sm text-text-secondary">No links added yet</p>
+            ) : (
+              <div className="space-y-2">
+                {links.map(l => (
+                  <div key={l.id} className="flex items-center justify-between gap-2 rounded-lg border border-border px-3 py-2">
+                    <a
+                      href={l.projectlink_URL}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1.5 text-sm text-primary-500 hover:text-primary-600 hover:underline truncate"
+                      title={l.projectlink_URL}
+                    >
+                      <Link2 size={13} className="shrink-0" />
+                      {l.projectlink_label}
+                      <ExternalLink size={11} className="shrink-0 text-text-secondary" />
+                    </a>
+                    {canEditProject && (
+                      <div className="flex shrink-0 items-center gap-1">
+                        <button
+                          onClick={() => handleOpenLinkModal(l)}
+                          className="p-1 text-text-secondary hover:text-primary-500 transition-colors"
+                          title="Edit link"
+                        >
+                          <Pencil size={13} />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteLink(l.id)}
+                          className="p-1 text-text-secondary hover:text-error-500 transition-colors"
+                          title="Delete link"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ))}
               </div>
-              <div className="flex justify-between">
-                <span className="text-text-secondary">Updated</span>
-                <span className="font-medium">{formatDate(project.project_update_date)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-text-secondary">ID</span>
-                <span className="font-mono text-text-secondary">#{project.id}</span>
-              </div>
-            </div>
+            )}
           </Card>
+
         </div>
       </div>
 
@@ -784,6 +880,53 @@ export default function ProjectDetailPage() {
             </button>
             <button type="submit" className="rounded-lg bg-primary-500 px-4 py-2 text-sm font-medium text-white hover:bg-primary-600 transition-colors">
               Add Budget
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Add / Edit Link Modal */}
+      <Modal
+        open={linkModal}
+        onClose={() => { setLinkModal(false); setEditingLink(null); }}
+        title={editingLink ? 'Edit Link' : 'Add Link'}
+      >
+        <form onSubmit={handleSaveLink} className="space-y-4">
+          <div>
+            <label className="mb-1.5 block text-sm font-medium">Label</label>
+            <input
+              type="text"
+              required
+              value={linkForm.projectlink_label}
+              onChange={e => setLinkForm(f => ({ ...f, projectlink_label: e.target.value }))}
+              className="w-full rounded-lg border border-border-dark bg-surface px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+              placeholder="e.g. GitHub, Confluence, Jira"
+            />
+          </div>
+          <div>
+            <label className="mb-1.5 block text-sm font-medium">URL</label>
+            <input
+              type="url"
+              required
+              value={linkForm.projectlink_URL}
+              onChange={e => setLinkForm(f => ({ ...f, projectlink_URL: e.target.value }))}
+              className="w-full rounded-lg border border-border-dark bg-surface px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+              placeholder="https://..."
+            />
+          </div>
+          <div className="flex justify-end gap-3">
+            <button
+              type="button"
+              onClick={() => { setLinkModal(false); setEditingLink(null); }}
+              className="rounded-lg border border-border-dark px-4 py-2 text-sm font-medium hover:bg-surface transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="rounded-lg bg-primary-500 px-4 py-2 text-sm font-medium text-white hover:bg-primary-600 transition-colors"
+            >
+              {editingLink ? 'Save' : 'Add Link'}
             </button>
           </div>
         </form>

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate, Navigate } from 'react-router-dom';
+import { useNavigate, Navigate, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { useTheme } from '../../hooks/useTheme';
 import { FolderKanban, Sun, Moon, Eye, EyeOff } from 'lucide-react';
@@ -8,11 +8,13 @@ export default function LoginPage() {
   const { login, isAuthenticated, loading } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
+  const location = useLocation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const successMessage = location.state?.message || '';
 
   if (!loading && isAuthenticated) {
     return <Navigate to="/dashboard" replace />;
@@ -55,6 +57,11 @@ export default function LoginPage() {
 
         <div className="rounded-xl bg-surface-card border border-border p-8 shadow-2xl transition-colors duration-200">
           <form onSubmit={handleSubmit} className="space-y-5">
+            {successMessage && (
+              <div className="rounded-lg bg-success-50 px-4 py-3 text-sm text-success-700">
+                {successMessage}
+              </div>
+            )}
             {error && (
               <div className="rounded-lg bg-error-50 px-4 py-3 text-sm text-error-500">
                 {error}
@@ -109,6 +116,12 @@ export default function LoginPage() {
             >
               {submitting ? 'Signing in...' : 'Sign In'}
             </button>
+
+            <div className="text-center">
+              <Link to="/forgot-password" className="text-sm text-text-secondary hover:text-white transition-colors">
+                Forgot your password?
+              </Link>
+            </div>
           </form>
         </div>
 
