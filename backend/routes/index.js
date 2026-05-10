@@ -22,6 +22,7 @@ const createAgentRoutes = require('./agentRoutes');
 const createPurchaseOrderRoutes = require('./purchaseOrderRoutes');
 const createTaskRoutes = require('./taskRoutes');
 const createNoteRoutes = require('./noteRoutes');
+const createGraphRoutes = require('./graphRoutes');
 
 function createRoutes(db, auditDb) {
   const router = express.Router();
@@ -49,6 +50,7 @@ function createRoutes(db, auditDb) {
   router.use('/purchase-orders', createPurchaseOrderRoutes(db));
   router.use('/tasks', createTaskRoutes(db));
   router.use('/notes', createNoteRoutes(db, auditDb));
+  router.use('/graph', createGraphRoutes(db));
 
   return router;
 }

@@ -17,6 +17,7 @@ import {
   CheckSquare,
   Briefcase,
   NotebookPen,
+  Network,
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 
@@ -25,6 +26,7 @@ const navItems = [
   { label: 'Projects', path: '/projects', icon: FolderKanban },
   { label: 'Tasks', path: '/tasks', icon: CheckSquare },
   { label: 'Notes', path: '/notes', icon: NotebookPen },
+  { label: 'Graph', path: '/graph', icon: Network },
   { label: 'Project Roles', path: '/project-roles', icon: Briefcase },
   { label: 'Divisions', path: '/divisions', icon: Building2 },
   { label: 'Initiatives', path: '/initiatives', icon: Flag },

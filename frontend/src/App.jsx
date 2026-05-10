@@ -31,6 +31,7 @@ import TasksPage from './pages/tasks/index';
 import NotesPage from './pages/notes/index';
 import NoteFormPage from './pages/notes/form';
 import NoteDetailPage from './pages/notes/detail';
+import GraphPage from './pages/graph/index';
 import LogsPage from './pages/logs/index';
 import SettingsPage from './pages/settings/index';
 
@@ -76,6 +77,7 @@ const router = createBrowserRouter(
         <Route path="/notes" element={<NotesPage />} />
         <Route path="/notes/new" element={<NoteFormPage />} />
         <Route path="/notes/:id" element={<NoteDetailPage />} />
+        <Route path="/graph" element={<GraphPage />} />
         <Route path="/logs" element={<LogsPage />} />
         <Route path="/settings" element={<SettingsPage />} />
       </Route>
