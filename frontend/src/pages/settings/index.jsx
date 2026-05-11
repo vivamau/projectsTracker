@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { useAppSettings } from '../../hooks/useAppSettings';
 import client from '../../api/client';
 import { updateAvatar } from '../../api/authApi';
+import { importActivities } from '../../api/entitiesApi';
 import Card from '../../commoncomponents/Card';
 import UserAvatar from '../../commoncomponents/UserAvatar';
 import SeniorityManagementModal from './SeniorityManagementModal';
@@ -10,6 +11,7 @@ import ProjectStatusManagementModal from './ProjectStatusManagementModal';
 import HealthStatusManagementModal from './HealthStatusManagementModal';
 import ProjectRolesManagementModal from './ProjectRolesManagementModal';
 import { getAgentSettings, updateAgentSettings, getAgentModels } from '../../api/agentApi';
+import { Upload, CheckCircle, AlertCircle } from 'lucide-react';
 
 const DICEBEAR_STYLES = [
   'adventurer', 'adventurer-neutral', 'avataaars', 'big-ears', 'big-smile',
@@ -82,6 +84,29 @@ export default function SettingsPage() {
   const [agentModels, setAgentModels] = useState([]);
   const [agentSaving, setAgentSaving] = useState(false);
   const [agentSaved, setAgentSaved] = useState(false);
+
+  const [importState, setImportState] = useState('idle'); // idle | loading | done | error
+  const [importResult, setImportResult] = useState(null);
+  const [importError, setImportError] = useState('');
+  const [importReset, setImportReset] = useState(false);
+  const importFileRef = useRef(null);
+
+  const handleActivityImport = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = '';
+    setImportState('loading');
+    setImportResult(null);
+    setImportError('');
+    try {
+      const res = await importActivities(file, importReset);
+      setImportResult(res.data.data);
+      setImportState('done');
+    } catch (err) {
+      setImportError(err.response?.data?.error || 'Import failed');
+      setImportState('error');
+    }
+  };
 
   useEffect(() => {
     if (role !== 'superadmin' && role !== 'admin') return;
@@ -278,6 +303,78 @@ export default function SettingsPage() {
                   </button>
                 </div>
               </div>
+            </Card>
+          )}
+
+          {role === 'superadmin' && (
+            <Card title="Activities Import">
+              <p className="text-sm text-text-secondary mb-4">
+                Upload an Azure DevOps Ticket Summary XLSX file to import sprint activities.
+                Only rows not already in the database are inserted.
+              </p>
+
+              <input
+                ref={importFileRef}
+                type="file"
+                accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+                className="hidden"
+                onChange={handleActivityImport}
+              />
+
+              <label className="flex items-center gap-2 mb-4 cursor-pointer w-fit">
+                <input
+                  type="checkbox"
+                  checked={importReset}
+                  onChange={e => setImportReset(e.target.checked)}
+                  className="rounded border-border-dark accent-primary-500"
+                />
+                <span className="text-sm text-text-secondary">
+                  Reset — delete all existing activities before importing
+                </span>
+              </label>
+
+              <button
+                onClick={() => importFileRef.current?.click()}
+                disabled={importState === 'loading'}
+                className="flex items-center gap-2 rounded-lg bg-primary-500 px-4 py-2 text-sm font-medium text-white hover:bg-primary-600 transition-colors disabled:opacity-60"
+              >
+                <Upload size={16} />
+                {importState === 'loading' ? 'Importing…' : 'Upload XLSX File'}
+              </button>
+
+              {importState === 'done' && importResult && (
+                <div className="mt-4 rounded-lg border border-green-200 bg-green-50 p-4 space-y-2">
+                  <div className="flex items-center gap-2 text-green-700 font-medium text-sm">
+                    <CheckCircle size={16} />
+                    Import complete
+                  </div>
+                  <div className="text-sm text-green-800 space-y-1">
+                    <p><span className="font-medium">{importResult.inserted}</span> rows inserted</p>
+                    <p><span className="font-medium">{importResult.skipped}</span> rows skipped (already imported)</p>
+                  </div>
+                  {importResult.unmatched?.length > 0 && (
+                    <div className="mt-3">
+                      <p className="text-xs font-medium text-amber-700 mb-1">
+                        {importResult.unmatched.length} unmatched project{importResult.unmatched.length !== 1 ? 's' : ''}:
+                      </p>
+                      <ul className="text-xs text-amber-700 space-y-0.5 max-h-32 overflow-y-auto">
+                        {importResult.unmatched.map((u) => (
+                          <li key={u.importId} className="font-mono truncate">
+                            #{u.importId} — {u.rawProject}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {importState === 'error' && (
+                <div className="mt-4 flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                  <AlertCircle size={16} />
+                  {importError}
+                </div>
+              )}
             </Card>
           )}
         </div>

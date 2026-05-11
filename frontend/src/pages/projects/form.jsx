@@ -613,7 +613,7 @@ export default function ProjectFormPage() {
   );
 }
 
-function FormField({ label, required, children }) {
+function FormField({ label, required, hint, children }) {
   return (
     <div>
       <label className="mb-1.5 block text-sm font-medium text-text-primary">
@@ -621,6 +621,7 @@ function FormField({ label, required, children }) {
         {required && <span className="text-error-500 ml-0.5">*</span>}
       </label>
       {children}
+      {hint && <p className="mt-1 text-xs text-text-secondary">{hint}</p>}
     </div>
   );
 }

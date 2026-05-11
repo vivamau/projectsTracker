@@ -350,7 +350,7 @@ async function getStats(db) {
        COALESCE(SUM(activity_closed_tickets), 0)     as closed_tickets,
        COALESCE(SUM(activity_bug_tickets), 0)        as total_bugs,
        COALESCE(SUM(activity_bug_closed_tickets), 0) as closed_bugs,
-       COUNT(DISTINCT project_id)                    as projects_reporting
+       COUNT(DISTINCT project_code)                  as projects_reporting
      FROM activities
      WHERE activity_is_deleted = 0 OR activity_is_deleted IS NULL`
   );

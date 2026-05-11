@@ -4,6 +4,7 @@ const { runQuery } = require('../../config/database');
 
 let db;
 let projectId;
+const GLASS_ID = 999; // GlassID used as project_code
 const now = Date.now();
 
 beforeAll(async () => {
@@ -11,8 +12,8 @@ beforeAll(async () => {
   await seedTestDb(db);
 
   const result = await runQuery(db,
-    "INSERT INTO projects (project_name, project_create_date) VALUES (?, ?)",
-    ['Activity Test Project', now]
+    "INSERT INTO projects (project_name, project_code, project_create_date) VALUES (?, ?, ?)",
+    ['Activity Test Project', String(GLASS_ID), now]
   );
   projectId = result.lastID;
 });
@@ -30,18 +31,18 @@ describe('activityService.getByProjectId', () => {
 
   it('should return activities ordered by activity_from ascending', async () => {
     await runQuery(db,
-      `INSERT INTO activities (project_id, activity_from, activity_to,
+      `INSERT INTO activities (project_code, activity_from, activity_to,
         activity_planned_tickets, activity_closed_tickets,
         activity_bug_tickets, activity_bug_closed_tickets, activity_create_date)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [projectId, now - 200000, now - 100000, 10, 8, 2, 1, now]
+      [GLASS_ID, now - 200000, now - 100000, 10, 8, 2, 1, now]
     );
     await runQuery(db,
-      `INSERT INTO activities (project_id, activity_from, activity_to,
+      `INSERT INTO activities (project_code, activity_from, activity_to,
         activity_planned_tickets, activity_closed_tickets,
         activity_bug_tickets, activity_bug_closed_tickets, activity_create_date)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [projectId, now - 400000, now - 300000, 5, 4, 1, 0, now]
+      [GLASS_ID, now - 400000, now - 300000, 5, 4, 1, 0, now]
     );
 
     const result = await activityService.getByProjectId(db, projectId);
@@ -64,33 +65,32 @@ describe('activityService.getByProjectId', () => {
 
   it('should not return activities from other projects', async () => {
     const other = await runQuery(db,
-      "INSERT INTO projects (project_name, project_create_date) VALUES (?, ?)",
-      ['Other Project', now]
+      "INSERT INTO projects (project_name, project_code, project_create_date) VALUES (?, ?, ?)",
+      ['Other Project', '888', now]
     );
     await runQuery(db,
-      `INSERT INTO activities (project_id, activity_from, activity_to,
+      `INSERT INTO activities (project_code, activity_from, activity_to,
         activity_planned_tickets, activity_closed_tickets,
         activity_bug_tickets, activity_bug_closed_tickets, activity_create_date)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [other.lastID, now, now + 100000, 99, 99, 0, 0, now]
+      [888, now, now + 100000, 99, 99, 0, 0, now]
     );
 
     const result = await activityService.getByProjectId(db, projectId);
-    const ids = result.map(r => r.project_id);
-    expect(ids.every(id => id === projectId)).toBe(true);
+    result.forEach(r => expect(r.project_code).toBe(String(GLASS_ID)));
   });
 
   it('should not return soft-deleted activities', async () => {
     await runQuery(db,
-      `INSERT INTO activities (project_id, activity_from, activity_to,
+      `INSERT INTO activities (project_code, activity_from, activity_to,
         activity_planned_tickets, activity_closed_tickets,
         activity_bug_tickets, activity_bug_closed_tickets,
         activity_create_date, activity_is_deleted)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)`,
-      [projectId, now + 200000, now + 300000, 20, 18, 3, 2, now]
+      [GLASS_ID, now + 200000, now + 300000, 20, 18, 3, 2, now]
     );
 
-    const before = await activityService.getByProjectId(db, projectId);
-    before.forEach(a => expect(a.activity_is_deleted).not.toBe(1));
+    const result = await activityService.getByProjectId(db, projectId);
+    result.forEach(a => expect(a.activity_is_deleted).not.toBe(1));
   });
 });

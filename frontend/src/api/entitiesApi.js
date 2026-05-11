@@ -77,3 +77,11 @@ export const getHealthStatusTypes = () => client.get('/healthstatus-types');
 export const createHealthStatusType = (data) => client.post('/healthstatus-types', data);
 export const updateHealthStatusType = (id, data) => client.put(`/healthstatus-types/${id}`, data);
 export const deleteHealthStatusType = (id) => client.delete(`/healthstatus-types/${id}`);
+
+export const importActivities = (file, reset = false) => {
+  const fd = new FormData();
+  fd.append('file', file);
+  return client.post(`/settings/import-activities?reset=${reset}`, fd, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+};
