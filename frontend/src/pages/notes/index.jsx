@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Plus, Search, FileText, ClipboardList, Calendar, Tag, X } from 'lucide-react';
-import { getNotes } from '../../api/notesApi';
+import { Plus, Search, FileText, ClipboardList, Calendar, Tag, X, Trash2 } from 'lucide-react';
+import { getNotes, deleteNote } from '../../api/notesApi';
 import LoadingSpinner from '../../commoncomponents/LoadingSpinner';
+import ConfirmDialog from '../../commoncomponents/ConfirmDialog';
 
 const TYPE_TABS = [
   { key: '', label: 'All' },
@@ -29,11 +30,19 @@ export default function NotesPage() {
   const [notes, setNotes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [confirmNote, setConfirmNote] = useState(null);
 
   const clearDateFilter = () => {
     const next = new URLSearchParams(searchParams);
     next.delete('date');
     setSearchParams(next);
+  };
+
+  const handleDelete = async () => {
+    if (!confirmNote) return;
+    await deleteNote(confirmNote.id);
+    setNotes(prev => prev.filter(n => n.id !== confirmNote.id));
+    setConfirmNote(null);
   };
 
   function formatDateParam(iso) {
@@ -117,22 +126,31 @@ export default function NotesPage() {
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {notes.map(note => (
-            <button
+            <div
               key={note.id}
+              className="group relative rounded-xl border border-border bg-surface-card p-5 shadow-sm hover:border-primary-300 hover:shadow-md transition-all cursor-pointer"
               onClick={() => navigate(`/notes/${note.id}`)}
-              className="text-left rounded-xl border border-border bg-surface-card p-5 shadow-sm hover:border-primary-300 hover:shadow-md transition-all"
             >
               <div className="flex items-start justify-between gap-2 mb-3">
                 <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${TYPE_BADGE[note.note_type] || 'bg-surface text-text-secondary'}`}>
                   {note.note_type === 'admin' ? <ClipboardList size={10} /> : <FileText size={10} />}
                   {note.note_type === 'admin' ? 'Admin' : 'Meeting'}
                 </span>
-                {note.note_date && (
-                  <span className="flex items-center gap-1 text-xs text-text-secondary">
-                    <Calendar size={11} />
-                    {formatDate(note.note_date)}
-                  </span>
-                )}
+                <div className="flex items-center gap-2">
+                  {note.note_date && (
+                    <span className="flex items-center gap-1 text-xs text-text-secondary">
+                      <Calendar size={11} />
+                      {formatDate(note.note_date)}
+                    </span>
+                  )}
+                  <button
+                    onClick={e => { e.stopPropagation(); setConfirmNote(note); }}
+                    className="opacity-0 group-hover:opacity-100 p-1 rounded text-text-secondary hover:text-error-500 transition-all"
+                    title="Delete note"
+                  >
+                    <Trash2 size={13} />
+                  </button>
+                </div>
               </div>
               <h3 className="font-semibold text-text-primary leading-snug line-clamp-2">{note.note_title}</h3>
               {note.entity_count > 0 && (
@@ -141,10 +159,17 @@ export default function NotesPage() {
                   {note.entity_count} linked {note.entity_count === 1 ? 'entity' : 'entities'}
                 </p>
               )}
-            </button>
+            </div>
           ))}
         </div>
       )}
+      <ConfirmDialog
+        open={!!confirmNote}
+        onClose={() => setConfirmNote(null)}
+        onConfirm={handleDelete}
+        title="Delete Note"
+        message={`Are you sure you want to delete "${confirmNote?.note_title}"? The file will be preserved on disk.`}
+      />
     </div>
   );
 }
