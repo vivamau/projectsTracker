@@ -160,6 +160,17 @@ export const syncTecStacks = (projectId, tec_stack_ids) =>
 export const getAllPurchaseOrders = (params) =>
   client.get('/purchase-orders', { params });
 
+export const parseConsumptionReport = (projectId, file) => {
+  const form = new FormData();
+  form.append('report', file);
+  return client.post(`/projects/${projectId}/consumption-reports/parse`, form, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  });
+};
+
+export const applyConsumptionReport = (projectId, entries) =>
+  client.post(`/projects/${projectId}/consumption-reports/apply`, { entries });
+
 export const getProjectLinks = (projectId) =>
   client.get(`/projects/${projectId}/links`);
 export const createProjectLink = (projectId, data) =>

@@ -23,6 +23,7 @@ const createPurchaseOrderRoutes = require('./purchaseOrderRoutes');
 const createTaskRoutes = require('./taskRoutes');
 const createNoteRoutes = require('./noteRoutes');
 const createGraphRoutes = require('./graphRoutes');
+const createConsumptionReportRoutes = require('./consumptionReportRoutes');
 
 function createRoutes(db, auditDb) {
   const router = express.Router();
@@ -51,6 +52,7 @@ function createRoutes(db, auditDb) {
   router.use('/tasks', createTaskRoutes(db));
   router.use('/notes', createNoteRoutes(db, auditDb));
   router.use('/graph', createGraphRoutes(db));
+  router.use('/projects/:id/consumption-reports', createConsumptionReportRoutes(db, auditDb));
 
   return router;
 }

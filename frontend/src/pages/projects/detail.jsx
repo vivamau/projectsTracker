@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { Pencil, Trash2, Plus, MapPin, Calendar, User, Users, Target, DollarSign, Settings2, Link2, ExternalLink } from 'lucide-react';
+import { Pencil, Trash2, Plus, MapPin, Calendar, User, Users, Target, DollarSign, Settings2, Link2, ExternalLink, Upload } from 'lucide-react';
 import {
   getProject, deleteProject,
   getHealthStatuses, createHealthStatus,
@@ -26,6 +26,7 @@ import ActivitiesChart from './components/ActivitiesChart';
 import Map from './components/Map';
 import TasksCard from './components/TasksCard';
 import EntityNotes from '../../commoncomponents/EntityNotes';
+import ConsumptionReportModal from './components/ConsumptionReportModal';
 
 export default function ProjectDetailPage() {
   const { id } = useParams();
@@ -62,6 +63,7 @@ export default function ProjectDetailPage() {
   const [healthModal, setHealthModal] = useState(false);
   const [completionModal, setCompletionModal] = useState(false);
   const [budgetModal, setBudgetModal] = useState(false);
+  const [consumptionReportModal, setConsumptionReportModal] = useState(false);
   const [healthForm, setHealthForm] = useState({ healthstatus_value: 3, healthstatus_comment: '' });
   const [completionForm, setCompletionForm] = useState({ completion_value: '', completion_comment: '', completion_start_date: '', completion_end_date: '' });
   const [budgetForm, setBudgetForm] = useState({ budget_amount: '', currency_id: '', budget_start_date: '', budget_end_date: '' });
@@ -532,12 +534,21 @@ export default function ProjectDetailPage() {
             title="Budgets"
             extra={
               canEditProject && (
-                <button
-                  onClick={() => setBudgetModal(true)}
-                  className="inline-flex items-center gap-1 rounded-lg bg-primary-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-primary-600 transition-colors"
-                >
-                  <Plus size={14} /> Add
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setConsumptionReportModal(true)}
+                    className="inline-flex items-center gap-1 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-text-secondary hover:text-text-primary hover:border-primary-400 transition-colors"
+                    title="Upload consumption report"
+                  >
+                    <Upload size={13} /> Upload Report
+                  </button>
+                  <button
+                    onClick={() => setBudgetModal(true)}
+                    className="inline-flex items-center gap-1 rounded-lg bg-primary-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-primary-600 transition-colors"
+                  >
+                    <Plus size={14} /> Add
+                  </button>
+                </div>
               )
             }
           >
@@ -1055,6 +1066,13 @@ export default function ProjectDetailPage() {
           </div>
         </div>
       </Modal>
+
+      <ConsumptionReportModal
+        projectId={id}
+        open={consumptionReportModal}
+        onClose={() => setConsumptionReportModal(false)}
+        onApplied={() => getBudgets(id).then(r => setBudgets(r.data.data))}
+      />
     </div>
   );
 }
