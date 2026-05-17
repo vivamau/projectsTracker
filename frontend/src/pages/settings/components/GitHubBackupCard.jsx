@@ -91,7 +91,13 @@ export default function GitHubBackupCard() {
       const d = res.data.data;
       setLastSync(d.syncedAt);
       setLastStatus('ok');
-      setSyncResult({ ok: true, message: `Synced — commit ${d.commitSha.slice(0, 7)}` });
+      if (d.action === 'pushed') {
+        setSyncResult({ ok: true, message: `Pushed — commit ${d.commitSha.slice(0, 7)}` });
+      } else if (d.action === 'pulled') {
+        setSyncResult({ ok: true, message: 'Remote database is newer — restore staged. Restart the server to apply.', warn: true });
+      } else {
+        setSyncResult({ ok: true, message: 'Already up to date' });
+      }
     } catch (err) {
       const msg = err.response?.data?.error || 'Sync failed';
       setLastStatus(`error: ${msg}`);
@@ -227,7 +233,7 @@ export default function GitHubBackupCard() {
         </div>
       )}
       {syncResult && (
-        <div className={`mt-2 flex items-center gap-2 text-sm ${syncResult.ok ? 'text-green-600' : 'text-red-500'}`}>
+        <div className={`mt-2 flex items-center gap-2 text-sm ${syncResult.ok ? (syncResult.warn ? 'text-amber-600' : 'text-green-600') : 'text-red-500'}`}>
           {syncResult.ok ? <CheckCircle size={14} /> : <XCircle size={14} />}
           {syncResult.message}
         </div>
