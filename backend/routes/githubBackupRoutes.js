@@ -7,12 +7,11 @@ const { success, error } = require('../utilities/responseHelper');
 function createGithubBackupRoutes(db) {
   const router = express.Router();
 
-  const dbPath = process.env.DB_PATH || path.join(__dirname, '..', 'data', 'database.sqlite');
+  const dataDir = process.env.DATA_DIR || path.join(__dirname, '..', 'data');
 
   router.get('/', authenticate, authorize('superadmin'), async (req, res) => {
     try {
       const settings = await githubBackupService.getSettings(db);
-      // Never expose the raw token to the client
       const safeSettings = { ...settings, token: settings.token ? '••••••••' : '' };
       return success(res, safeSettings);
     } catch (err) {
@@ -22,13 +21,11 @@ function createGithubBackupRoutes(db) {
 
   router.put('/settings', authenticate, authorize('superadmin'), async (req, res) => {
     try {
-      const { enabled, token, repo, branch, filePath } = req.body;
+      const { enabled, token, repo, branch } = req.body;
       const payload = { enabled };
-      // Only update token if explicitly provided (not the masked placeholder)
-      if (token !== undefined && token !== '••••••••') payload.token = token;
-      if (repo     !== undefined) payload.repo     = repo;
-      if (branch   !== undefined) payload.branch   = branch;
-      if (filePath !== undefined) payload.filePath = filePath;
+      if (token  !== undefined && token !== '••••••••') payload.token  = token;
+      if (repo   !== undefined) payload.repo   = repo;
+      if (branch !== undefined) payload.branch = branch;
       await githubBackupService.saveSettings(db, payload, req.user.email);
       const settings = await githubBackupService.getSettings(db);
       return success(res, { ...settings, token: settings.token ? '••••••••' : '' });
@@ -40,7 +37,6 @@ function createGithubBackupRoutes(db) {
   router.post('/test', authenticate, authorize('superadmin'), async (req, res) => {
     try {
       const { token, repo } = req.body;
-      // Allow testing with stored token if caller sends the masked placeholder
       let effectiveToken = token;
       if (!token || token === '••••••••') {
         const settings = await githubBackupService.getSettings(db);
@@ -55,7 +51,7 @@ function createGithubBackupRoutes(db) {
 
   router.post('/sync', authenticate, authorize('superadmin'), async (req, res) => {
     try {
-      const result = await githubBackupService.syncDatabase(db, dbPath);
+      const result = await githubBackupService.syncAll(db, dataDir);
       return success(res, result);
     } catch (err) {
       await githubBackupService.recordFailure(db, err.message).catch(() => {});

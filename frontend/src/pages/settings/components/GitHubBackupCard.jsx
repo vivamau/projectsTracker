@@ -15,7 +15,6 @@ const DEFAULT_FORM = {
   token: '',
   repo: '',
   branch: 'main',
-  filePath: 'database.sqlite',
 };
 
 export default function GitHubBackupCard() {
@@ -32,18 +31,17 @@ export default function GitHubBackupCard() {
   const [testResult, setTestResult] = useState(null); // null | { ok, message }
 
   const [syncing, setSyncing] = useState(false);
-  const [syncResult, setSyncResult] = useState(null); // null | { ok, message }
+  const [syncResult, setSyncResult] = useState(null); // null | { ok, message, warn? }
 
   useEffect(() => {
     getGithubBackupSettings()
       .then(r => {
         const d = r.data.data;
         setForm({
-          enabled:  d.enabled,
-          token:    d.token || '',
-          repo:     d.repo || '',
-          branch:   d.branch || 'main',
-          filePath: d.filePath || 'database.sqlite',
+          enabled: d.enabled,
+          token:   d.token || '',
+          repo:    d.repo || '',
+          branch:  d.branch || 'main',
         });
         setLastSync(d.lastSync);
         setLastStatus(d.lastStatus);
@@ -91,12 +89,25 @@ export default function GitHubBackupCard() {
       const d = res.data.data;
       setLastSync(d.syncedAt);
       setLastStatus('ok');
-      if (d.action === 'pushed') {
-        setSyncResult({ ok: true, message: `Pushed — commit ${d.commitSha.slice(0, 7)}` });
-      } else if (d.action === 'pulled') {
-        setSyncResult({ ok: true, message: 'Remote database is newer — restore staged. Restart the server to apply.', warn: true });
-      } else {
+
+      const pushed = d.pushed || [];
+      const pulled = d.pulled || [];
+
+      if (pushed.length === 0 && pulled.length === 0) {
         setSyncResult({ ok: true, message: 'Already up to date' });
+      } else if (pushed.length > 0 && pulled.length === 0) {
+        const n = pushed.length;
+        setSyncResult({ ok: true, message: `Pushed ${n} file${n > 1 ? 's' : ''} — commit ${d.commitSha.slice(0, 7)}` });
+      } else if (pulled.length > 0 && pushed.length === 0) {
+        const n = pulled.length;
+        const msg = d.requiresRestart
+          ? `Pulled ${n} file${n > 1 ? 's' : ''} — restart the server to apply database changes`
+          : `Pulled ${n} file${n > 1 ? 's' : ''}`;
+        setSyncResult({ ok: true, message: msg, warn: d.requiresRestart });
+      } else {
+        const msg = `Synced — pushed ${pushed.length}, pulled ${pulled.length} file${pulled.length > 1 ? 's' : ''}` +
+          (d.requiresRestart ? ' — restart required' : '');
+        setSyncResult({ ok: true, message: msg, warn: d.requiresRestart });
       }
     } catch (err) {
       const msg = err.response?.data?.error || 'Sync failed';
@@ -123,7 +134,7 @@ export default function GitHubBackupCard() {
       <div className="flex items-start gap-3 mb-4">
         <GitBranch size={18} className="mt-0.5 text-text-secondary shrink-0" />
         <p className="text-sm text-text-secondary">
-          Sync the database to a <strong>private</strong> GitHub repository on demand.
+          Sync databases and notes to a <strong>private</strong> GitHub repository on demand.
           The token needs <span className="font-mono text-xs">repo</span> scope.
         </p>
       </div>
@@ -140,7 +151,6 @@ export default function GitHubBackupCard() {
           <span className="text-sm font-medium text-text-primary">Enable GitHub backup</span>
         </label>
 
-        {/* Config fields — always shown so user can configure before enabling */}
         <div>
           <label className={labelClass}>GitHub Personal Access Token</label>
           <input
@@ -167,27 +177,15 @@ export default function GitHubBackupCard() {
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className={labelClass}>Branch</label>
-            <input
-              type="text"
-              value={form.branch}
-              onChange={e => setForm(f => ({ ...f, branch: e.target.value }))}
-              placeholder="main"
-              className={inputClass}
-            />
-          </div>
-          <div>
-            <label className={labelClass}>File path in repo</label>
-            <input
-              type="text"
-              value={form.filePath}
-              onChange={e => setForm(f => ({ ...f, filePath: e.target.value }))}
-              placeholder="database.sqlite"
-              className={inputClass}
-            />
-          </div>
+        <div>
+          <label className={labelClass}>Branch</label>
+          <input
+            type="text"
+            value={form.branch}
+            onChange={e => setForm(f => ({ ...f, branch: e.target.value }))}
+            placeholder="main"
+            className={inputClass}
+          />
         </div>
 
         {saveError && (

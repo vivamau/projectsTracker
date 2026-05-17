@@ -1,4 +1,5 @@
 const fs = require('fs');
+const path = require('path');
 const appSettingsService = require('./appSettingsService');
 const { getStore } = require('./secretsStore');
 
@@ -7,21 +8,18 @@ const KEYS = {
   TOKEN:       'github_backup_token',
   REPO:        'github_backup_repo',
   BRANCH:      'github_backup_branch',
-  FILE_PATH:   'github_backup_path',
   LAST_SYNC:   'github_backup_last_sync',
   LAST_STATUS: 'github_backup_last_status',
 };
 
-// Staging suffix used by syncDatabase (pull) and index.js startup restore
 const STAGING_SUFFIX = '.github-restore';
 
 async function getSettings(db) {
   const store = getStore();
-  const [enabled, repo, branch, filePath, lastSync, lastStatus] = await Promise.all([
+  const [enabled, repo, branch, lastSync, lastStatus] = await Promise.all([
     appSettingsService.get(db, KEYS.ENABLED),
     appSettingsService.get(db, KEYS.REPO),
     appSettingsService.get(db, KEYS.BRANCH),
-    appSettingsService.get(db, KEYS.FILE_PATH),
     appSettingsService.get(db, KEYS.LAST_SYNC),
     appSettingsService.get(db, KEYS.LAST_STATUS),
   ]);
@@ -30,21 +28,19 @@ async function getSettings(db) {
     token:      store.get(KEYS.TOKEN) || '',
     repo:       repo || '',
     branch:     branch || 'main',
-    filePath:   filePath || 'database.sqlite',
     lastSync:   lastSync || null,
     lastStatus: lastStatus || null,
   };
 }
 
-async function saveSettings(db, { enabled, token, repo, branch, filePath }, updatedBy) {
+async function saveSettings(db, { enabled, token, repo, branch }, updatedBy) {
   const store = getStore();
   const ops = [
     appSettingsService.set(db, KEYS.ENABLED, String(enabled === true || enabled === 'true'), updatedBy),
   ];
-  if (token !== undefined)    store.set(KEYS.TOKEN, token);
-  if (repo !== undefined)     ops.push(appSettingsService.set(db, KEYS.REPO, repo, updatedBy));
-  if (branch !== undefined)   ops.push(appSettingsService.set(db, KEYS.BRANCH, branch || 'main', updatedBy));
-  if (filePath !== undefined) ops.push(appSettingsService.set(db, KEYS.FILE_PATH, filePath || 'database.sqlite', updatedBy));
+  if (token  !== undefined) store.set(KEYS.TOKEN, token);
+  if (repo   !== undefined) ops.push(appSettingsService.set(db, KEYS.REPO, repo, updatedBy));
+  if (branch !== undefined) ops.push(appSettingsService.set(db, KEYS.BRANCH, branch || 'main', updatedBy));
   await Promise.all(ops);
 }
 
@@ -105,12 +101,11 @@ async function testConnection(token, repo) {
   return { name: data.full_name, private: data.private };
 }
 
-// Returns { headSha, baseTreeSha, blobSha, fileDate } for the branch/file.
-// headSha/baseTreeSha are null when the branch doesn't exist yet (first push).
-// blobSha/fileDate are null when the file isn't in the tree yet.
-async function getRemoteState(token, owner, repoName, branch, filePath) {
+// Fetches the remote branch head and returns a flat map of all blob entries.
+async function getRemoteTree(token, owner, repoName, branch) {
   let headSha = null;
   let baseTreeSha = null;
+  const treeEntries = {}; // repoPath → { sha: blobSha }
 
   try {
     const refData = await githubRequest(token, 'GET', `/repos/${owner}/${repoName}/git/ref/heads/${branch}`);
@@ -118,58 +113,57 @@ async function getRemoteState(token, owner, repoName, branch, filePath) {
     const commitData = await githubRequest(token, 'GET', `/repos/${owner}/${repoName}/git/commits/${headSha}`);
     baseTreeSha = commitData.tree.sha;
   } catch {
-    // Branch doesn't exist or repo is empty — treat as first push
-    return { headSha: null, baseTreeSha: null, blobSha: null, fileDate: null };
+    return { headSha: null, baseTreeSha: null, treeEntries };
   }
 
-  let blobSha = null;
-  let fileDate = null;
   try {
     const treeData = await githubRequest(
       token, 'GET',
       `/repos/${owner}/${repoName}/git/trees/${baseTreeSha}?recursive=1`
     );
-    const entry = treeData.tree.find(e => e.path === filePath);
-    if (entry) {
-      blobSha = entry.sha;
-      // Get the date of the last commit that touched this specific file
-      const commits = await githubRequest(
-        token, 'GET',
-        `/repos/${owner}/${repoName}/commits?path=${encodeURIComponent(filePath)}&per_page=1&sha=${branch}`
-      );
-      if (commits.length > 0) {
-        fileDate = new Date(commits[0].commit.committer.date);
-      }
+    for (const entry of treeData.tree) {
+      if (entry.type === 'blob') treeEntries[entry.path] = { sha: entry.sha };
     }
   } catch {
-    // Tree/commits fetch failed — treat file as absent, will push
+    // Tree fetch failed — treat remote as empty
   }
 
-  return { headSha, baseTreeSha, blobSha, fileDate };
+  return { headSha, baseTreeSha, treeEntries };
 }
 
-async function pushDatabase(token, owner, repoName, branch, filePath, dbPath, headSha, baseTreeSha, db) {
-  const fileContent = fs.readFileSync(dbPath);
-  const base64Content = fileContent.toString('base64');
+async function getFileDate(token, owner, repoName, branch, filePath) {
+  try {
+    const commits = await githubRequest(
+      token, 'GET',
+      `/repos/${owner}/${repoName}/commits?path=${encodeURIComponent(filePath)}&per_page=1&sha=${branch}`
+    );
+    if (commits.length > 0) return new Date(commits[0].commit.committer.date);
+  } catch {}
+  return null;
+}
 
-  const blob = await githubRequest(token, 'POST', `/repos/${owner}/${repoName}/git/blobs`, {
-    content: base64Content,
-    encoding: 'base64',
-  });
+// Push multiple files as a single commit. Returns { sha, syncedAt }.
+async function pushFiles(token, owner, repoName, branch, files, headSha, baseTreeSha) {
+  const treeItems = [];
+  for (const { repoPath, localPath } of files) {
+    const content = fs.readFileSync(localPath);
+    const blob = await githubRequest(token, 'POST', `/repos/${owner}/${repoName}/git/blobs`, {
+      content: content.toString('base64'),
+      encoding: 'base64',
+    });
+    treeItems.push({ path: repoPath, mode: '100644', type: 'blob', sha: blob.sha });
+  }
 
-  const treeBody = {
-    tree: [{ path: filePath, mode: '100644', type: 'blob', sha: blob.sha }],
-  };
+  const treeBody = { tree: treeItems };
   if (baseTreeSha) treeBody.base_tree = baseTreeSha;
   const tree = await githubRequest(token, 'POST', `/repos/${owner}/${repoName}/git/trees`, treeBody);
 
   const now = new Date().toISOString();
-  const commitBody = {
-    message: `Database backup – ${now}`,
+  const commit = await githubRequest(token, 'POST', `/repos/${owner}/${repoName}/git/commits`, {
+    message: `Backup – ${now}`,
     tree: tree.sha,
     parents: headSha ? [headSha] : [],
-  };
-  const commit = await githubRequest(token, 'POST', `/repos/${owner}/${repoName}/git/commits`, commitBody);
+  });
 
   if (headSha) {
     await githubRequest(token, 'PATCH', `/repos/${owner}/${repoName}/git/refs/heads/${branch}`, {
@@ -183,29 +177,18 @@ async function pushDatabase(token, owner, repoName, branch, filePath, dbPath, he
     });
   }
 
-  await appSettingsService.set(db, KEYS.LAST_SYNC, now, 'system');
-  await appSettingsService.set(db, KEYS.LAST_STATUS, 'ok', 'system');
-
-  return { syncedAt: now, commitSha: commit.sha, action: 'pushed' };
+  return { sha: commit.sha, syncedAt: now };
 }
 
-// Downloads the remote blob to a staging file. The server must be restarted
-// for the restore to take effect (index.js moves the staging file on startup).
-async function pullDatabase(token, owner, repoName, blobSha, dbPath, db) {
+async function pullBlob(token, owner, repoName, blobSha) {
   const blob = await githubRequest(token, 'GET', `/repos/${owner}/${repoName}/git/blobs/${blobSha}`);
-  const content = Buffer.from(blob.content.replace(/\n/g, ''), 'base64');
-
-  const stagingPath = `${dbPath}${STAGING_SUFFIX}`;
-  fs.writeFileSync(stagingPath, content);
-
-  const now = new Date().toISOString();
-  await appSettingsService.set(db, KEYS.LAST_SYNC, now, 'system');
-  await appSettingsService.set(db, KEYS.LAST_STATUS, 'ok', 'system');
-
-  return { syncedAt: now, action: 'pulled', requiresRestart: true };
+  return Buffer.from(blob.content.replace(/\n/g, ''), 'base64');
 }
 
-async function syncDatabase(db, dbPath) {
+// Syncs database.sqlite, audit.sqlite, and all notes/*.md files in dataDir.
+// SQLite files are downloaded to a staging path (restart required to apply).
+// Notes files are written directly.
+async function syncAll(db, dataDir) {
   const settings = await getSettings(db);
   if (!settings.enabled) throw new Error('GitHub backup is not enabled');
   if (!settings.token)   throw new Error('GitHub token is not configured');
@@ -216,29 +199,108 @@ async function syncDatabase(db, dbPath) {
     throw new Error('Invalid repo format, expected owner/repo');
   }
   const [owner, repoName] = parts;
-  const branch   = settings.branch   || 'main';
-  const filePath = settings.filePath || 'database.sqlite';
+  const branch = settings.branch || 'main';
 
-  const localMtime = fs.existsSync(dbPath) ? fs.statSync(dbPath).mtime : new Date(0);
-  const { headSha, baseTreeSha, blobSha, fileDate } = await getRemoteState(
-    settings.token, owner, repoName, branch, filePath
+  const dbFiles = [
+    { repoPath: 'database.sqlite', localPath: path.join(dataDir, 'database.sqlite') },
+    { repoPath: 'audit.sqlite',    localPath: path.join(dataDir, 'audit.sqlite') },
+  ];
+
+  const notesDir = path.join(dataDir, 'notes');
+  const localNoteFiles = [];
+  if (fs.existsSync(notesDir)) {
+    for (const f of fs.readdirSync(notesDir)) {
+      if (f.endsWith('.md')) {
+        localNoteFiles.push({ repoPath: `notes/${f}`, localPath: path.join(notesDir, f) });
+      }
+    }
+  }
+
+  const { headSha, baseTreeSha, treeEntries } = await getRemoteTree(settings.token, owner, repoName, branch);
+
+  // All candidate files (local DB files + local notes + remote-only notes)
+  const allFiles = [...dbFiles, ...localNoteFiles];
+  for (const repoPath of Object.keys(treeEntries)) {
+    if (repoPath.startsWith('notes/') && repoPath.endsWith('.md')) {
+      if (!allFiles.find(f => f.repoPath === repoPath)) {
+        allFiles.push({
+          repoPath,
+          localPath: path.join(notesDir, path.basename(repoPath)),
+          remoteOnly: true,
+        });
+      }
+    }
+  }
+
+  // Fetch dates in parallel for all files that exist in the remote tree
+  const remoteFilePaths = allFiles.map(f => f.repoPath).filter(p => treeEntries[p]);
+  const datePairs = await Promise.all(
+    remoteFilePaths.map(p =>
+      getFileDate(settings.token, owner, repoName, branch, p).then(d => [p, d])
+    )
   );
+  const remoteDates = Object.fromEntries(datePairs);
 
-  // No remote file yet, or local DB is newer → push
-  if (fileDate === null || localMtime > fileDate) {
-    return await pushDatabase(settings.token, owner, repoName, branch, filePath, dbPath, headSha, baseTreeSha, db);
+  const toPush  = [];
+  const toPull  = [];
+  const upToDate = [];
+
+  for (const { repoPath, localPath, remoteOnly } of allFiles) {
+    const localExists = fs.existsSync(localPath);
+    const remoteEntry = treeEntries[repoPath];
+    const remoteDate  = remoteDates[repoPath] || null;
+
+    if (remoteOnly || (!localExists && remoteEntry)) {
+      toPull.push({ repoPath, localPath, blobSha: remoteEntry.sha, isDb: false });
+    } else if (!remoteEntry) {
+      if (localExists) toPush.push({ repoPath, localPath });
+    } else {
+      const localMtime = fs.statSync(localPath).mtime;
+      if (!remoteDate || localMtime > remoteDate) {
+        toPush.push({ repoPath, localPath });
+      } else if (remoteDate > localMtime) {
+        toPull.push({ repoPath, localPath, blobSha: remoteEntry.sha, isDb: repoPath.endsWith('.sqlite') });
+      } else {
+        upToDate.push(repoPath);
+      }
+    }
   }
 
-  // Remote is strictly newer → download to staging (restart required to apply)
-  if (fileDate > localMtime) {
-    return await pullDatabase(settings.token, owner, repoName, blobSha, dbPath, db);
+  let commitSha = null;
+  let syncedAt  = new Date().toISOString();
+  let requiresRestart = false;
+
+  if (toPush.length > 0) {
+    const pushResult = await pushFiles(settings.token, owner, repoName, branch, toPush, headSha, baseTreeSha);
+    commitSha = pushResult.sha;
+    syncedAt  = pushResult.syncedAt;
   }
 
-  // Same timestamp — already in sync
-  const now = new Date().toISOString();
-  await appSettingsService.set(db, KEYS.LAST_SYNC, now, 'system');
+  if (toPull.length > 0) {
+    for (const { localPath, blobSha, isDb } of toPull) {
+      const content = await pullBlob(settings.token, owner, repoName, blobSha);
+      if (isDb) {
+        fs.writeFileSync(`${localPath}${STAGING_SUFFIX}`, content);
+        requiresRestart = true;
+      } else {
+        const dir = path.dirname(localPath);
+        if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+        fs.writeFileSync(localPath, content);
+      }
+    }
+  }
+
+  await appSettingsService.set(db, KEYS.LAST_SYNC, syncedAt, 'system');
   await appSettingsService.set(db, KEYS.LAST_STATUS, 'ok', 'system');
-  return { syncedAt: now, action: 'up_to_date' };
+
+  return {
+    syncedAt,
+    pushed:         toPush.map(f => f.repoPath),
+    pulled:         toPull.map(f => f.repoPath),
+    upToDate,
+    commitSha,
+    requiresRestart,
+  };
 }
 
 async function recordFailure(db, message) {
@@ -246,6 +308,6 @@ async function recordFailure(db, message) {
 }
 
 module.exports = {
-  getSettings, saveSettings, testConnection, syncDatabase, recordFailure,
+  getSettings, saveSettings, testConnection, syncAll, recordFailure,
   KEYS, STAGING_SUFFIX,
 };

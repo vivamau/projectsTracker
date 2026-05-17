@@ -6,6 +6,12 @@
 **Why:** SQLite files are often included in backups, copied for debugging, or readable by anyone with filesystem access. Storing secrets in a separate encrypted file decouples them from the database backup/restore cycle. The key in `.env` can be kept separately (e.g., in a secrets manager), giving proper secret separation.
 **Status:** Implemented (secretsStore.js, migrateFromDb, agentService + githubBackupService updated).
 
+## GitHub backup — always sync all files, no user-selectable path
+**Date:** 2026-05-17
+**Decision:** The sync always targets a fixed set of files: `database.sqlite`, `audit.sqlite`, and all `*.md` files in `data/notes/`. The user-configurable "file path" setting was removed. SQLite files are staged as `<path>.github-restore` on pull (applied at next server restart). Notes files are written directly.
+**Why:** The old single-file selector was confusing — users had to know the filename, and both databases need to be in sync. Notes live as files on disk and are part of the persistent data layer, so they belong in the same backup. A fixed scope is simpler and safer.
+**Status:** Implemented (syncAll in githubBackupService.js, startup restore loop in index.js, GitHubBackupCard.jsx).
+
 ## GitHub token masking — placeholder on read, skip on write
 **Date:** 2026-05-17
 **Decision:** `GET /api/github-backup` always returns `token: "••••••••"` (masked). `PUT /api/github-backup/settings` skips updating the token if the masked placeholder is sent (preserves stored value). For `POST /api/github-backup/test`, if the masked placeholder is sent, the route substitutes the stored token from secretsStore before calling GitHub.

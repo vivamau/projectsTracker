@@ -73,7 +73,7 @@ describe('PUT /api/github-backup/settings', () => {
     const res = await request(app)
       .put('/api/github-backup/settings')
       .set('Cookie', ['token=' + superadminToken()])
-      .send({ enabled: true, token: 'ghp_newtoken', repo: 'myorg/myrepo', branch: 'main', filePath: 'db.sqlite' });
+      .send({ enabled: true, token: 'ghp_newtoken', repo: 'myorg/myrepo', branch: 'main' });
     expect(res.status).toBe(200);
     expect(res.body.data.token).toBe('••••••••');
     expect(res.body.data.repo).toBe('myorg/myrepo');
@@ -141,7 +141,14 @@ describe('POST /api/github-backup/test', () => {
 
 describe('POST /api/github-backup/sync', () => {
   it('returns sync result on success', async () => {
-    jest.spyOn(githubBackupService, 'syncDatabase').mockResolvedValueOnce({ syncedAt: '2026-01-01T00:00:00.000Z', commitSha: 'abc123' });
+    jest.spyOn(githubBackupService, 'syncAll').mockResolvedValueOnce({
+      syncedAt: '2026-01-01T00:00:00.000Z',
+      commitSha: 'abc123',
+      pushed: ['database.sqlite', 'audit.sqlite'],
+      pulled: [],
+      upToDate: [],
+      requiresRestart: false,
+    });
     const res = await request(app)
       .post('/api/github-backup/sync')
       .set('Cookie', ['token=' + superadminToken()]);
@@ -150,7 +157,7 @@ describe('POST /api/github-backup/sync', () => {
   });
 
   it('returns 500 and records failure on error', async () => {
-    jest.spyOn(githubBackupService, 'syncDatabase').mockRejectedValueOnce(new Error('push failed'));
+    jest.spyOn(githubBackupService, 'syncAll').mockRejectedValueOnce(new Error('push failed'));
     jest.spyOn(githubBackupService, 'recordFailure').mockResolvedValueOnce();
     const res = await request(app)
       .post('/api/github-backup/sync')

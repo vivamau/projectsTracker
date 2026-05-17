@@ -61,6 +61,8 @@ See [CLAUDE.md](./CLAUDE.md) for development guidelines.
 - Delivery path milestones with timeline visualization
 - Supporting divisions for projects
 - Activity logging
+- Obsidian-style notes with Markdown editor and entity `[[mentions]]`
+- GitHub backup — on-demand sync of databases and notes to a private repository
 - AI assistant for natural-language database queries (via Ollama + MCP Toolbox)
 
 ## AI Assistant
@@ -265,11 +267,19 @@ The migration is idempotent — safe to restart the server multiple times.
 | GitHub backup PAT | `secrets.enc` |
 | All other app settings (URLs, model names, feature flags) | SQLite `app_settings` table |
 
-### GitHub Database Backup
+### GitHub Backup
 
-Superadmins can optionally sync the SQLite database to a **private** GitHub repository on demand from **Settings → GitHub Backup**.
+Superadmins can sync data to a **private** GitHub repository on demand from **Settings → GitHub Backup**.
 
-The sync uses the [GitHub Git Data API](https://docs.github.com/en/rest/git) (blob → tree → commit → ref), which handles files of any size up to GitHub's 100 MB limit. Each sync creates a new commit on the configured branch with the current database snapshot.
+Each sync covers three things:
+
+| What | How |
+|------|-----|
+| `database.sqlite` | Staged as `.github-restore`; applied on next server restart |
+| `audit.sqlite` | Same staging pattern as main DB |
+| `data/notes/*.md` | Written directly (no restart needed) |
+
+The sync is bidirectional and timestamp-aware: local files that are newer are pushed; remote files that are newer replace local ones. All pushed files go in a single Git commit. The [GitHub Git Data API](https://docs.github.com/en/rest/git) is used (not Contents API), supporting files up to GitHub's 100 MB limit.
 
 **Requirements:**
 - A private GitHub repository (public repos are rejected)
@@ -282,9 +292,8 @@ The sync uses the [GitHub Git Data API](https://docs.github.com/en/rest/git) (bl
 | GitHub Token | PAT — stored encrypted, never shown in full after saving |
 | Repository | `owner/repo` format |
 | Branch | Target branch (default: `main`) |
-| File path | Path inside the repo (default: `database.sqlite`) |
 
-Use **Test connection** to verify the token and repo before enabling, and **Sync now** to push the current database immediately.
+Use **Test connection** to verify the token and repo before enabling, and **Sync now** to trigger a sync immediately.
 
 ## Security
 

@@ -96,6 +96,13 @@
   - [x] TDD: 13 service tests + 17 route tests (30 total), all passing
   - [x] Frontend: githubBackupApi.js + GitHubBackupCard.jsx in settings page (superadmin only)
   - [x] Card: enable toggle, PAT field, repo (owner/repo), branch, file path, Test Connection, Sync Now, last sync status footer
+  - [x] Multi-file sync refactor (2026-05-17): syncAll(db, dataDir) replaces syncDatabase(db, dbPath)
+    - Always syncs database.sqlite + audit.sqlite (staged as .github-restore, requires restart to apply)
+    - Always syncs all notes/*.md files (written directly, no restart needed)
+    - Remote-only notes pulled locally; single commit for all pushed files
+    - File path setting removed from settings UI and API
+    - index.js startup restore loop handles both database.sqlite and audit.sqlite
+    - TDD: 38 tests (service + route), all passing
 - [x] Encrypted secrets store <!-- id: 317 -->
   - [x] secretsStore.js: AES-256-GCM encrypted JSON file (backend/data/secrets.enc), SecretsStore class, getStore() singleton, resetStore(), migrateFromDb(), SECRET_KEYS constant
   - [x] Auto-bootstrap: SECRETS_KEY auto-generated and appended to .env on first run if absent; warning logged

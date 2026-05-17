@@ -68,16 +68,19 @@ app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 
 async function startServer() {
   try {
-    // Apply any pending GitHub backup restore before opening the database
-    const dbFilePath = process.env.DB_PATH || path.join(__dirname, 'data', 'database.sqlite');
-    const stagingPath = `${dbFilePath}.github-restore`;
-    if (fs.existsSync(stagingPath)) {
-      console.log('Applying GitHub backup restore…');
-      for (const ext of ['-wal', '-shm']) {
-        try { fs.unlinkSync(`${dbFilePath}${ext}`); } catch {}
+    // Apply any pending GitHub backup restores before opening databases
+    const dbFilePath    = process.env.DB_PATH      || path.join(__dirname, 'data', 'database.sqlite');
+    const auditFilePath = process.env.AUDIT_DB_PATH || path.join(__dirname, 'data', 'audit.sqlite');
+    for (const filePath of [dbFilePath, auditFilePath]) {
+      const stagingPath = `${filePath}.github-restore`;
+      if (fs.existsSync(stagingPath)) {
+        console.log(`Applying GitHub backup restore for ${path.basename(filePath)}…`);
+        for (const ext of ['-wal', '-shm']) {
+          try { fs.unlinkSync(`${filePath}${ext}`); } catch {}
+        }
+        fs.renameSync(stagingPath, filePath);
+        console.log(`${path.basename(filePath)} restored from GitHub backup.`);
       }
-      fs.renameSync(stagingPath, dbFilePath);
-      console.log('Database restored from GitHub backup.');
     }
 
     console.log('Initializing database...');
