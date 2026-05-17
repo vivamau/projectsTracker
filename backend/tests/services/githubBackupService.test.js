@@ -206,6 +206,44 @@ describe('githubBackupService.syncAll', () => {
     delete global.fetch;
   });
 
+  it('sets local file mtime to commit date after pushing (prevents pull-after-push on next sync)', async () => {
+    const fs = require('fs');
+    jest.spyOn(fs, 'existsSync').mockImplementation(p => !String(p).endsWith('notes'));
+    jest.spyOn(fs, 'statSync').mockReturnValue({ mtime: new Date('2024-01-01T10:00:00Z') });
+    jest.spyOn(fs, 'readFileSync').mockReturnValue(Buffer.from('sqlite-data'));
+    const utimesSpy = jest.spyOn(fs, 'utimesSync').mockImplementation(() => {});
+
+    let callCount = 0;
+    global.fetch = jest.fn().mockImplementation(() => {
+      callCount++;
+      if (callCount === 1) return Promise.resolve({ ok: false, status: 404, json: async () => ({}) });
+      if (callCount === 2) return Promise.resolve({ ok: true, json: async () => ({ sha: 'db-blob' }) });
+      if (callCount === 3) return Promise.resolve({ ok: true, json: async () => ({ sha: 'audit-blob' }) });
+      if (callCount === 4) return Promise.resolve({ ok: true, json: async () => ({ sha: 'tree-sha' }) });
+      if (callCount === 5) return Promise.resolve({ ok: true, json: async () => ({ sha: 'commit-sha' }) });
+      if (callCount === 6) return Promise.resolve({ ok: true, json: async () => ({}) });
+      return Promise.resolve({ ok: true, json: async () => ({}) });
+    });
+
+    await githubBackupService.saveSettings(db, { enabled: true, token: 'tok', repo: 'owner/repo' }, 'admin@test.com');
+    const result = await githubBackupService.syncAll(db, '/tmp/data');
+
+    const commitDate = new Date(result.syncedAt);
+    expect(utimesSpy).toHaveBeenCalledWith(
+      expect.stringContaining('database.sqlite'),
+      commitDate,
+      commitDate
+    );
+    expect(utimesSpy).toHaveBeenCalledWith(
+      expect.stringContaining('audit.sqlite'),
+      commitDate,
+      commitDate
+    );
+
+    jest.restoreAllMocks();
+    delete global.fetch;
+  });
+
   it('pushes both DB files when local is newer than remote', async () => {
     const fs = require('fs');
     const localDate  = new Date('2024-06-01T12:00:00Z');

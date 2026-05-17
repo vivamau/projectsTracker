@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { GitBranch, RefreshCw, CheckCircle, XCircle } from 'lucide-react';
+import { GitBranch, RefreshCw, CheckCircle, XCircle, ArrowUp, ArrowDown } from 'lucide-react';
 import Card from '../../../commoncomponents/Card';
 import {
   getGithubBackupSettings,
@@ -31,7 +31,7 @@ export default function GitHubBackupCard() {
   const [testResult, setTestResult] = useState(null); // null | { ok, message }
 
   const [syncing, setSyncing] = useState(false);
-  const [syncResult, setSyncResult] = useState(null); // null | { ok, message, warn? }
+  const [syncResult, setSyncResult] = useState(null); // null | { ok, pushed?, pulled?, commitSha?, requiresRestart?, error? }
 
   useEffect(() => {
     getGithubBackupSettings()
@@ -90,29 +90,17 @@ export default function GitHubBackupCard() {
       setLastSync(d.syncedAt);
       setLastStatus('ok');
 
-      const pushed = d.pushed || [];
-      const pulled = d.pulled || [];
-
-      if (pushed.length === 0 && pulled.length === 0) {
-        setSyncResult({ ok: true, message: 'Already up to date' });
-      } else if (pushed.length > 0 && pulled.length === 0) {
-        const n = pushed.length;
-        setSyncResult({ ok: true, message: `Pushed ${n} file${n > 1 ? 's' : ''} — commit ${d.commitSha.slice(0, 7)}` });
-      } else if (pulled.length > 0 && pushed.length === 0) {
-        const n = pulled.length;
-        const msg = d.requiresRestart
-          ? `Pulled ${n} file${n > 1 ? 's' : ''} — restart the server to apply database changes`
-          : `Pulled ${n} file${n > 1 ? 's' : ''}`;
-        setSyncResult({ ok: true, message: msg, warn: d.requiresRestart });
-      } else {
-        const msg = `Synced — pushed ${pushed.length}, pulled ${pulled.length} file${pulled.length > 1 ? 's' : ''}` +
-          (d.requiresRestart ? ' — restart required' : '');
-        setSyncResult({ ok: true, message: msg, warn: d.requiresRestart });
-      }
+      setSyncResult({
+        ok: true,
+        pushed: d.pushed || [],
+        pulled: d.pulled || [],
+        commitSha: d.commitSha,
+        requiresRestart: d.requiresRestart,
+      });
     } catch (err) {
       const msg = err.response?.data?.error || 'Sync failed';
       setLastStatus(`error: ${msg}`);
-      setSyncResult({ ok: false, message: msg });
+      setSyncResult({ ok: false, error: msg });
     } finally {
       setSyncing(false);
     }
@@ -231,9 +219,41 @@ export default function GitHubBackupCard() {
         </div>
       )}
       {syncResult && (
-        <div className={`mt-2 flex items-center gap-2 text-sm ${syncResult.ok ? (syncResult.warn ? 'text-amber-600' : 'text-green-600') : 'text-red-500'}`}>
-          {syncResult.ok ? <CheckCircle size={14} /> : <XCircle size={14} />}
-          {syncResult.message}
+        <div className="mt-3 text-sm space-y-1.5">
+          {!syncResult.ok && (
+            <div className="flex items-center gap-2 text-red-500">
+              <XCircle size={14} className="shrink-0" />
+              {syncResult.error}
+            </div>
+          )}
+          {syncResult.ok && syncResult.pushed?.length === 0 && syncResult.pulled?.length === 0 && (
+            <div className="flex items-center gap-2 text-green-600">
+              <CheckCircle size={14} className="shrink-0" />
+              Already up to date
+            </div>
+          )}
+          {syncResult.ok && syncResult.pushed?.length > 0 && (
+            <div>
+              <div className="flex items-center gap-1.5 text-green-600 font-medium mb-0.5">
+                <ArrowUp size={13} className="shrink-0" />
+                Pushed{syncResult.commitSha ? ` — commit ${syncResult.commitSha.slice(0, 7)}` : ''}
+              </div>
+              <ul className="ml-5 space-y-0.5 text-text-secondary">
+                {syncResult.pushed.map(f => <li key={f} className="font-mono text-xs">{f}</li>)}
+              </ul>
+            </div>
+          )}
+          {syncResult.ok && syncResult.pulled?.length > 0 && (
+            <div>
+              <div className={`flex items-center gap-1.5 font-medium mb-0.5 ${syncResult.requiresRestart ? 'text-amber-600' : 'text-green-600'}`}>
+                <ArrowDown size={13} className="shrink-0" />
+                Pulled{syncResult.requiresRestart ? ' — restart required to apply DB changes' : ''}
+              </div>
+              <ul className="ml-5 space-y-0.5 text-text-secondary">
+                {syncResult.pulled.map(f => <li key={f} className="font-mono text-xs">{f}</li>)}
+              </ul>
+            </div>
+          )}
         </div>
       )}
 

@@ -283,6 +283,13 @@ async function syncAll(db, dataDir, auditDb = null) {
     const pushResult = await pushFiles(settings.token, owner, repoName, branch, toPush, headSha, baseTreeSha);
     commitSha = pushResult.sha;
     syncedAt  = pushResult.syncedAt;
+
+    // Align local mtimes with the commit date so the next sync sees these as up-to-date
+    // rather than triggering an unnecessary pull (remote commit date > pre-commit local mtime).
+    const commitDate = new Date(syncedAt);
+    for (const { localPath } of toPush) {
+      try { fs.utimesSync(localPath, commitDate, commitDate); } catch {}
+    }
   }
 
   if (toPull.length > 0) {
