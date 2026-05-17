@@ -186,7 +186,7 @@ describe('githubBackupService.syncAll', () => {
       if (callCount === 2) return Promise.resolve({ ok: true, json: async () => ({ sha: 'db-blob-sha' }) });     // POST blob db
       if (callCount === 3) return Promise.resolve({ ok: true, json: async () => ({ sha: 'audit-blob-sha' }) });  // POST blob audit
       if (callCount === 4) return Promise.resolve({ ok: true, json: async () => ({ sha: 'tree-sha' }) });        // POST tree
-      if (callCount === 5) return Promise.resolve({ ok: true, json: async () => ({ sha: 'commit-sha' }) });      // POST commit
+      if (callCount === 5) return Promise.resolve({ ok: true, json: async () => ({ sha: 'commit-sha', committer: { date: '2024-01-01T11:00:00Z' } }) });      // POST commit
       if (callCount === 6) return Promise.resolve({ ok: true, json: async () => ({}) });                          // POST ref
       return Promise.resolve({ ok: true, json: async () => ({}) });
     });
@@ -220,7 +220,7 @@ describe('githubBackupService.syncAll', () => {
       if (callCount === 2) return Promise.resolve({ ok: true, json: async () => ({ sha: 'db-blob' }) });
       if (callCount === 3) return Promise.resolve({ ok: true, json: async () => ({ sha: 'audit-blob' }) });
       if (callCount === 4) return Promise.resolve({ ok: true, json: async () => ({ sha: 'tree-sha' }) });
-      if (callCount === 5) return Promise.resolve({ ok: true, json: async () => ({ sha: 'commit-sha' }) });
+      if (callCount === 5) return Promise.resolve({ ok: true, json: async () => ({ sha: 'commit-sha', committer: { date: '2024-01-01T11:00:00Z' } }) });
       if (callCount === 6) return Promise.resolve({ ok: true, json: async () => ({}) });
       return Promise.resolve({ ok: true, json: async () => ({}) });
     });
@@ -228,7 +228,7 @@ describe('githubBackupService.syncAll', () => {
     await githubBackupService.saveSettings(db, { enabled: true, token: 'tok', repo: 'owner/repo' }, 'admin@test.com');
     const result = await githubBackupService.syncAll(db, '/tmp/data');
 
-    const commitDate = new Date(result.syncedAt);
+    const commitDate = new Date('2024-01-01T11:00:00Z'); // matches mocked committer.date
     expect(utimesSpy).toHaveBeenCalledWith(
       expect.stringContaining('database.sqlite'),
       commitDate,
@@ -280,7 +280,7 @@ describe('githubBackupService.syncAll', () => {
       if (callCount === 6) return Promise.resolve({ ok: true, json: async () => ({ sha: 'new-db-blob' }) });
       if (callCount === 7) return Promise.resolve({ ok: true, json: async () => ({ sha: 'new-audit-blob' }) });
       if (callCount === 8) return Promise.resolve({ ok: true, json: async () => ({ sha: 'new-tree-sha' }) });
-      if (callCount === 9) return Promise.resolve({ ok: true, json: async () => ({ sha: 'new-commit-sha' }) });
+      if (callCount === 9) return Promise.resolve({ ok: true, json: async () => ({ sha: 'new-commit-sha', committer: { date: '2024-06-01T13:00:00Z' } }) });
       if (callCount === 10) return Promise.resolve({ ok: true, json: async () => ({}) });
       return Promise.resolve({ ok: true, json: async () => ({}) });
     });
@@ -424,7 +424,7 @@ describe('githubBackupService.syncAll', () => {
       if (callCount === 7) return Promise.resolve({ ok: true, json: async () => ({ sha: 'audit-blob-new' }) });
       if (callCount === 8) return Promise.resolve({ ok: true, json: async () => ({ sha: 'note-blob-new' }) });
       if (callCount === 9) return Promise.resolve({ ok: true, json: async () => ({ sha: 'new-tree-sha' }) });
-      if (callCount === 10) return Promise.resolve({ ok: true, json: async () => ({ sha: 'new-commit-sha' }) });
+      if (callCount === 10) return Promise.resolve({ ok: true, json: async () => ({ sha: 'new-commit-sha', committer: { date: '2024-06-01T13:00:00Z' } }) });
       if (callCount === 11) return Promise.resolve({ ok: true, json: async () => ({}) });
       return Promise.resolve({ ok: true, json: async () => ({}) });
     });

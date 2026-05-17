@@ -177,7 +177,10 @@ async function pushFiles(token, owner, repoName, branch, files, headSha, baseTre
     });
   }
 
-  return { sha: commit.sha, syncedAt: now };
+  // Use GitHub's committer.date as syncedAt — it's the exact value getFileDate() returns,
+  // so utimesSync can align local mtimes with it and prevent pull-after-push on next sync.
+  const syncedAt = commit.committer?.date || now;
+  return { sha: commit.sha, syncedAt };
 }
 
 async function pullBlob(token, owner, repoName, blobSha) {
