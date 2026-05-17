@@ -14,11 +14,11 @@ const { initTestDb, closeTestDb } = require('../helpers/testDb');
 const githubBackupService = require('../../services/githubBackupService');
 const appSettingsService = require('../../services/appSettingsService');
 
-let db;
+let db, auditDb;
 
 beforeEach(() => { mockSecrets = {}; });
-beforeAll(async () => { db = await initTestDb(); });
-afterAll(async () => { await closeTestDb(db); });
+beforeAll(async () => { db = await initTestDb(); auditDb = await initTestDb(); });
+afterAll(async () => { await closeTestDb(db); await closeTestDb(auditDb); });
 
 describe('githubBackupService.getSettings', () => {
   it('returns defaults when no settings stored', async () => {
@@ -460,6 +460,42 @@ describe('githubBackupService.syncAll', () => {
     expect(fs.writeFileSync).toHaveBeenCalledWith('/tmp/data/notes/1.md', expect.any(Buffer));
     // No staging file written
     expect(fs.writeFileSync).not.toHaveBeenCalledWith(expect.stringContaining('.github-restore'), expect.anything());
+
+    jest.restoreAllMocks();
+    delete global.fetch;
+  });
+
+  it('checkpoints WAL on db and auditDb before syncing', async () => {
+    const fs = require('fs');
+    jest.spyOn(fs, 'existsSync').mockReturnValue(false);
+    global.fetch = jest.fn().mockResolvedValue({ ok: false, status: 404, json: async () => ({}) });
+
+    await githubBackupService.saveSettings(db, { enabled: true, token: 'tok', repo: 'owner/repo' }, 'admin@test.com');
+
+    const dbRunSpy    = jest.spyOn(db,      'run');
+    const auditRunSpy = jest.spyOn(auditDb, 'run');
+
+    await githubBackupService.syncAll(db, '/tmp/data', auditDb);
+
+    expect(dbRunSpy).toHaveBeenCalledWith('PRAGMA wal_checkpoint(TRUNCATE)', expect.any(Function));
+    expect(auditRunSpy).toHaveBeenCalledWith('PRAGMA wal_checkpoint(TRUNCATE)', expect.any(Function));
+
+    jest.restoreAllMocks();
+    delete global.fetch;
+  });
+
+  it('still checkpoints db when auditDb is not provided', async () => {
+    const fs = require('fs');
+    jest.spyOn(fs, 'existsSync').mockReturnValue(false);
+    global.fetch = jest.fn().mockResolvedValue({ ok: false, status: 404, json: async () => ({}) });
+
+    await githubBackupService.saveSettings(db, { enabled: true, token: 'tok', repo: 'owner/repo' }, 'admin@test.com');
+
+    const dbRunSpy = jest.spyOn(db, 'run');
+
+    await githubBackupService.syncAll(db, '/tmp/data');
+
+    expect(dbRunSpy).toHaveBeenCalledWith('PRAGMA wal_checkpoint(TRUNCATE)', expect.any(Function));
 
     jest.restoreAllMocks();
     delete global.fetch;

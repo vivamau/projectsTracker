@@ -185,10 +185,14 @@ async function pullBlob(token, owner, repoName, blobSha) {
   return Buffer.from(blob.content.replace(/\n/g, ''), 'base64');
 }
 
+function walCheckpoint(db) {
+  return new Promise((resolve) => db.run('PRAGMA wal_checkpoint(TRUNCATE)', resolve));
+}
+
 // Syncs database.sqlite, audit.sqlite, and all notes/*.md files in dataDir.
 // SQLite files are downloaded to a staging path (restart required to apply).
 // Notes files are written directly.
-async function syncAll(db, dataDir) {
+async function syncAll(db, dataDir, auditDb = null) {
   const settings = await getSettings(db);
   if (!settings.enabled) throw new Error('GitHub backup is not enabled');
   if (!settings.token)   throw new Error('GitHub token is not configured');
@@ -200,6 +204,11 @@ async function syncAll(db, dataDir) {
   }
   const [owner, repoName] = parts;
   const branch = settings.branch || 'main';
+
+  // Flush WAL into the main file so pushes contain the full up-to-date state
+  const checkpoints = [walCheckpoint(db)];
+  if (auditDb) checkpoints.push(walCheckpoint(auditDb));
+  await Promise.all(checkpoints);
 
   const dbFiles = [
     { repoPath: 'database.sqlite', localPath: path.join(dataDir, 'database.sqlite') },

@@ -52,7 +52,7 @@ function createGithubBackupRoutes(db, auditDb) {
 
   router.post('/sync', authenticate, authorize('superadmin'), async (req, res) => {
     try {
-      const result = await githubBackupService.syncAll(db, dataDir);
+      const result = await githubBackupService.syncAll(db, dataDir, auditDb);
       await auditHelper.auditLog(auditDb, {
         userId:     req.user.id,
         userEmail:  req.user.email,
