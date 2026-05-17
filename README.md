@@ -215,6 +215,77 @@ npx playwright install chromium
 - **Development**: Copy `.env.sample` files in `backend/` and `frontend/`
 - **Docker**: Copy `.env.docker.sample` to `.env` in the project root
 
+## Secrets Management
+
+API keys and sensitive tokens (AI provider keys, GitHub backup PAT) are **never stored in the database**. They live in an AES-256-GCM encrypted file at `backend/data/secrets.enc`, separate from the SQLite database.
+
+### How it works
+
+```
+.env              ← SECRETS_KEY (32-byte hex, never committed)
+    │
+    ▼
+secretsStore.js   ← in-process, reads key at startup
+    │   encrypt / decrypt (AES-256-GCM, random IV per write)
+    ▼
+backend/data/secrets.enc   ← encrypted JSON blob on disk
+```
+
+The encryption key (`SECRETS_KEY`) is a 64-character hex string (32 bytes). On first startup, if the key is absent from `.env`, one is **automatically generated and appended** — no manual step required.
+
+> **Warning:** `SECRETS_KEY` must never change after secrets have been stored. Changing it makes all existing secrets unreadable. Back it up alongside your database.
+
+### Generating a key manually
+
+```bash
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+```
+
+Paste the output into `backend/.env`:
+
+```
+SECRETS_KEY=<64-char hex string>
+```
+
+### Migration from older installs
+
+If your database already contains plaintext API keys (stored before this feature was added), the backend migrates them automatically on the **next startup**:
+
+1. Reads each secret from `app_settings`
+2. Writes it to the encrypted store
+3. Clears the plaintext value from the database
+
+The migration is idempotent — safe to restart the server multiple times.
+
+### What is stored where
+
+| Setting | Stored in |
+|---------|-----------|
+| AI provider API keys (Claude, Gemini, GPT, NVIDIA, OpenRouter, Ollama) | `secrets.enc` |
+| GitHub backup PAT | `secrets.enc` |
+| All other app settings (URLs, model names, feature flags) | SQLite `app_settings` table |
+
+### GitHub Database Backup
+
+Superadmins can optionally sync the SQLite database to a **private** GitHub repository on demand from **Settings → GitHub Backup**.
+
+The sync uses the [GitHub Git Data API](https://docs.github.com/en/rest/git) (blob → tree → commit → ref), which handles files of any size up to GitHub's 100 MB limit. Each sync creates a new commit on the configured branch with the current database snapshot.
+
+**Requirements:**
+- A private GitHub repository (public repos are rejected)
+- A [Personal Access Token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens) with `repo` scope (classic PAT), or a fine-grained token with Contents read/write permission
+
+**Settings (superadmin only):**
+
+| Field | Description |
+|-------|-------------|
+| GitHub Token | PAT — stored encrypted, never shown in full after saving |
+| Repository | `owner/repo` format |
+| Branch | Target branch (default: `main`) |
+| File path | Path inside the repo (default: `database.sqlite`) |
+
+Use **Test connection** to verify the token and repo before enabling, and **Sync now** to push the current database immediately.
+
 ## Security
 
 - Passwords hashed with bcryptjs
@@ -222,6 +293,7 @@ npx playwright install chromium
 - CORS configured for frontend origin
 - Helmet.js for HTTP security headers
 - SQLite with foreign keys enforced
+- API keys and tokens encrypted at rest (AES-256-GCM) — see [Secrets Management](#secrets-management)
 
 ## Support
 

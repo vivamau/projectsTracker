@@ -1,11 +1,11 @@
 # Implementation Status
 
 ## Backend
-- **47 test suites, 727 tests, all passing**
-- Services: auth, user, project, division, country, currency, healthStatus, initiative, deliveryPath, completion, budget, purchaseOrder, purchaseOrderItem, focalPoint, vendor, vendorContract, vendorContractRole, vendorRoleRate, seniority, poitemConsumption, vendorResource (getByProjectId)
-- 14 route files: auth, projects (includes health-statuses + completions + budgets + project-managers + vendor-resources), divisions (includes focal-points + projects + project-managers), budgets (includes purchase-orders + purchase-order items + item consumptions), users, countries, currencies, initiatives, deliveryPaths, vendors (includes contracts > roles > rates), seniorities
-- 16 migrations: initial schema, auth+soft-delete, completions FK, projectmanagers FK, PM division FK, vendors, PO+items, PO soft delete, vendor soft delete, PO items soft delete, vendor contracts soft delete, seniorities, vendor rates update, milestones dates, supporting divisions, poitem_consumptions
-- 3 seed scripts: userroles, users, dummy_data (divisions, initiatives, delivery paths, projects, health statuses, completions, budgets, country links, PM assignments, focal points, vendors with 10 vendors × 1-3 contracts × 2-4 roles × 2-3 rates, 11 seniorities, 2-5 resources per vendor)
+- **70 test suites, 1204 tests, all passing**
+- Services: auth, user, project, division, country, currency, healthStatus, initiative, deliveryPath, completion, budget, purchaseOrder, purchaseOrderItem, focalPoint, vendor, vendorContract, vendorContractRole, vendorRoleRate, seniority, poitemConsumption, vendorResource, appSettings, agentService, githubBackupService, secretsStore, meetingNote, activityImport, consumptionReport
+- Route files: auth, projects, divisions, budgets, users, countries, currencies, initiatives, deliveryPaths, vendors, seniorities, settings, auditLogs, projectStatuses, tecStacks, healthStatusTypes, projectRoles, agent, purchaseOrders, tasks, notes, graph, consumptionReports, activityImport, githubBackup
+- 43 migrations (001–043): full schema history including app_settings, project_roles redesign, AI agent seeds, activities, project tasks, meeting notes, project links, consumption reports
+- Secrets: all API keys and github_backup_token stored in AES-256-GCM encrypted `backend/data/secrets.enc`; non-secret settings remain in app_settings DB table
 
 ## Frontend
 - Login, Dashboard (KPI + health chart + recent projects)

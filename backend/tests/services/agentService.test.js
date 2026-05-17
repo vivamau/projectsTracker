@@ -1,8 +1,22 @@
+// Mock secretsStore so API keys use in-memory storage (no file I/O in tests)
+let mockSecrets = {};
+jest.mock('../../services/secretsStore', () => ({
+  getStore: () => ({
+    get:     (k)    => mockSecrets[k] ?? null,
+    set:     (k, v) => { mockSecrets[k] = v; },
+    setMany: (d)    => { Object.assign(mockSecrets, d); },
+    getAll:  ()     => ({ ...mockSecrets }),
+    delete:  (k)    => { delete mockSecrets[k]; },
+  }),
+}));
+
 const { initTestDb, seedTestDb, closeTestDb } = require('../helpers/testDb');
 const agentService = require('../../services/agentService');
 const { looksLikeSql, extractSql, stripSqlFromResponse } = agentService;
 
 let db;
+
+beforeEach(() => { mockSecrets = {}; });
 
 beforeAll(async () => {
   db = await initTestDb();

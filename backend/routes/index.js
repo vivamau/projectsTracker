@@ -25,6 +25,7 @@ const createNoteRoutes = require('./noteRoutes');
 const createGraphRoutes = require('./graphRoutes');
 const createConsumptionReportRoutes = require('./consumptionReportRoutes');
 const createActivityImportRoutes = require('./activityImportRoutes');
+const createGithubBackupRoutes = require('./githubBackupRoutes');
 
 function createRoutes(db, auditDb) {
   const router = express.Router();
@@ -55,6 +56,7 @@ function createRoutes(db, auditDb) {
   router.use('/graph', createGraphRoutes(db));
   router.use('/projects/:id/consumption-reports', createConsumptionReportRoutes(db, auditDb));
   router.use('/settings', createActivityImportRoutes(db, auditDb));
+  router.use('/github-backup', createGithubBackupRoutes(db));
 
   return router;
 }

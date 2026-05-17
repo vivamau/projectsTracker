@@ -1,5 +1,23 @@
 # Architectural Decisions
 
+## Encrypted secrets store — AES-256-GCM file, not DB column
+**Date:** 2026-05-17
+**Decision:** All secrets (AI provider API keys, GitHub backup PAT) are stored in an AES-256-GCM encrypted JSON file (`backend/data/secrets.enc`) rather than plaintext in the `app_settings` SQLite table. The encryption key (`SECRETS_KEY`, 32 bytes / 64 hex chars) lives in `.env`. If absent on first run, it is auto-generated and appended to `.env` with a console warning. Secrets are never written back to the DB; a `migrateFromDb(db)` function runs on startup to move any legacy plaintext values out.
+**Why:** SQLite files are often included in backups, copied for debugging, or readable by anyone with filesystem access. Storing secrets in a separate encrypted file decouples them from the database backup/restore cycle. The key in `.env` can be kept separately (e.g., in a secrets manager), giving proper secret separation.
+**Status:** Implemented (secretsStore.js, migrateFromDb, agentService + githubBackupService updated).
+
+## GitHub token masking — placeholder on read, skip on write
+**Date:** 2026-05-17
+**Decision:** `GET /api/github-backup` always returns `token: "••••••••"` (masked). `PUT /api/github-backup/settings` skips updating the token if the masked placeholder is sent (preserves stored value). For `POST /api/github-backup/test`, if the masked placeholder is sent, the route substitutes the stored token from secretsStore before calling GitHub.
+**Why:** Prevents the real PAT from ever appearing in API responses. The frontend can save the settings form without knowing the actual token — it just round-trips the placeholder.
+**Status:** Implemented (githubBackupRoutes.js).
+
+## GitHub backup — Git Data API, not Contents API
+**Date:** 2026-05-17
+**Decision:** Database sync uses GitHub's Git Data API (create blob → create tree → create commit → update/create ref) rather than the Contents API (`PUT /repos/{owner}/{repo}/contents/{path}`). The Contents API is limited to 1 MB for file content in API responses and has undocumented behaviour for larger files. The Git Data API supports files up to GitHub's 100 MB limit.
+**Why:** SQLite databases for active systems can exceed 1 MB. The Git Data API is the correct choice for binary file uploads of arbitrary size.
+**Status:** Implemented (githubBackupService.js).
+
 ## Notes feature — Hybrid DB + Filesystem storage
 **Date:** 2026-05-10
 **Decision:** Meeting/admin notes use a hybrid approach: SQLite stores metadata and entity associations (`meeting_notes` + `meeting_note_entities` tables); actual note content is stored as `.md` files in `backend/data/notes/`. Filename: `{YYYY-MM-DD}_{note_id}.md`. DB tracks soft-delete; `.md` files are never deleted (preserve history).

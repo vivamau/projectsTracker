@@ -1,4 +1,5 @@
 const { getOne, runQuery } = require('../config/database');
+const { getStore } = require('./secretsStore');
 
 const SETTING_KEYS = {
   url:           'agent_ollama_url',
@@ -34,6 +35,16 @@ const FIELD_TO_KEY = {
   openrouter_model:     SETTING_KEYS.openrouterModel,
 };
 
+// These setting keys hold secrets — stored in the encrypted file, not the DB
+const SECRET_DB_KEYS = new Set([
+  SETTING_KEYS.apiKey,
+  SETTING_KEYS.claudeApiKey,
+  SETTING_KEYS.geminiApiKey,
+  SETTING_KEYS.gptApiKey,
+  SETTING_KEYS.nvidiaApiKey,
+  SETTING_KEYS.openrouterApiKey,
+]);
+
 const TOOLBOX_URL = process.env.TOOLBOX_URL || 'http://localhost:5100';
 
 const SYSTEM_PROMPT = `You are a helpful data assistant for the ProjectsTracker application.
@@ -67,32 +78,35 @@ Rules:
 // ── Settings ──────────────────────────────────────────────────────────────────
 
 async function getSettings(db) {
+  const store = getStore();
+  const nonSecretKeys = Object.values(SETTING_KEYS).filter(k => !SECRET_DB_KEYS.has(k));
   const pairs = await Promise.all(
-    Object.entries(SETTING_KEYS).map(([, k]) =>
+    nonSecretKeys.map(k =>
       getOne(db, 'SELECT setting_value FROM app_settings WHERE setting_key = ?', [k])
         .then(r => [k, r?.setting_value])
     )
   );
   const m = Object.fromEntries(pairs);
   return {
-    ollama_url:     m[SETTING_KEYS.url]           || 'http://localhost:11434',
-    ollama_model:   m[SETTING_KEYS.model]         || 'llama3.2',
-    ollama_api_key: m[SETTING_KEYS.apiKey]        || '',
-    agent_provider: m[SETTING_KEYS.provider]      || 'ollama',
-    claude_api_key: m[SETTING_KEYS.claudeApiKey]  || '',
-    claude_model:   m[SETTING_KEYS.claudeModel]   || 'claude-sonnet-4-6',
-    gemini_api_key: m[SETTING_KEYS.geminiApiKey]  || '',
-    gemini_model:   m[SETTING_KEYS.geminiModel]   || 'gemini-2.0-flash',
-    gpt_api_key:    m[SETTING_KEYS.gptApiKey]     || '',
-    gpt_model:      m[SETTING_KEYS.gptModel]      || 'gpt-4o',
-    nvidia_api_key:       m[SETTING_KEYS.nvidiaApiKey]      || '',
-    nvidia_model:         m[SETTING_KEYS.nvidiaModel]        || 'minimaxai/minimax-m2.7',
-    openrouter_api_key:   m[SETTING_KEYS.openrouterApiKey]   || '',
-    openrouter_model:     m[SETTING_KEYS.openrouterModel]    || 'meta-llama/llama-3.3-70b-instruct',
+    ollama_url:     m[SETTING_KEYS.url]          || 'http://localhost:11434',
+    ollama_model:   m[SETTING_KEYS.model]        || 'llama3.2',
+    ollama_api_key: store.get(SETTING_KEYS.apiKey)          || '',
+    agent_provider: m[SETTING_KEYS.provider]     || 'ollama',
+    claude_api_key: store.get(SETTING_KEYS.claudeApiKey)    || '',
+    claude_model:   m[SETTING_KEYS.claudeModel]  || 'claude-sonnet-4-6',
+    gemini_api_key: store.get(SETTING_KEYS.geminiApiKey)    || '',
+    gemini_model:   m[SETTING_KEYS.geminiModel]  || 'gemini-2.0-flash',
+    gpt_api_key:    store.get(SETTING_KEYS.gptApiKey)       || '',
+    gpt_model:      m[SETTING_KEYS.gptModel]     || 'gpt-4o',
+    nvidia_api_key:       store.get(SETTING_KEYS.nvidiaApiKey)      || '',
+    nvidia_model:         m[SETTING_KEYS.nvidiaModel]               || 'minimaxai/minimax-m2.7',
+    openrouter_api_key:   store.get(SETTING_KEYS.openrouterApiKey)  || '',
+    openrouter_model:     m[SETTING_KEYS.openrouterModel]           || 'meta-llama/llama-3.3-70b-instruct',
   };
 }
 
 async function updateSettings(db, data) {
+  const store = getStore();
   const now = Date.now();
   const upsert = (key, value) => runQuery(db,
     `INSERT INTO app_settings (setting_key, setting_value, updated_at)
@@ -101,7 +115,12 @@ async function updateSettings(db, data) {
     [key, value, now]
   );
   for (const [field, key] of Object.entries(FIELD_TO_KEY)) {
-    if (data[field] !== undefined) await upsert(key, data[field]);
+    if (data[field] === undefined) continue;
+    if (SECRET_DB_KEYS.has(key)) {
+      store.set(key, data[field]);
+    } else {
+      await upsert(key, data[field]);
+    }
   }
 }
 

@@ -37,6 +37,7 @@ const { seedUserRoles } = require('./scripts/seed_userroles');
 const { seedUsers } = require('./scripts/seed_users');
 const { seedDummyData } = require('./scripts/seed_dummy_data');
 const { seedCountries } = require('./scripts/seed_countries');
+const { migrateFromDb } = require('./services/secretsStore');
 const createRoutes = require('./routes');
 
 const app = express();
@@ -72,6 +73,9 @@ async function startServer() {
 
     console.log('Running migrations...');
     await runMigrations(db);
+
+    console.log('Migrating secrets to encrypted store...');
+    await migrateFromDb(db);
 
     const noData = process.argv.includes('nodata');
     console.log(noData ? 'Seeding minimal data (nodata mode)...' : 'Seeding data...');

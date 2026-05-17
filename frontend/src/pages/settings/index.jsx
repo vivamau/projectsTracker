@@ -12,6 +12,7 @@ import HealthStatusManagementModal from './HealthStatusManagementModal';
 import ProjectRolesManagementModal from './ProjectRolesManagementModal';
 import { getAgentSettings, updateAgentSettings, getAgentModels } from '../../api/agentApi';
 import { Upload, CheckCircle, AlertCircle } from 'lucide-react';
+import GitHubBackupCard from './components/GitHubBackupCard';
 
 const DICEBEAR_STYLES = [
   'adventurer', 'adventurer-neutral', 'avataaars', 'big-ears', 'big-smile',
@@ -657,6 +658,8 @@ export default function SettingsPage() {
               </form>
             </Card>
           )}
+
+          {role === 'superadmin' && <GitHubBackupCard />}
         </div>
 
       </div>

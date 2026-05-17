@@ -83,5 +83,17 @@ Models like Mistral/Llama often output multi-paragraph responses that START with
 ## Catch blocks in route handlers require jest.spyOn to cover
 Error catch blocks in Express route handlers (returning 500) can only be triggered via `jest.spyOn(service, 'method').mockRejectedValueOnce(new Error(...))`. Always call `jest.restoreAllMocks()` in `afterEach` to avoid contaminating subsequent tests.
 
+## jest.mock() factory variables must be prefixed with `mock`
+Jest hoists `jest.mock()` calls to the top of the file (before any variable declarations). The factory function cannot close over module-scope variables unless they are prefixed with `mock` (case-insensitive). Using `_mockSecrets` triggers "ReferenceError: not allowed to reference out-of-scope variables". Rename to `mockSecrets` (or `mockData`, etc.) to fix.
+
+## secretsStore singleton resets between test suites via resetStore()
+When testing code that uses the `getStore()` singleton from secretsStore, call `resetStore()` in `afterEach`/`beforeEach` and set a fresh `process.env.SECRETS_KEY` + `process.env.SECRETS_PATH` so each test gets a clean, isolated store. Without `resetStore()`, the singleton carries state from a previous test run.
+
+## AES-256-GCM with Node crypto: always use 12-byte IV, not 16
+`crypto.createCipheriv('aes-256-gcm', key, iv)` requires exactly 12 bytes (96 bits) for the IV/nonce when using GCM mode. Using `crypto.randomBytes(16)` works but is non-standard for GCM; `randomBytes(12)` is the correct size and matches the NIST recommendation.
+
+## Secrets in DB get re-seeded as empty strings after migration — that's OK
+After `migrateFromDb()` clears secret values in `app_settings`, the migration seed files (`INSERT OR IGNORE`) will re-insert empty strings for those keys on the next startup. This is harmless: the services now read secrets from secretsStore, not from the DB, so empty DB rows are ignored. The migration checks `row.setting_value` is non-empty before migrating, so it never overwrites real store values with empty strings.
+
 ## react-leaflet onEachFeature runs outside React's render cycle
 `onEachFeature` is called by Leaflet when building layers, not during a React render. Hooks like `useNavigate` cannot be called inside it. Pattern: capture navigate and data in refs (`navigateRef`, `dataRef`), keep `onEachFeature` in a `useCallback([])` (empty deps = stable reference), and read refs at call time. Re-key the GeoJSON component when data changes to force a remount that picks up the latest ref values.
