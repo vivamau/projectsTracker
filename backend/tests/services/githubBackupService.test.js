@@ -677,6 +677,180 @@ describe('githubBackupService.syncAll', () => {
   });
 });
 
+describe('githubBackupService.pushAll', () => {
+  it('throws when backup is not enabled', async () => {
+    await githubBackupService.saveSettings(db, { enabled: false, token: 't', repo: 'o/r' }, 'admin@test.com');
+    await expect(githubBackupService.pushAll(db, '/tmp/data')).rejects.toThrow('not enabled');
+  });
+
+  it('throws when token is not configured', async () => {
+    await githubBackupService.saveSettings(db, { enabled: true, token: '', repo: 'o/r' }, 'admin@test.com');
+    await expect(githubBackupService.pushAll(db, '/tmp/data')).rejects.toThrow('token is not configured');
+  });
+
+  it('throws when repo is not configured', async () => {
+    await githubBackupService.saveSettings(db, { enabled: true, token: 'tok', repo: '' }, 'admin@test.com');
+    await expect(githubBackupService.pushAll(db, '/tmp/data')).rejects.toThrow('repository is not configured');
+  });
+
+  it('pushes all local DB and note files to GitHub', async () => {
+    const fs = require('fs');
+    jest.spyOn(fs, 'existsSync').mockImplementation(() => true);
+    jest.spyOn(fs, 'readFileSync').mockReturnValue(Buffer.from('data'));
+    jest.spyOn(fs, 'readdirSync').mockImplementation(p =>
+      String(p).endsWith('notes') ? ['1.md'] : []
+    );
+    jest.spyOn(fs, 'utimesSync').mockImplementation(() => {});
+
+    let callCount = 0;
+    global.fetch = jest.fn().mockImplementation(() => {
+      callCount++;
+      if (callCount === 1) return Promise.resolve({ ok: false, status: 404, json: async () => ({}) }); // GET ref → no branch
+      if (callCount <= 4) return Promise.resolve({ ok: true, json: async () => ({ sha: `blob-${callCount}` }) }); // POST blobs
+      if (callCount === 5) return Promise.resolve({ ok: true, json: async () => ({ sha: 'tree-sha' }) });
+      if (callCount === 6) return Promise.resolve({ ok: true, json: async () => ({ sha: 'commit-sha', committer: { date: '2024-01-01T11:00:00Z' } }) });
+      return Promise.resolve({ ok: true, json: async () => ({}) }); // POST ref
+    });
+
+    await githubBackupService.saveSettings(db, { enabled: true, token: 'tok', repo: 'owner/repo' }, 'admin@test.com');
+    const result = await githubBackupService.pushAll(db, '/tmp/data');
+
+    expect(result.pushed).toEqual(expect.arrayContaining(['database.sqlite', 'audit.sqlite', 'notes/1.md']));
+    expect(result.commitSha).toBe('commit-sha');
+    expect(result.syncedAt).toBeDefined();
+    const settings = await githubBackupService.getSettings(db);
+    expect(settings.lastStatus).toBe('ok');
+
+    jest.restoreAllMocks();
+    delete global.fetch;
+  });
+
+  it('sets mtime of pushed files to commitDate (prevents spurious push on next explicit push)', async () => {
+    const fs = require('fs');
+    jest.spyOn(fs, 'existsSync').mockImplementation(p => !String(p).endsWith('notes'));
+    jest.spyOn(fs, 'readFileSync').mockReturnValue(Buffer.from('data'));
+    jest.spyOn(fs, 'readdirSync').mockReturnValue([]);
+    const utimesSpy = jest.spyOn(fs, 'utimesSync').mockImplementation(() => {});
+
+    let callCount = 0;
+    global.fetch = jest.fn().mockImplementation(() => {
+      callCount++;
+      if (callCount === 1) return Promise.resolve({ ok: false, status: 404, json: async () => ({}) });
+      if (callCount <= 3) return Promise.resolve({ ok: true, json: async () => ({ sha: `blob-${callCount}` }) });
+      if (callCount === 4) return Promise.resolve({ ok: true, json: async () => ({ sha: 'tree-sha' }) });
+      if (callCount === 5) return Promise.resolve({ ok: true, json: async () => ({ sha: 'commit-sha', committer: { date: '2024-01-01T11:00:00Z' } }) });
+      return Promise.resolve({ ok: true, json: async () => ({}) });
+    });
+
+    await githubBackupService.saveSettings(db, { enabled: true, token: 'tok', repo: 'owner/repo' }, 'admin@test.com');
+    await githubBackupService.pushAll(db, '/tmp/data');
+
+    const commitDate = new Date('2024-01-01T11:00:00Z');
+    expect(utimesSpy).toHaveBeenCalledWith(expect.stringContaining('database.sqlite'), commitDate, commitDate);
+    expect(utimesSpy).toHaveBeenCalledWith(expect.stringContaining('audit.sqlite'), commitDate, commitDate);
+
+    jest.restoreAllMocks();
+    delete global.fetch;
+  });
+});
+
+describe('githubBackupService.pullAll', () => {
+  it('throws when backup is not enabled', async () => {
+    await githubBackupService.saveSettings(db, { enabled: false, token: 't', repo: 'o/r' }, 'admin@test.com');
+    await expect(githubBackupService.pullAll(db, '/tmp/data')).rejects.toThrow('not enabled');
+  });
+
+  it('throws when token is not configured', async () => {
+    await githubBackupService.saveSettings(db, { enabled: true, token: '', repo: 'o/r' }, 'admin@test.com');
+    await expect(githubBackupService.pullAll(db, '/tmp/data')).rejects.toThrow('token is not configured');
+  });
+
+  it('throws when repo is not configured', async () => {
+    await githubBackupService.saveSettings(db, { enabled: true, token: 'tok', repo: '' }, 'admin@test.com');
+    await expect(githubBackupService.pullAll(db, '/tmp/data')).rejects.toThrow('repository is not configured');
+  });
+
+  it('pulls all remote DB files to staging and sets requiresRestart', async () => {
+    const fs = require('fs');
+    jest.spyOn(fs, 'writeFileSync').mockImplementation(() => {});
+
+    const base64Content = Buffer.from('remote-data').toString('base64');
+    let callCount = 0;
+    global.fetch = jest.fn().mockImplementation(() => {
+      callCount++;
+      if (callCount === 1) return Promise.resolve({ ok: true, json: async () => ({ object: { sha: 'head-sha' } }) });
+      if (callCount === 2) return Promise.resolve({ ok: true, json: async () => ({ tree: { sha: 'base-tree-sha' } }) });
+      if (callCount === 3) return Promise.resolve({ ok: true, json: async () => ({
+        tree: [
+          { path: 'database.sqlite', sha: 'db-blob', type: 'blob' },
+          { path: 'audit.sqlite',    sha: 'audit-blob', type: 'blob' },
+        ],
+      })});
+      return Promise.resolve({ ok: true, json: async () => ({ content: base64Content, encoding: 'base64' }) });
+    });
+
+    await githubBackupService.saveSettings(db, { enabled: true, token: 'tok', repo: 'owner/repo' }, 'admin@test.com');
+    const result = await githubBackupService.pullAll(db, '/tmp/data');
+
+    expect(result.pulled).toEqual(expect.arrayContaining(['database.sqlite', 'audit.sqlite']));
+    expect(result.requiresRestart).toBe(true);
+    expect(fs.writeFileSync).toHaveBeenCalledWith('/tmp/data/database.sqlite.github-restore', expect.any(Buffer));
+    expect(fs.writeFileSync).toHaveBeenCalledWith('/tmp/data/audit.sqlite.github-restore', expect.any(Buffer));
+    const settings = await githubBackupService.getSettings(db);
+    expect(settings.lastStatus).toBe('ok');
+
+    jest.restoreAllMocks();
+    delete global.fetch;
+  });
+
+  it('pulls remote note files directly without staging', async () => {
+    const fs = require('fs');
+    jest.spyOn(fs, 'writeFileSync').mockImplementation(() => {});
+    jest.spyOn(fs, 'mkdirSync').mockImplementation(() => {});
+    jest.spyOn(fs, 'existsSync').mockReturnValue(false);
+
+    const noteBase64 = Buffer.from('# note').toString('base64');
+    let callCount = 0;
+    global.fetch = jest.fn().mockImplementation(() => {
+      callCount++;
+      if (callCount === 1) return Promise.resolve({ ok: true, json: async () => ({ object: { sha: 'head-sha' } }) });
+      if (callCount === 2) return Promise.resolve({ ok: true, json: async () => ({ tree: { sha: 'base-tree-sha' } }) });
+      if (callCount === 3) return Promise.resolve({ ok: true, json: async () => ({
+        tree: [{ path: 'notes/1.md', sha: 'note-blob', type: 'blob' }],
+      })});
+      return Promise.resolve({ ok: true, json: async () => ({ content: noteBase64, encoding: 'base64' }) });
+    });
+
+    await githubBackupService.saveSettings(db, { enabled: true, token: 'tok', repo: 'owner/repo' }, 'admin@test.com');
+    const result = await githubBackupService.pullAll(db, '/tmp/data');
+
+    expect(result.pulled).toEqual(['notes/1.md']);
+    expect(result.requiresRestart).toBe(false);
+    expect(fs.writeFileSync).toHaveBeenCalledWith('/tmp/data/notes/1.md', expect.any(Buffer));
+    expect(fs.writeFileSync).not.toHaveBeenCalledWith(expect.stringContaining('.github-restore'), expect.anything());
+
+    jest.restoreAllMocks();
+    delete global.fetch;
+  });
+
+  it('returns empty pulled list and requiresRestart false when remote has no backup files', async () => {
+    let callCount = 0;
+    global.fetch = jest.fn().mockImplementation(() => {
+      callCount++;
+      if (callCount === 1) return Promise.resolve({ ok: false, status: 404, json: async () => ({}) }); // no branch
+      return Promise.resolve({ ok: true, json: async () => ({}) });
+    });
+
+    await githubBackupService.saveSettings(db, { enabled: true, token: 'tok', repo: 'owner/repo' }, 'admin@test.com');
+    const result = await githubBackupService.pullAll(db, '/tmp/data');
+
+    expect(result.pulled).toEqual([]);
+    expect(result.requiresRestart).toBe(false);
+
+    delete global.fetch;
+  });
+});
+
 describe('githubBackupService.recordFailure', () => {
   it('stores error status in settings', async () => {
     await githubBackupService.recordFailure(db, 'network error');

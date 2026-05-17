@@ -331,11 +331,110 @@ async function syncAll(db, dataDir, auditDb = null) {
   };
 }
 
+function validateSettings(settings) {
+  if (!settings.enabled) throw new Error('GitHub backup is not enabled');
+  if (!settings.token)   throw new Error('GitHub token is not configured');
+  if (!settings.repo)    throw new Error('GitHub repository is not configured');
+  const parts = settings.repo.split('/');
+  if (parts.length !== 2 || !parts[0] || !parts[1]) {
+    throw new Error('Invalid repo format, expected owner/repo');
+  }
+  return parts;
+}
+
+async function pushAll(db, dataDir, auditDb = null) {
+  const settings = await getSettings(db);
+  const [owner, repoName] = validateSettings(settings);
+  const branch = settings.branch || 'main';
+
+  const checkpoints = [walCheckpoint(db)];
+  if (auditDb) checkpoints.push(walCheckpoint(auditDb));
+  await Promise.all(checkpoints);
+
+  const dbFiles = [
+    { repoPath: 'database.sqlite', localPath: path.join(dataDir, 'database.sqlite') },
+    { repoPath: 'audit.sqlite',    localPath: path.join(dataDir, 'audit.sqlite') },
+  ];
+
+  const notesDir = path.join(dataDir, 'notes');
+  const noteFiles = [];
+  if (fs.existsSync(notesDir)) {
+    for (const f of fs.readdirSync(notesDir)) {
+      if (f.endsWith('.md')) {
+        noteFiles.push({ repoPath: `notes/${f}`, localPath: path.join(notesDir, f) });
+      }
+    }
+  }
+
+  const filesToPush = [...dbFiles, ...noteFiles].filter(f => fs.existsSync(f.localPath));
+
+  const { headSha, baseTreeSha } = await getRemoteTree(settings.token, owner, repoName, branch);
+  const { sha: commitSha, syncedAt } = await pushFiles(
+    settings.token, owner, repoName, branch, filesToPush, headSha, baseTreeSha
+  );
+
+  await appSettingsService.set(db, KEYS.LAST_SYNC, syncedAt, 'system');
+  await appSettingsService.set(db, KEYS.LAST_STATUS, 'ok', 'system');
+
+  const finalCheckpoints = [walCheckpoint(db)];
+  if (auditDb) finalCheckpoints.push(walCheckpoint(auditDb));
+  await Promise.all(finalCheckpoints);
+  const commitDate = new Date(syncedAt);
+  for (const { localPath } of filesToPush) {
+    try { fs.utimesSync(localPath, commitDate, commitDate); } catch {}
+  }
+
+  return { syncedAt, pushed: filesToPush.map(f => f.repoPath), commitSha };
+}
+
+async function pullAll(db, dataDir) {
+  const settings = await getSettings(db);
+  const [owner, repoName] = validateSettings(settings);
+  const branch = settings.branch || 'main';
+
+  const { treeEntries } = await getRemoteTree(settings.token, owner, repoName, branch);
+
+  const dbRepoFiles = ['database.sqlite', 'audit.sqlite'];
+  const noteRepoFiles = Object.keys(treeEntries).filter(
+    p => p.startsWith('notes/') && p.endsWith('.md')
+  );
+
+  const pulled = [];
+  let requiresRestart = false;
+
+  for (const repoPath of [...dbRepoFiles, ...noteRepoFiles]) {
+    const entry = treeEntries[repoPath];
+    if (!entry) continue;
+
+    const localPath = repoPath.startsWith('notes/')
+      ? path.join(dataDir, 'notes', path.basename(repoPath))
+      : path.join(dataDir, repoPath);
+
+    const content = await pullBlob(settings.token, owner, repoName, entry.sha);
+
+    if (repoPath.endsWith('.sqlite')) {
+      fs.writeFileSync(`${localPath}${STAGING_SUFFIX}`, content);
+      requiresRestart = true;
+    } else {
+      const dir = path.dirname(localPath);
+      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+      fs.writeFileSync(localPath, content);
+    }
+    pulled.push(repoPath);
+  }
+
+  const syncedAt = new Date().toISOString();
+  await appSettingsService.set(db, KEYS.LAST_SYNC, syncedAt, 'system');
+  await appSettingsService.set(db, KEYS.LAST_STATUS, 'ok', 'system');
+
+  return { syncedAt, pulled, requiresRestart };
+}
+
 async function recordFailure(db, message) {
   await appSettingsService.set(db, KEYS.LAST_STATUS, `error: ${message}`, 'system');
 }
 
 module.exports = {
-  getSettings, saveSettings, testConnection, syncAll, recordFailure,
+  getSettings, saveSettings, testConnection, syncAll, pushAll, pullAll, recordFailure,
   KEYS, STAGING_SUFFIX,
 };

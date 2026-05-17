@@ -144,63 +144,45 @@ describe('POST /api/github-backup/test', () => {
   });
 });
 
-describe('POST /api/github-backup/sync', () => {
-  it('returns sync result on success', async () => {
-    jest.spyOn(githubBackupService, 'syncAll').mockResolvedValueOnce({
+describe('POST /api/github-backup/push', () => {
+  it('returns push result on success', async () => {
+    jest.spyOn(githubBackupService, 'pushAll').mockResolvedValueOnce({
       syncedAt: '2026-01-01T00:00:00.000Z',
       commitSha: 'abc123',
       pushed: ['database.sqlite', 'audit.sqlite'],
-      pulled: [],
-      upToDate: [],
-      requiresRestart: false,
     });
     const res = await request(app)
-      .post('/api/github-backup/sync')
+      .post('/api/github-backup/push')
       .set('Cookie', ['token=' + superadminToken()]);
     expect(res.status).toBe(200);
     expect(res.body.data.commitSha).toBe('abc123');
+    expect(res.body.data.pushed).toEqual(['database.sqlite', 'audit.sqlite']);
   });
 
-  it('writes an audit log entry on successful sync', async () => {
-    const syncResult = {
+  it('writes an audit log entry on successful push', async () => {
+    jest.spyOn(githubBackupService, 'pushAll').mockResolvedValueOnce({
       syncedAt: '2026-01-01T00:00:00.000Z',
       commitSha: 'abc123',
       pushed: ['database.sqlite', 'audit.sqlite'],
-      pulled: [],
-      upToDate: [],
-      requiresRestart: false,
-    };
-    jest.spyOn(githubBackupService, 'syncAll').mockResolvedValueOnce(syncResult);
+    });
     const spy = jest.spyOn(auditHelper, 'auditLog');
 
     await request(app)
-      .post('/api/github-backup/sync')
+      .post('/api/github-backup/push')
       .set('Cookie', ['token=' + superadminToken()]);
 
     expect(spy).toHaveBeenCalledWith(auditDb, expect.objectContaining({
-      action: 'github_backup.sync',
+      action: 'github_backup.push',
       entityType: 'github_backup',
       details: expect.objectContaining({ commitSha: 'abc123' }),
     }));
   });
 
-  it('does not write an audit log entry on sync failure', async () => {
-    jest.spyOn(githubBackupService, 'syncAll').mockRejectedValueOnce(new Error('push failed'));
-    jest.spyOn(githubBackupService, 'recordFailure').mockResolvedValueOnce();
-    const spy = jest.spyOn(auditHelper, 'auditLog');
-
-    await request(app)
-      .post('/api/github-backup/sync')
-      .set('Cookie', ['token=' + superadminToken()]);
-
-    expect(spy).not.toHaveBeenCalled();
-  });
-
   it('returns 500 and records failure on error', async () => {
-    jest.spyOn(githubBackupService, 'syncAll').mockRejectedValueOnce(new Error('push failed'));
+    jest.spyOn(githubBackupService, 'pushAll').mockRejectedValueOnce(new Error('push failed'));
     jest.spyOn(githubBackupService, 'recordFailure').mockResolvedValueOnce();
     const res = await request(app)
-      .post('/api/github-backup/sync')
+      .post('/api/github-backup/push')
       .set('Cookie', ['token=' + superadminToken()]);
     expect(res.status).toBe(500);
     expect(githubBackupService.recordFailure).toHaveBeenCalled();
@@ -208,7 +190,59 @@ describe('POST /api/github-backup/sync', () => {
 
   it('rejects non-superadmin', async () => {
     const res = await request(app)
-      .post('/api/github-backup/sync')
+      .post('/api/github-backup/push')
+      .set('Cookie', ['token=' + adminToken()]);
+    expect(res.status).toBe(403);
+  });
+});
+
+describe('POST /api/github-backup/pull', () => {
+  it('returns pull result on success', async () => {
+    jest.spyOn(githubBackupService, 'pullAll').mockResolvedValueOnce({
+      syncedAt: '2026-01-01T00:00:00.000Z',
+      pulled: ['database.sqlite', 'audit.sqlite'],
+      requiresRestart: true,
+    });
+    const res = await request(app)
+      .post('/api/github-backup/pull')
+      .set('Cookie', ['token=' + superadminToken()]);
+    expect(res.status).toBe(200);
+    expect(res.body.data.pulled).toEqual(['database.sqlite', 'audit.sqlite']);
+    expect(res.body.data.requiresRestart).toBe(true);
+  });
+
+  it('writes an audit log entry on successful pull', async () => {
+    jest.spyOn(githubBackupService, 'pullAll').mockResolvedValueOnce({
+      syncedAt: '2026-01-01T00:00:00.000Z',
+      pulled: ['database.sqlite'],
+      requiresRestart: true,
+    });
+    const spy = jest.spyOn(auditHelper, 'auditLog');
+
+    await request(app)
+      .post('/api/github-backup/pull')
+      .set('Cookie', ['token=' + superadminToken()]);
+
+    expect(spy).toHaveBeenCalledWith(auditDb, expect.objectContaining({
+      action: 'github_backup.pull',
+      entityType: 'github_backup',
+      details: expect.objectContaining({ requiresRestart: true }),
+    }));
+  });
+
+  it('returns 500 and records failure on error', async () => {
+    jest.spyOn(githubBackupService, 'pullAll').mockRejectedValueOnce(new Error('pull failed'));
+    jest.spyOn(githubBackupService, 'recordFailure').mockResolvedValueOnce();
+    const res = await request(app)
+      .post('/api/github-backup/pull')
+      .set('Cookie', ['token=' + superadminToken()]);
+    expect(res.status).toBe(500);
+    expect(githubBackupService.recordFailure).toHaveBeenCalled();
+  });
+
+  it('rejects non-superadmin', async () => {
+    const res = await request(app)
+      .post('/api/github-backup/pull')
       .set('Cookie', ['token=' + adminToken()]);
     expect(res.status).toBe(403);
   });

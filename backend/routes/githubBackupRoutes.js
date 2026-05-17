@@ -50,27 +50,41 @@ function createGithubBackupRoutes(db, auditDb) {
     }
   });
 
-  router.post('/sync', authenticate, authorize('superadmin'), async (req, res) => {
+  router.post('/push', authenticate, authorize('superadmin'), async (req, res) => {
     try {
-      const result = await githubBackupService.syncAll(db, dataDir, auditDb);
+      const result = await githubBackupService.pushAll(db, dataDir, auditDb);
       await auditHelper.auditLog(auditDb, {
         userId:     req.user.id,
         userEmail:  req.user.email,
-        action:     'github_backup.sync',
+        action:     'github_backup.push',
         entityType: 'github_backup',
         entityId:   null,
-        details: {
-          pushed:         result.pushed,
-          pulled:         result.pulled,
-          commitSha:      result.commitSha,
-          requiresRestart: result.requiresRestart,
-        },
-        ip: req.ip,
+        details:    { pushed: result.pushed, commitSha: result.commitSha },
+        ip:         req.ip,
       });
       return success(res, result);
     } catch (err) {
       await githubBackupService.recordFailure(db, err.message).catch(() => {});
-      return error(res, err.message || 'Sync failed', 500);
+      return error(res, err.message || 'Push failed', 500);
+    }
+  });
+
+  router.post('/pull', authenticate, authorize('superadmin'), async (req, res) => {
+    try {
+      const result = await githubBackupService.pullAll(db, dataDir);
+      await auditHelper.auditLog(auditDb, {
+        userId:     req.user.id,
+        userEmail:  req.user.email,
+        action:     'github_backup.pull',
+        entityType: 'github_backup',
+        entityId:   null,
+        details:    { pulled: result.pulled, requiresRestart: result.requiresRestart },
+        ip:         req.ip,
+      });
+      return success(res, result);
+    } catch (err) {
+      await githubBackupService.recordFailure(db, err.message).catch(() => {});
+      return error(res, err.message || 'Pull failed', 500);
     }
   });
 

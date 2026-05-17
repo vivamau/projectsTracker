@@ -1,14 +1,13 @@
 import { useState, useEffect } from 'react';
-import { GitBranch, RefreshCw, CheckCircle, XCircle, ArrowUp, ArrowDown } from 'lucide-react';
+import { GitBranch, CheckCircle, XCircle, ArrowUp, ArrowDown } from 'lucide-react';
 import Card from '../../../commoncomponents/Card';
 import {
   getGithubBackupSettings,
   saveGithubBackupSettings,
   testGithubBackupConnection,
-  syncGithubBackup,
+  pushGithubBackup,
+  pullGithubBackup,
 } from '../../../api/githubBackupApi';
-
-const MASKED = '••••••••';
 
 const DEFAULT_FORM = {
   enabled: false,
@@ -28,10 +27,13 @@ export default function GitHubBackupCard() {
   const [saveError, setSaveError] = useState('');
 
   const [testing, setTesting] = useState(false);
-  const [testResult, setTestResult] = useState(null); // null | { ok, message }
+  const [testResult, setTestResult] = useState(null);
 
-  const [syncing, setSyncing] = useState(false);
-  const [syncResult, setSyncResult] = useState(null); // null | { ok, pushed?, pulled?, commitSha?, requiresRestart?, error? }
+  const [pushing, setPushing] = useState(false);
+  const [pushResult, setPushResult] = useState(null);
+
+  const [pulling, setPulling] = useState(false);
+  const [pullResult, setPullResult] = useState(null);
 
   useEffect(() => {
     getGithubBackupSettings()
@@ -81,28 +83,41 @@ export default function GitHubBackupCard() {
     }
   };
 
-  const handleSync = async () => {
-    setSyncing(true);
-    setSyncResult(null);
+  const handlePush = async () => {
+    setPushing(true);
+    setPushResult(null);
+    setPullResult(null);
     try {
-      const res = await syncGithubBackup();
+      const res = await pushGithubBackup();
       const d = res.data.data;
       setLastSync(d.syncedAt);
       setLastStatus('ok');
-
-      setSyncResult({
-        ok: true,
-        pushed: d.pushed || [],
-        pulled: d.pulled || [],
-        commitSha: d.commitSha,
-        requiresRestart: d.requiresRestart,
-      });
+      setPushResult({ ok: true, pushed: d.pushed || [], commitSha: d.commitSha });
     } catch (err) {
-      const msg = err.response?.data?.error || 'Sync failed';
+      const msg = err.response?.data?.error || 'Push failed';
       setLastStatus(`error: ${msg}`);
-      setSyncResult({ ok: false, error: msg });
+      setPushResult({ ok: false, error: msg });
     } finally {
-      setSyncing(false);
+      setPushing(false);
+    }
+  };
+
+  const handlePull = async () => {
+    setPulling(true);
+    setPullResult(null);
+    setPushResult(null);
+    try {
+      const res = await pullGithubBackup();
+      const d = res.data.data;
+      setLastSync(d.syncedAt);
+      setLastStatus('ok');
+      setPullResult({ ok: true, pulled: d.pulled || [], requiresRestart: d.requiresRestart });
+    } catch (err) {
+      const msg = err.response?.data?.error || 'Pull failed';
+      setLastStatus(`error: ${msg}`);
+      setPullResult({ ok: false, error: msg });
+    } finally {
+      setPulling(false);
     }
   };
 
@@ -122,13 +137,13 @@ export default function GitHubBackupCard() {
       <div className="flex items-start gap-3 mb-4">
         <GitBranch size={18} className="mt-0.5 text-text-secondary shrink-0" />
         <p className="text-sm text-text-secondary">
-          Sync databases and notes to a <strong>private</strong> GitHub repository on demand.
+          Back up databases and notes to a <strong>private</strong> GitHub repository.
+          Use <strong>Push</strong> to upload local data and <strong>Pull</strong> to restore from GitHub.
           The token needs <span className="font-mono text-xs">repo</span> scope.
         </p>
       </div>
 
       <form onSubmit={handleSave} className="space-y-4">
-        {/* Enable toggle */}
         <label className="flex items-center gap-3 cursor-pointer select-none">
           <div
             onClick={() => setForm(f => ({ ...f, enabled: !f.enabled }))}
@@ -176,9 +191,7 @@ export default function GitHubBackupCard() {
           />
         </div>
 
-        {saveError && (
-          <p className="text-sm text-red-500">{saveError}</p>
-        )}
+        {saveError && <p className="text-sm text-red-500">{saveError}</p>}
 
         <div className="flex items-center gap-3 flex-wrap pt-1">
           <button
@@ -200,69 +213,85 @@ export default function GitHubBackupCard() {
 
           <button
             type="button"
-            onClick={handleSync}
-            disabled={syncing || !form.enabled}
+            onClick={handlePush}
+            disabled={pushing || !form.enabled}
             className="flex items-center gap-1.5 rounded-lg border border-border-dark px-4 py-2 text-sm font-medium text-text-primary hover:bg-surface-hover transition-colors disabled:opacity-60"
-            title={!form.enabled ? 'Enable backup first' : undefined}
+            title={!form.enabled ? 'Enable backup first' : 'Push local data to GitHub'}
           >
-            <RefreshCw size={14} className={syncing ? 'animate-spin' : ''} />
-            {syncing ? 'Syncing…' : 'Sync now'}
+            <ArrowUp size={14} className={pushing ? 'animate-pulse' : ''} />
+            {pushing ? 'Pushing…' : 'Push'}
+          </button>
+
+          <button
+            type="button"
+            onClick={handlePull}
+            disabled={pulling || !form.enabled}
+            className="flex items-center gap-1.5 rounded-lg border border-border-dark px-4 py-2 text-sm font-medium text-text-primary hover:bg-surface-hover transition-colors disabled:opacity-60"
+            title={!form.enabled ? 'Enable backup first' : 'Pull data from GitHub'}
+          >
+            <ArrowDown size={14} className={pulling ? 'animate-pulse' : ''} />
+            {pulling ? 'Pulling…' : 'Pull'}
           </button>
         </div>
       </form>
 
-      {/* Inline feedback */}
       {testResult && (
         <div className={`mt-3 flex items-center gap-2 text-sm ${testResult.ok ? 'text-green-600' : 'text-red-500'}`}>
           {testResult.ok ? <CheckCircle size={14} /> : <XCircle size={14} />}
           {testResult.message}
         </div>
       )}
-      {syncResult && (
+
+      {pushResult && (
         <div className="mt-3 text-sm space-y-1.5">
-          {!syncResult.ok && (
+          {!pushResult.ok && (
             <div className="flex items-center gap-2 text-red-500">
-              <XCircle size={14} className="shrink-0" />
-              {syncResult.error}
+              <XCircle size={14} className="shrink-0" /> {pushResult.error}
             </div>
           )}
-          {syncResult.ok && syncResult.pushed?.length === 0 && syncResult.pulled?.length === 0 && (
-            <div className="flex items-center gap-2 text-green-600">
-              <CheckCircle size={14} className="shrink-0" />
-              Already up to date
-            </div>
-          )}
-          {syncResult.ok && syncResult.pushed?.length > 0 && (
+          {pushResult.ok && (
             <div>
               <div className="flex items-center gap-1.5 text-green-600 font-medium mb-0.5">
                 <ArrowUp size={13} className="shrink-0" />
-                Pushed{syncResult.commitSha ? ` — commit ${syncResult.commitSha.slice(0, 7)}` : ''}
+                Pushed{pushResult.commitSha ? ` — commit ${pushResult.commitSha.slice(0, 7)}` : ''}
               </div>
               <ul className="ml-5 space-y-0.5 text-text-secondary">
-                {syncResult.pushed.map(f => <li key={f} className="font-mono text-xs">{f}</li>)}
-              </ul>
-            </div>
-          )}
-          {syncResult.ok && syncResult.pulled?.length > 0 && (
-            <div>
-              <div className={`flex items-center gap-1.5 font-medium mb-0.5 ${syncResult.requiresRestart ? 'text-amber-600' : 'text-green-600'}`}>
-                <ArrowDown size={13} className="shrink-0" />
-                Pulled{syncResult.requiresRestart ? ' — restart required to apply DB changes' : ''}
-              </div>
-              <ul className="ml-5 space-y-0.5 text-text-secondary">
-                {syncResult.pulled.map(f => <li key={f} className="font-mono text-xs">{f}</li>)}
+                {pushResult.pushed.map(f => <li key={f} className="font-mono text-xs">{f}</li>)}
               </ul>
             </div>
           )}
         </div>
       )}
 
-      {/* Status footer */}
+      {pullResult && (
+        <div className="mt-3 text-sm space-y-1.5">
+          {!pullResult.ok && (
+            <div className="flex items-center gap-2 text-red-500">
+              <XCircle size={14} className="shrink-0" /> {pullResult.error}
+            </div>
+          )}
+          {pullResult.ok && pullResult.pulled.length === 0 && (
+            <div className="flex items-center gap-2 text-green-600">
+              <CheckCircle size={14} className="shrink-0" /> Nothing to pull — remote is empty
+            </div>
+          )}
+          {pullResult.ok && pullResult.pulled.length > 0 && (
+            <div>
+              <div className={`flex items-center gap-1.5 font-medium mb-0.5 ${pullResult.requiresRestart ? 'text-amber-600' : 'text-green-600'}`}>
+                <ArrowDown size={13} className="shrink-0" />
+                Pulled{pullResult.requiresRestart ? ' — restart required to apply DB changes' : ''}
+              </div>
+              <ul className="ml-5 space-y-0.5 text-text-secondary">
+                {pullResult.pulled.map(f => <li key={f} className="font-mono text-xs">{f}</li>)}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
+
       {(lastSync || lastStatus) && (
         <div className="mt-4 pt-3 border-t border-border text-xs text-text-secondary space-y-0.5">
-          {lastSync && (
-            <p>Last sync: {new Date(lastSync).toLocaleString()}</p>
-          )}
+          {lastSync && <p>Last operation: {new Date(lastSync).toLocaleString()}</p>}
           {lastStatus && (
             <p className={lastStatus === 'ok' ? 'text-green-600' : 'text-red-500'}>
               Status: {lastStatus}
