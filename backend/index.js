@@ -1,4 +1,5 @@
 require('dotenv').config();
+const fs = require('fs');
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -67,6 +68,18 @@ app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 
 async function startServer() {
   try {
+    // Apply any pending GitHub backup restore before opening the database
+    const dbFilePath = process.env.DB_PATH || path.join(__dirname, 'data', 'database.sqlite');
+    const stagingPath = `${dbFilePath}.github-restore`;
+    if (fs.existsSync(stagingPath)) {
+      console.log('Applying GitHub backup restore…');
+      for (const ext of ['-wal', '-shm']) {
+        try { fs.unlinkSync(`${dbFilePath}${ext}`); } catch {}
+      }
+      fs.renameSync(stagingPath, dbFilePath);
+      console.log('Database restored from GitHub backup.');
+    }
+
     console.log('Initializing database...');
     const db = getDb();
     const auditDb = getAuditDb();
