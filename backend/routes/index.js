@@ -56,7 +56,7 @@ function createRoutes(db, auditDb) {
   router.use('/graph', createGraphRoutes(db));
   router.use('/projects/:id/consumption-reports', createConsumptionReportRoutes(db, auditDb));
   router.use('/settings', createActivityImportRoutes(db, auditDb));
-  router.use('/github-backup', createGithubBackupRoutes(db));
+  router.use('/github-backup', createGithubBackupRoutes(db, auditDb));
 
   return router;
 }

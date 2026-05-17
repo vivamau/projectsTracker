@@ -17,22 +17,27 @@ const { initTestDb, closeTestDb } = require('../helpers/testDb');
 const { TEST_SECRET, superadminToken, adminToken, readerToken } = require('../helpers/testAuth');
 const createGithubBackupRoutes = require('../../routes/githubBackupRoutes');
 const githubBackupService = require('../../services/githubBackupService');
+const auditHelper = require('../../utilities/auditHelper');
 
-let db, app;
+let db, auditDb, app;
 
 beforeEach(() => { mockSecrets = {}; });
 
 beforeAll(async () => {
   process.env.JWT_SECRET = TEST_SECRET;
   db = await initTestDb();
+  auditDb = await initTestDb();
 
   app = express();
   app.use(express.json());
   app.use(cookieParser());
-  app.use('/api/github-backup', createGithubBackupRoutes(db));
+  app.use('/api/github-backup', createGithubBackupRoutes(db, auditDb));
 });
 
-afterAll(async () => { await closeTestDb(db); });
+afterAll(async () => {
+  await closeTestDb(db);
+  await closeTestDb(auditDb);
+});
 afterEach(() => jest.restoreAllMocks());
 
 describe('GET /api/github-backup', () => {
@@ -154,6 +159,41 @@ describe('POST /api/github-backup/sync', () => {
       .set('Cookie', ['token=' + superadminToken()]);
     expect(res.status).toBe(200);
     expect(res.body.data.commitSha).toBe('abc123');
+  });
+
+  it('writes an audit log entry on successful sync', async () => {
+    const syncResult = {
+      syncedAt: '2026-01-01T00:00:00.000Z',
+      commitSha: 'abc123',
+      pushed: ['database.sqlite', 'audit.sqlite'],
+      pulled: [],
+      upToDate: [],
+      requiresRestart: false,
+    };
+    jest.spyOn(githubBackupService, 'syncAll').mockResolvedValueOnce(syncResult);
+    const spy = jest.spyOn(auditHelper, 'auditLog');
+
+    await request(app)
+      .post('/api/github-backup/sync')
+      .set('Cookie', ['token=' + superadminToken()]);
+
+    expect(spy).toHaveBeenCalledWith(auditDb, expect.objectContaining({
+      action: 'github_backup.sync',
+      entityType: 'github_backup',
+      details: expect.objectContaining({ commitSha: 'abc123' }),
+    }));
+  });
+
+  it('does not write an audit log entry on sync failure', async () => {
+    jest.spyOn(githubBackupService, 'syncAll').mockRejectedValueOnce(new Error('push failed'));
+    jest.spyOn(githubBackupService, 'recordFailure').mockResolvedValueOnce();
+    const spy = jest.spyOn(auditHelper, 'auditLog');
+
+    await request(app)
+      .post('/api/github-backup/sync')
+      .set('Cookie', ['token=' + superadminToken()]);
+
+    expect(spy).not.toHaveBeenCalled();
   });
 
   it('returns 500 and records failure on error', async () => {

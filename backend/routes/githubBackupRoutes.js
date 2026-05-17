@@ -2,9 +2,10 @@ const express = require('express');
 const path = require('path');
 const { authenticate, authorize } = require('../middleware/auth');
 const githubBackupService = require('../services/githubBackupService');
+const auditHelper = require('../utilities/auditHelper');
 const { success, error } = require('../utilities/responseHelper');
 
-function createGithubBackupRoutes(db) {
+function createGithubBackupRoutes(db, auditDb) {
   const router = express.Router();
 
   const dataDir = process.env.DATA_DIR || path.join(__dirname, '..', 'data');
@@ -52,6 +53,20 @@ function createGithubBackupRoutes(db) {
   router.post('/sync', authenticate, authorize('superadmin'), async (req, res) => {
     try {
       const result = await githubBackupService.syncAll(db, dataDir);
+      await auditHelper.auditLog(auditDb, {
+        userId:     req.user.id,
+        userEmail:  req.user.email,
+        action:     'github_backup.sync',
+        entityType: 'github_backup',
+        entityId:   null,
+        details: {
+          pushed:         result.pushed,
+          pulled:         result.pulled,
+          commitSha:      result.commitSha,
+          requiresRestart: result.requiresRestart,
+        },
+        ip: req.ip,
+      });
       return success(res, result);
     } catch (err) {
       await githubBackupService.recordFailure(db, err.message).catch(() => {});
