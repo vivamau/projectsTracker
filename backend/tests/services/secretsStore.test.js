@@ -169,6 +169,46 @@ describe('getStore', () => {
   });
 });
 
+// ── _resolveKey fallback: reads from backend/.env ────────────────────────────
+
+describe('_resolveKey: reads SECRETS_KEY from backend/.env when env var absent', () => {
+  afterEach(() => { jest.restoreAllMocks(); });
+
+  it('reads key from .env when process.env.SECRETS_KEY is not set', () => {
+    const expectedKey = randomKey();
+    const mockEnvContent = `PORT=5000\nSECRETS_KEY=${expectedKey}\n`;
+
+    jest.spyOn(fs, 'existsSync').mockImplementation((p) => {
+      if (String(p).endsWith('.env')) return true;
+      return false; // secrets.enc absent — fresh store
+    });
+    jest.spyOn(fs, 'readFileSync').mockImplementation((p) => {
+      if (String(p).endsWith('.env')) return mockEnvContent;
+      return '{}'; // fallback
+    });
+
+    process.env.SECRETS_PATH = tmpFile();
+    // SECRETS_KEY deliberately not set
+
+    const store = getStore();
+    expect(store).toBeInstanceOf(SecretsStore);
+    expect(process.env.SECRETS_KEY).toBe(expectedKey);
+  });
+
+  it('generates a new key when .env has no SECRETS_KEY entry', () => {
+    jest.spyOn(fs, 'existsSync').mockReturnValue(false);
+    jest.spyOn(fs, 'writeFileSync').mockImplementation(() => {});
+    jest.spyOn(fs, 'appendFileSync').mockImplementation(() => {});
+
+    process.env.SECRETS_PATH = tmpFile();
+    // SECRETS_KEY deliberately not set
+
+    const store = getStore();
+    expect(store).toBeInstanceOf(SecretsStore);
+    expect(process.env.SECRETS_KEY).toHaveLength(64);
+  });
+});
+
 // ── SECRET_KEYS constant ──────────────────────────────────────────────────────
 
 describe('SECRET_KEYS', () => {

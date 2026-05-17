@@ -69,8 +69,25 @@ function _resolveKey() {
   const existing = process.env.SECRETS_KEY;
   if (existing && existing.length === KEY_HEX_LEN) return existing;
 
-  const key     = crypto.randomBytes(KEY_BYTES).toString('hex');
+  // dotenv may not have loaded .env from the right CWD — read directly from the canonical path
   const envPath = path.join(__dirname, '..', '.env');
+  try {
+    if (fs.existsSync(envPath)) {
+      const content = fs.readFileSync(envPath, 'utf8');
+      const match = content.match(/^SECRETS_KEY=(.+)$/m);
+      if (match) {
+        const candidate = match[1].trim();
+        if (candidate.length === KEY_HEX_LEN) {
+          process.env.SECRETS_KEY = candidate;
+          return candidate;
+        }
+      }
+    }
+  } catch {
+    // Non-fatal — fall through to key generation
+  }
+
+  const key = crypto.randomBytes(KEY_BYTES).toString('hex');
   try {
     if (fs.existsSync(envPath)) {
       const content = fs.readFileSync(envPath, 'utf8');
