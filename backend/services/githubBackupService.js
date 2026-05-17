@@ -263,7 +263,7 @@ async function syncAll(db, dataDir, auditDb = null) {
     const remoteDate  = remoteDates[repoPath] || null;
 
     if (remoteOnly || (!localExists && remoteEntry)) {
-      toPull.push({ repoPath, localPath, blobSha: remoteEntry.sha, isDb: false });
+      toPull.push({ repoPath, localPath, blobSha: remoteEntry.sha, isDb: false, remoteDate });
     } else if (!remoteEntry) {
       if (localExists) toPush.push({ repoPath, localPath });
     } else {
@@ -271,7 +271,7 @@ async function syncAll(db, dataDir, auditDb = null) {
       if (!remoteDate || localMtime > remoteDate) {
         toPush.push({ repoPath, localPath });
       } else if (remoteDate > localMtime) {
-        toPull.push({ repoPath, localPath, blobSha: remoteEntry.sha, isDb: repoPath.endsWith('.sqlite') });
+        toPull.push({ repoPath, localPath, blobSha: remoteEntry.sha, isDb: repoPath.endsWith('.sqlite'), remoteDate });
       } else {
         upToDate.push(repoPath);
       }
@@ -286,31 +286,40 @@ async function syncAll(db, dataDir, auditDb = null) {
     const pushResult = await pushFiles(settings.token, owner, repoName, branch, toPush, headSha, baseTreeSha);
     commitSha = pushResult.sha;
     syncedAt  = pushResult.syncedAt;
-
-    // Align local mtimes with the commit date so the next sync sees these as up-to-date
-    // rather than triggering an unnecessary pull (remote commit date > pre-commit local mtime).
-    const commitDate = new Date(syncedAt);
-    for (const { localPath } of toPush) {
-      try { fs.utimesSync(localPath, commitDate, commitDate); } catch {}
-    }
   }
 
   if (toPull.length > 0) {
-    for (const { localPath, blobSha, isDb } of toPull) {
+    for (const { localPath, blobSha, isDb, remoteDate: rd } of toPull) {
       const content = await pullBlob(settings.token, owner, repoName, blobSha);
       if (isDb) {
-        fs.writeFileSync(`${localPath}${STAGING_SUFFIX}`, content);
+        const stagingPath = `${localPath}${STAGING_SUFFIX}`;
+        fs.writeFileSync(stagingPath, content);
+        if (rd) try { fs.utimesSync(stagingPath, rd, rd); } catch {}
         requiresRestart = true;
       } else {
         const dir = path.dirname(localPath);
         if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
         fs.writeFileSync(localPath, content);
+        if (rd) try { fs.utimesSync(localPath, rd, rd); } catch {}
       }
     }
   }
 
   await appSettingsService.set(db, KEYS.LAST_SYNC, syncedAt, 'system');
   await appSettingsService.set(db, KEYS.LAST_STATUS, 'ok', 'system');
+
+  if (toPush.length > 0) {
+    // Flush LAST_SYNC/STATUS WAL writes before aligning mtimes — prevents database.sqlite
+    // mtime from jumping to "now" after WAL checkpoint on the next sync, which would
+    // make local always appear newer than remote and trigger an unnecessary push.
+    const finalCheckpoints = [walCheckpoint(db)];
+    if (auditDb) finalCheckpoints.push(walCheckpoint(auditDb));
+    await Promise.all(finalCheckpoints);
+    const commitDate = new Date(syncedAt);
+    for (const { localPath } of toPush) {
+      try { fs.utimesSync(localPath, commitDate, commitDate); } catch {}
+    }
+  }
 
   return {
     syncedAt,

@@ -538,6 +538,143 @@ describe('githubBackupService.syncAll', () => {
     jest.restoreAllMocks();
     delete global.fetch;
   });
+
+  it('performs a second WAL checkpoint after writing LAST_SYNC/STATUS when pushing (so utimesSync sees correct mtime)', async () => {
+    const fs = require('fs');
+    jest.spyOn(fs, 'existsSync').mockImplementation(p => !String(p).endsWith('notes'));
+    jest.spyOn(fs, 'statSync').mockReturnValue({ mtime: new Date('2024-01-01T10:00:00Z') });
+    jest.spyOn(fs, 'readFileSync').mockReturnValue(Buffer.from('sqlite-data'));
+    jest.spyOn(fs, 'utimesSync').mockImplementation(() => {});
+
+    let callCount = 0;
+    global.fetch = jest.fn().mockImplementation(() => {
+      callCount++;
+      if (callCount === 1) return Promise.resolve({ ok: false, status: 404, json: async () => ({}) });
+      if (callCount === 2) return Promise.resolve({ ok: true, json: async () => ({ sha: 'db-blob' }) });
+      if (callCount === 3) return Promise.resolve({ ok: true, json: async () => ({ sha: 'audit-blob' }) });
+      if (callCount === 4) return Promise.resolve({ ok: true, json: async () => ({ sha: 'tree-sha' }) });
+      if (callCount === 5) return Promise.resolve({ ok: true, json: async () => ({ sha: 'commit-sha', committer: { date: '2024-01-01T11:00:00Z' } }) });
+      if (callCount === 6) return Promise.resolve({ ok: true, json: async () => ({}) });
+      return Promise.resolve({ ok: true, json: async () => ({}) });
+    });
+
+    await githubBackupService.saveSettings(db, { enabled: true, token: 'tok', repo: 'owner/repo' }, 'admin@test.com');
+    const dbRunSpy = jest.spyOn(db, 'run');
+    await githubBackupService.syncAll(db, '/tmp/data');
+
+    const checkpointCalls = dbRunSpy.mock.calls.filter(
+      call => call[0] === 'PRAGMA wal_checkpoint(TRUNCATE)'
+    );
+    expect(checkpointCalls.length).toBeGreaterThanOrEqual(2);
+
+    jest.restoreAllMocks();
+    delete global.fetch;
+  });
+
+  it('sets mtime of staged DB files to remoteDate after pull (prevents re-pull on next sync)', async () => {
+    const fs = require('fs');
+    const localDate  = new Date('2024-01-01T10:00:00Z');
+    const remoteDate = new Date('2024-06-01T12:00:00Z');
+    jest.spyOn(fs, 'existsSync').mockImplementation(p => !String(p).endsWith('notes'));
+    jest.spyOn(fs, 'statSync').mockReturnValue({ mtime: localDate });
+    jest.spyOn(fs, 'writeFileSync').mockImplementation(() => {});
+    const utimesSpy = jest.spyOn(fs, 'utimesSync').mockImplementation(() => {});
+
+    const base64Content = Buffer.from('remote-sqlite-data').toString('base64');
+    let callCount = 0;
+    global.fetch = jest.fn().mockImplementation(() => {
+      callCount++;
+      if (callCount === 1) return Promise.resolve({ ok: true, json: async () => ({ object: { sha: 'head-sha' } }) });
+      if (callCount === 2) return Promise.resolve({ ok: true, json: async () => ({ tree: { sha: 'base-tree-sha' } }) });
+      if (callCount === 3) return Promise.resolve({ ok: true, json: async () => ({
+        tree: [
+          { path: 'database.sqlite', sha: 'db-blob', type: 'blob' },
+          { path: 'audit.sqlite',    sha: 'audit-blob', type: 'blob' },
+        ],
+      })});
+      if (callCount === 4 || callCount === 5) return Promise.resolve({ ok: true, json: async () => (
+        [{ commit: { committer: { date: remoteDate.toISOString() } } }]
+      )});
+      if (callCount === 6 || callCount === 7) return Promise.resolve({ ok: true, json: async () => ({
+        content: base64Content,
+        encoding: 'base64',
+      })});
+      return Promise.resolve({ ok: true, json: async () => ({}) });
+    });
+
+    await githubBackupService.saveSettings(db, { enabled: true, token: 'tok', repo: 'owner/repo' }, 'admin@test.com');
+    await githubBackupService.syncAll(db, '/tmp/data');
+
+    expect(utimesSpy).toHaveBeenCalledWith(
+      '/tmp/data/database.sqlite.github-restore',
+      remoteDate,
+      remoteDate
+    );
+    expect(utimesSpy).toHaveBeenCalledWith(
+      '/tmp/data/audit.sqlite.github-restore',
+      remoteDate,
+      remoteDate
+    );
+
+    jest.restoreAllMocks();
+    delete global.fetch;
+  });
+
+  it('sets mtime of pulled note files to remoteDate after pull (prevents re-push on next sync)', async () => {
+    const fs = require('fs');
+    const sharedDate = new Date('2024-03-01T00:00:00Z');
+    const remoteDate = new Date('2024-06-01T12:00:00Z');
+
+    jest.spyOn(fs, 'existsSync').mockImplementation(() => true);
+    jest.spyOn(fs, 'statSync').mockReturnValue({ mtime: sharedDate });
+    jest.spyOn(fs, 'writeFileSync').mockImplementation(() => {});
+    jest.spyOn(fs, 'mkdirSync').mockImplementation(() => {});
+    jest.spyOn(fs, 'readdirSync').mockImplementation(p =>
+      String(p).endsWith('notes') ? ['1.md'] : []
+    );
+    const utimesSpy = jest.spyOn(fs, 'utimesSync').mockImplementation(() => {});
+
+    const noteBase64 = Buffer.from('# note content').toString('base64');
+    let callCount = 0;
+    global.fetch = jest.fn().mockImplementation(() => {
+      callCount++;
+      if (callCount === 1) return Promise.resolve({ ok: true, json: async () => ({ object: { sha: 'head-sha' } }) });
+      if (callCount === 2) return Promise.resolve({ ok: true, json: async () => ({ tree: { sha: 'base-tree-sha' } }) });
+      if (callCount === 3) return Promise.resolve({ ok: true, json: async () => ({
+        tree: [
+          { path: 'database.sqlite', sha: 'db-blob', type: 'blob' },
+          { path: 'audit.sqlite',    sha: 'audit-blob', type: 'blob' },
+          { path: 'notes/1.md',      sha: 'note-blob', type: 'blob' },
+        ],
+      })});
+      if (callCount === 4) return Promise.resolve({ ok: true, json: async () => (
+        [{ commit: { committer: { date: sharedDate.toISOString() } } }]
+      )});
+      if (callCount === 5) return Promise.resolve({ ok: true, json: async () => (
+        [{ commit: { committer: { date: sharedDate.toISOString() } } }]
+      )});
+      if (callCount === 6) return Promise.resolve({ ok: true, json: async () => (
+        [{ commit: { committer: { date: remoteDate.toISOString() } } }]
+      )});
+      if (callCount === 7) return Promise.resolve({ ok: true, json: async () => ({
+        content: noteBase64,
+        encoding: 'base64',
+      })});
+      return Promise.resolve({ ok: true, json: async () => ({}) });
+    });
+
+    await githubBackupService.saveSettings(db, { enabled: true, token: 'tok', repo: 'owner/repo' }, 'admin@test.com');
+    await githubBackupService.syncAll(db, '/tmp/data');
+
+    expect(utimesSpy).toHaveBeenCalledWith(
+      '/tmp/data/notes/1.md',
+      remoteDate,
+      remoteDate
+    );
+
+    jest.restoreAllMocks();
+    delete global.fetch;
+  });
 });
 
 describe('githubBackupService.recordFailure', () => {
