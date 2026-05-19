@@ -48,13 +48,18 @@ function createAgentRoutes(db, auditDb) {
   });
 
   router.post('/chat', authenticate, async (req, res) => {
-    const { message, history, sessionId } = req.body;
+    const { message, history, sessionId, useRag, useMcp } = req.body;
     if (!message || !message.trim()) {
       return error(res, 'Message is required', 400);
     }
     try {
       const requestedAt = Date.now();
-      const result = await agentService.chat(db, { message: message.trim(), history: history || [] });
+      const result = await agentService.chat(db, {
+        message: message.trim(),
+        history: history || [],
+        useRag: useRag !== false,
+        useMcp: useMcp !== false,
+      });
       const respondedAt = Date.now();
 
       if (auditDb && sessionId) {

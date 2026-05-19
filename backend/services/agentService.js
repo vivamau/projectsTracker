@@ -254,10 +254,57 @@ function extractSql(text) {
   return sqlLines.length > 0 ? sqlLines.join('\n').trim() : text.trim();
 }
 
+function extractInlineToolCall(text) {
+  if (!text || typeof text !== 'string') return null;
+  // Try fenced JSON blocks first
+  const fenceMatch = text.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/i);
+  const candidates = [];
+  if (fenceMatch) candidates.push(fenceMatch[1]);
+  // Then scan for any balanced top-level JSON objects mentioning "name"
+  const nameIdx = text.indexOf('"name"');
+  if (nameIdx >= 0) {
+    // Walk backward to find the opening brace, forward to find the matching close
+    let start = text.lastIndexOf('{', nameIdx);
+    while (start !== -1) {
+      let depth = 0;
+      for (let i = start; i < text.length; i++) {
+        if (text[i] === '{') depth++;
+        else if (text[i] === '}') {
+          depth--;
+          if (depth === 0) { candidates.push(text.slice(start, i + 1)); break; }
+        }
+      }
+      // also try the previous { in case the first attempt fails
+      start = text.lastIndexOf('{', start - 1);
+      if (candidates.length > 0) break;
+    }
+  }
+  for (const raw of candidates) {
+    try {
+      const obj = JSON.parse(raw);
+      if (obj && typeof obj.name === 'string') {
+        const args = obj.parameters ?? obj.arguments ?? obj.input ?? {};
+        return { name: obj.name, args, raw };
+      }
+    } catch { /* try next */ }
+  }
+  return null;
+}
+
+function stripInlineToolCallJson(text) {
+  if (!text) return text;
+  // strip fenced JSON blocks that look like a tool call
+  let cleaned = text.replace(/```(?:json)?\s*\{[\s\S]*?"name"[\s\S]*?\}\s*```/gi, '');
+  // strip unfenced top-level {"name":..., "(parameters|arguments|input)":...} objects
+  cleaned = cleaned.replace(/\{[^{}]*"name"\s*:\s*"[^"]+"[^{}]*"(?:parameters|arguments|input)"\s*:\s*\{[^{}]*\}[^{}]*\}/g, '');
+  return cleaned;
+}
+
 function stripSqlFromResponse(text) {
   if (!text) return text;
   let cleaned = text.replace(/```(?:sql)?\s*([\s\S]*?)```/gi, '');
   cleaned = cleaned.replace(/^[ \t]*(SELECT|WITH)\b[\s\S]*?;[ \t]*$/gim, '');
+  cleaned = stripInlineToolCallJson(cleaned);
   cleaned = cleaned.replace(/\n{3,}/g, '\n\n').trim();
   return cleaned;
 }
@@ -268,6 +315,23 @@ async function runQueryDirectly(db, sql) {
   if (!/^\s*SELECT\b/i.test(cleanSql)) throw new Error('Only SELECT queries are permitted');
   const rows = await getAll(db, cleanSql, []);
   return JSON.stringify(rows, null, 2);
+}
+
+// ── Inline tool-call rescue (for local models that emit JSON as text) ────────
+
+async function executeInlineToolCall(inline, toolboxTools, db, trace) {
+  if (inline.name === 'execute_sql' && inline.args && inline.args.sql) {
+    trace.push({ type: 'sql' });
+    try { return await runQueryDirectly(db, inline.args.sql); }
+    catch (e) { return `Error: ${e.message}`; }
+  }
+  const tool = (toolboxTools || []).find(t => t.toolName === inline.name);
+  if (!tool) return null; // unknown — let the response pass through
+  trace.push({ type: 'tool', name: inline.name });
+  try {
+    const raw = await tool(inline.args || {});
+    return typeof raw === 'string' ? raw : JSON.stringify(raw, null, 2);
+  } catch (e) { return `Error: ${e.message}`; }
 }
 
 // ── Ollama chat ───────────────────────────────────────────────────────────────
@@ -287,10 +351,10 @@ async function callOllama(baseUrl, model, messages, tools, apiKey = '') {
   return res.json();
 }
 
-async function chatWithOllama(settings, { message, history, db, trace = [] }) {
+async function chatWithOllama(settings, { message, history, db, trace = [], useMcp = true }) {
   const { ollama_url, ollama_model, ollama_api_key } = settings;
-  const toolboxTools = await loadToolboxTools();
-  const ollamaTools = buildOllamaTools(toolboxTools);
+  const toolboxTools = useMcp ? await loadToolboxTools() : [];
+  const ollamaTools = useMcp ? buildOllamaTools(toolboxTools) : [];
 
   const messages = [{ role: 'system', content: SYSTEM_PROMPT }, ...history, { role: 'user', content: message }];
   let totalPromptTokens = 0, totalCompletionTokens = 0;
@@ -302,7 +366,7 @@ async function chatWithOllama(settings, { message, history, db, trace = [] }) {
     const assistantMsg = response.message;
 
     if (!assistantMsg.tool_calls || assistantMsg.tool_calls.length === 0) {
-      if (looksLikeSql(assistantMsg.content)) {
+      if (useMcp && looksLikeSql(assistantMsg.content)) {
         const sql = extractSql(assistantMsg.content);
         let queryResult;
         try { queryResult = await runQueryDirectly(db, sql); }
@@ -313,7 +377,24 @@ async function chatWithOllama(settings, { message, history, db, trace = [] }) {
         messages.push({ role: 'user', content: 'Please summarise these query results in plain language. Do not show any SQL.' });
         continue;
       }
+      if (useMcp) {
+        const inline = extractInlineToolCall(assistantMsg.content);
+        if (inline) {
+          const result = await executeInlineToolCall(inline, toolboxTools, db, trace);
+          if (result !== null) {
+            messages.push({ role: 'assistant', content: assistantMsg.content });
+            messages.push({ role: 'tool', content: result });
+            messages.push({ role: 'user', content: 'Please summarise these tool results in plain language. Do not include any tool-call JSON.' });
+            continue;
+          }
+        }
+      }
       return { role: 'assistant', content: stripSqlFromResponse(assistantMsg.content), model: ollama_model, promptTokens: totalPromptTokens, completionTokens: totalCompletionTokens };
+    }
+
+    if (!useMcp) {
+      // MCP disabled — ignore any tool_calls the model attempted; surface text only
+      return { role: 'assistant', content: stripSqlFromResponse(assistantMsg.content || ''), model: ollama_model, promptTokens: totalPromptTokens, completionTokens: totalCompletionTokens };
     }
 
     messages.push(assistantMsg);
@@ -354,10 +435,10 @@ async function callClaude(model, system, messages, tools, apiKey) {
   return res.json();
 }
 
-async function chatWithClaude(settings, { message, history, db, trace = [] }) {
+async function chatWithClaude(settings, { message, history, db, trace = [], useMcp = true }) {
   const { claude_api_key, claude_model } = settings;
-  const toolboxTools = await loadToolboxTools();
-  const claudeTools = buildClaudeTools(toolboxTools);
+  const toolboxTools = useMcp ? await loadToolboxTools() : [];
+  const claudeTools = useMcp ? buildClaudeTools(toolboxTools) : [];
 
   const claudeMessages = [
     ...history.map(m => ({ role: m.role, content: m.content })),
@@ -376,7 +457,7 @@ async function chatWithClaude(settings, { message, history, db, trace = [] }) {
 
     if (toolBlocks.length === 0) {
       const text = textBlock?.text || '';
-      if (looksLikeSql(text)) {
+      if (useMcp && looksLikeSql(text)) {
         const sql = extractSql(text);
         let queryResult;
         try { queryResult = await runQueryDirectly(db, sql); }
@@ -387,6 +468,11 @@ async function chatWithClaude(settings, { message, history, db, trace = [] }) {
         claudeMessages.push({ role: 'user', content: 'Please summarise these query results in plain language. Do not show any SQL.' });
         continue;
       }
+      return { role: 'assistant', content: stripSqlFromResponse(text), model: claude_model, promptTokens: totalInput, completionTokens: totalOutput };
+    }
+
+    if (!useMcp) {
+      const text = textBlock?.text || '';
       return { role: 'assistant', content: stripSqlFromResponse(text), model: claude_model, promptTokens: totalInput, completionTokens: totalOutput };
     }
 
@@ -432,10 +518,10 @@ async function callGemini(model, system, contents, tools, apiKey) {
   return res.json();
 }
 
-async function chatWithGemini(settings, { message, history, db, trace = [] }) {
+async function chatWithGemini(settings, { message, history, db, trace = [], useMcp = true }) {
   const { gemini_api_key, gemini_model } = settings;
-  const toolboxTools = await loadToolboxTools();
-  const geminiTools = buildGeminiTools(toolboxTools);
+  const toolboxTools = useMcp ? await loadToolboxTools() : [];
+  const geminiTools = useMcp ? buildGeminiTools(toolboxTools) : [];
 
   const contents = [
     ...history.map(m => ({ role: m.role === 'assistant' ? 'model' : 'user', parts: [{ text: m.content }] })),
@@ -454,7 +540,7 @@ async function chatWithGemini(settings, { message, history, db, trace = [] }) {
 
     if (fnCalls.length === 0) {
       const text = textPart?.text || '';
-      if (looksLikeSql(text)) {
+      if (useMcp && looksLikeSql(text)) {
         const sql = extractSql(text);
         let queryResult;
         try { queryResult = await runQueryDirectly(db, sql); }
@@ -465,6 +551,11 @@ async function chatWithGemini(settings, { message, history, db, trace = [] }) {
         contents.push({ role: 'user', parts: [{ text: 'Please summarise these query results in plain language. Do not show any SQL.' }] });
         continue;
       }
+      return { role: 'assistant', content: stripSqlFromResponse(text), model: gemini_model, promptTokens: totalPrompt, completionTokens: totalOutput };
+    }
+
+    if (!useMcp) {
+      const text = textPart?.text || '';
       return { role: 'assistant', content: stripSqlFromResponse(text), model: gemini_model, promptTokens: totalPrompt, completionTokens: totalOutput };
     }
 
@@ -510,9 +601,9 @@ async function callOpenAICompat(baseUrl, model, messages, tools, apiKey) {
   return res.json();
 }
 
-async function chatWithOpenAICompat(baseUrl, model, settings_key, { message, history, db, toolboxTools, trace = [] }) {
+async function chatWithOpenAICompat(baseUrl, model, settings_key, { message, history, db, toolboxTools, trace = [], useMcp = true }) {
   const messages = [{ role: 'system', content: SYSTEM_PROMPT }, ...history, { role: 'user', content: message }];
-  const tools = buildOllamaTools(toolboxTools); // OpenAI-compatible tool format
+  const tools = useMcp ? buildOllamaTools(toolboxTools) : []; // OpenAI-compatible tool format
   let totalPrompt = 0, totalCompletion = 0;
 
   for (let i = 0; i < 8; i++) {
@@ -522,7 +613,7 @@ async function chatWithOpenAICompat(baseUrl, model, settings_key, { message, his
     const assistantMsg = response.choices[0].message;
 
     if (!assistantMsg.tool_calls || assistantMsg.tool_calls.length === 0) {
-      if (looksLikeSql(assistantMsg.content)) {
+      if (useMcp && looksLikeSql(assistantMsg.content)) {
         const sql = extractSql(assistantMsg.content);
         let queryResult;
         try { queryResult = await runQueryDirectly(db, sql); }
@@ -533,7 +624,23 @@ async function chatWithOpenAICompat(baseUrl, model, settings_key, { message, his
         messages.push({ role: 'user', content: 'Please summarise these query results in plain language. Do not show any SQL.' });
         continue;
       }
+      if (useMcp) {
+        const inline = extractInlineToolCall(assistantMsg.content);
+        if (inline) {
+          const result = await executeInlineToolCall(inline, toolboxTools, db, trace);
+          if (result !== null) {
+            messages.push({ role: 'assistant', content: assistantMsg.content });
+            messages.push({ role: 'tool', tool_call_id: 'inline', content: result });
+            messages.push({ role: 'user', content: 'Please summarise these tool results in plain language. Do not include any tool-call JSON.' });
+            continue;
+          }
+        }
+      }
       return { role: 'assistant', content: stripSqlFromResponse(assistantMsg.content), model, promptTokens: totalPrompt, completionTokens: totalCompletion };
+    }
+
+    if (!useMcp) {
+      return { role: 'assistant', content: stripSqlFromResponse(assistantMsg.content || ''), model, promptTokens: totalPrompt, completionTokens: totalCompletion };
     }
 
     messages.push(assistantMsg);
@@ -560,25 +667,25 @@ async function chatWithOpenAICompat(baseUrl, model, settings_key, { message, his
   return { role: 'assistant', content: stripSqlFromResponse(final.choices[0].message.content), model, promptTokens: totalPrompt, completionTokens: totalCompletion };
 }
 
-async function chatWithGPT(settings, { message, history, db, trace = [] }) {
-  const toolboxTools = await loadToolboxTools();
-  return chatWithOpenAICompat('https://api.openai.com/v1', settings.gpt_model, settings.gpt_api_key, { message, history, db, toolboxTools, trace });
+async function chatWithGPT(settings, { message, history, db, trace = [], useMcp = true }) {
+  const toolboxTools = useMcp ? await loadToolboxTools() : [];
+  return chatWithOpenAICompat('https://api.openai.com/v1', settings.gpt_model, settings.gpt_api_key, { message, history, db, toolboxTools, trace, useMcp });
 }
 
-async function chatWithNvidia(settings, { message, history, db, trace = [] }) {
-  const toolboxTools = await loadToolboxTools();
-  return chatWithOpenAICompat('https://integrate.api.nvidia.com/v1', settings.nvidia_model, settings.nvidia_api_key, { message, history, db, toolboxTools, trace });
+async function chatWithNvidia(settings, { message, history, db, trace = [], useMcp = true }) {
+  const toolboxTools = useMcp ? await loadToolboxTools() : [];
+  return chatWithOpenAICompat('https://integrate.api.nvidia.com/v1', settings.nvidia_model, settings.nvidia_api_key, { message, history, db, toolboxTools, trace, useMcp });
 }
 
-async function chatWithOpenRouter(settings, { message, history, db, trace = [] }) {
-  const toolboxTools = await loadToolboxTools();
-  return chatWithOpenAICompat('https://openrouter.ai/api/v1', settings.openrouter_model, settings.openrouter_api_key, { message, history, db, toolboxTools, trace });
+async function chatWithOpenRouter(settings, { message, history, db, trace = [], useMcp = true }) {
+  const toolboxTools = useMcp ? await loadToolboxTools() : [];
+  return chatWithOpenAICompat('https://openrouter.ai/api/v1', settings.openrouter_model, settings.openrouter_api_key, { message, history, db, toolboxTools, trace, useMcp });
 }
 
-async function chatWithLlamaCpp(settings, { message, history, db, trace = [] }) {
-  const toolboxTools = await loadToolboxTools();
+async function chatWithLlamaCpp(settings, { message, history, db, trace = [], useMcp = true }) {
+  const toolboxTools = useMcp ? await loadToolboxTools() : [];
   const base = (settings.llamacpp_url || '').replace(/\/+$/, '') + '/v1';
-  return chatWithOpenAICompat(base, settings.llamacpp_model || 'default', settings.llamacpp_api_key, { message, history, db, toolboxTools, trace });
+  return chatWithOpenAICompat(base, settings.llamacpp_model || 'default', settings.llamacpp_api_key, { message, history, db, toolboxTools, trace, useMcp });
 }
 
 // ── Main dispatcher ───────────────────────────────────────────────────────────
@@ -596,21 +703,23 @@ function buildMeta(ragSources = [], trace = []) {
   };
 }
 
-async function chat(db, { message, history = [] }) {
+async function chat(db, { message, history = [], useRag = true, useMcp = true }) {
   const settings = await getSettings(db);
 
   let augmented = message;
   let ragSources = [];
-  try {
-    const { context, sources } = await ragService.retrieveWithContext(db, message);
-    if (context) { augmented = `${context}\n\nUser question: ${message}`; ragSources = sources; }
-  } catch {
-    augmented = message;
-    ragSources = [];
+  if (useRag) {
+    try {
+      const { context, sources } = await ragService.retrieveWithContext(db, message);
+      if (context) { augmented = `${context}\n\nUser question: ${message}`; ragSources = sources; }
+    } catch {
+      augmented = message;
+      ragSources = [];
+    }
   }
 
   const trace = [];
-  const opts = { message: augmented, history, db, trace };
+  const opts = { message: augmented, history, db, trace, useMcp };
   let result;
   switch (settings.agent_provider) {
     case 'claude':      result = await chatWithClaude(settings, opts); break;
@@ -624,4 +733,4 @@ async function chat(db, { message, history = [] }) {
   return { ...result, meta: buildMeta(ragSources, trace) };
 }
 
-module.exports = { getSettings, updateSettings, getOllamaModels, getLlamaCppModels, chat, buildMeta, looksLikeSql, extractSql, stripSqlFromResponse };
+module.exports = { getSettings, updateSettings, getOllamaModels, getLlamaCppModels, chat, buildMeta, looksLikeSql, extractSql, stripSqlFromResponse, extractInlineToolCall };

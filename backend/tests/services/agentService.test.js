@@ -292,6 +292,55 @@ describe('agentService.getLlamaCppModels', () => {
   });
 });
 
+describe('extractInlineToolCall', () => {
+  const { extractInlineToolCall } = agentService;
+
+  it('parses a bare execute_sql JSON with `parameters`', () => {
+    const text = 'Let me try:\n{"name": "execute_sql", "parameters": {"sql":"SELECT 1"}}';
+    const r = extractInlineToolCall(text);
+    expect(r).toMatchObject({ name: 'execute_sql', args: { sql: 'SELECT 1' } });
+    expect(text).toContain(r.raw);
+  });
+
+  it('parses the `arguments` variant', () => {
+    const r = extractInlineToolCall('{"name":"list_projects","arguments":{"limit":5}}');
+    expect(r).toMatchObject({ name: 'list_projects', args: { limit: 5 } });
+  });
+
+  it('parses the `input` variant', () => {
+    const r = extractInlineToolCall('preamble\n{"name":"foo","input":{"x":1}}\ntrailing');
+    expect(r).toMatchObject({ name: 'foo', args: { x: 1 } });
+  });
+
+  it('returns null when no recognisable JSON tool call is present', () => {
+    expect(extractInlineToolCall('There are 5 active projects.')).toBeNull();
+    expect(extractInlineToolCall('')).toBeNull();
+    expect(extractInlineToolCall(null)).toBeNull();
+  });
+
+  it('handles fenced code blocks', () => {
+    const text = 'Trying:\n```json\n{"name":"execute_sql","parameters":{"sql":"SELECT 1"}}\n```';
+    const r = extractInlineToolCall(text);
+    expect(r.name).toBe('execute_sql');
+  });
+});
+
+describe('stripSqlFromResponse — inline tool-call JSON', () => {
+  it('removes inline tool-call JSON from the final answer', () => {
+    const text = 'Here is the count: 42.\n{"name":"execute_sql","parameters":{"sql":"SELECT COUNT(*) FROM projects"}}';
+    const cleaned = agentService.stripSqlFromResponse(text);
+    expect(cleaned).not.toContain('execute_sql');
+    expect(cleaned).toContain('42');
+  });
+
+  it('removes fenced inline tool-call JSON', () => {
+    const text = 'Answer: foo\n```json\n{"name":"x","parameters":{"y":1}}\n```';
+    const cleaned = agentService.stripSqlFromResponse(text);
+    expect(cleaned).not.toContain('"name"');
+    expect(cleaned).toContain('foo');
+  });
+});
+
 describe('agentService.buildMeta', () => {
   const { buildMeta } = agentService;
 
@@ -355,6 +404,93 @@ describe('agentService.chat — provenance meta', () => {
     expect(res.meta.ragSources[0]).toMatchObject({ source_type: 'note', source_ref: '3' });
     expect(res.meta.sqlQueries).toBe(0);
     expect(res.meta.tools).toEqual([]);
+  });
+
+  it('rescues an inline tool-call JSON, executes the SQL, and strips the JSON from the answer', async () => {
+    await runQuery(db, 'DELETE FROM rag_embeddings');
+
+    let chatCallCount = 0;
+    global.fetch = jest.fn((url) => {
+      if (String(url).endsWith('/api/chat')) {
+        chatCallCount++;
+        if (chatCallCount === 1) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({
+              message: {
+                content: 'Let me check that.\n{"name":"execute_sql","parameters":{"sql":"SELECT 1 AS one"}}',
+                tool_calls: [],
+              },
+              prompt_eval_count: 1, eval_count: 1,
+            }),
+          });
+        }
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            message: { content: 'The answer is 1.', tool_calls: [] },
+            prompt_eval_count: 1, eval_count: 1,
+          }),
+        });
+      }
+      return Promise.resolve({ ok: false, status: 404, text: async () => 'no' });
+    });
+
+    const res = await agentService.chat(db, { message: 'count rows', history: [] });
+    expect(res.content).toContain('The answer is 1');
+    expect(res.content).not.toContain('execute_sql');
+    expect(res.meta.sqlQueries).toBeGreaterThanOrEqual(1);
+  });
+
+  it('skips RAG context when useRag=false even if the index is populated', async () => {
+    await runQuery(db, 'DELETE FROM rag_embeddings');
+    await runQuery(db,
+      `INSERT INTO rag_embeddings (source_type, source_ref, chunk_index, chunk_text, embedding, created_at)
+       VALUES ('note', '99', 0, 'sensitive notes', ?, ?)`,
+      [JSON.stringify([1, 0]), Date.now()]);
+
+    let chatBody;
+    global.fetch = jest.fn((url, init) => {
+      if (String(url).endsWith('/api/embeddings')) {
+        throw new Error('RAG should not be invoked when useRag=false');
+      }
+      if (String(url).endsWith('/api/chat')) {
+        chatBody = JSON.parse(init.body);
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ message: { content: 'no-rag answer', tool_calls: [] }, prompt_eval_count: 1, eval_count: 1 }),
+        });
+      }
+      return Promise.resolve({ ok: false, status: 404, text: async () => 'x' });
+    });
+
+    const res = await agentService.chat(db, { message: 'hi', history: [], useRag: false });
+    expect(res.meta.ragUsed).toBe(false);
+    expect(chatBody.messages.find(m => m.role === 'user').content).toBe('hi');
+  });
+
+  it('ignores SQL/inline JSON when useMcp=false', async () => {
+    await runQuery(db, 'DELETE FROM rag_embeddings');
+    global.fetch = jest.fn((url) => {
+      if (String(url).endsWith('/api/chat')) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            message: {
+              content: 'I would query: {"name":"execute_sql","parameters":{"sql":"SELECT 1"}}',
+              tool_calls: [],
+            },
+            prompt_eval_count: 1, eval_count: 1,
+          }),
+        });
+      }
+      return Promise.resolve({ ok: false, status: 404, text: async () => 'x' });
+    });
+
+    const res = await agentService.chat(db, { message: 'q', history: [], useMcp: false });
+    expect(res.meta.sqlQueries).toBe(0);
+    expect(res.meta.tools).toEqual([]);
+    expect(res.content).not.toContain('execute_sql');
   });
 
   it('reports ragUsed false when the index is empty', async () => {

@@ -359,6 +359,8 @@ export default function AgentPage() {
   const bottomRef = useRef(null);
   const inputRef = useRef(null);
   const [activeProvider, setActiveProvider] = useState('ollama');
+  const [useRag, setUseRag] = useState(true);
+  const [useMcp, setUseMcp] = useState(true);
 
   useEffect(() => {
     getAgentSettings().then(r => setActiveProvider(r.data.data?.agent_provider || 'ollama')).catch(() => {});
@@ -397,7 +399,7 @@ export default function AgentPage() {
     setInput('');
     setLoading(true);
     try {
-      const res = await sendChatMessage(msg, history.filter(m => m.role !== 'error'), sessionIdRef.current);
+      const res = await sendChatMessage(msg, history.filter(m => m.role !== 'error'), sessionIdRef.current, { useRag, useMcp });
       setHistory(h => [...h, res.data.data]);
     } catch (err) {
       const detail = err.response?.data?.error || err.message || 'Something went wrong';
@@ -555,8 +557,41 @@ export default function AgentPage() {
         )}
       </div>
 
+      {/* Context toggles */}
+      <div className="mt-3 flex items-center justify-end gap-1.5 text-[11px]">
+        <span className="text-text-secondary/70 mr-1">Context for next message:</span>
+        <button
+          type="button"
+          onClick={() => setUseRag(v => !v)}
+          disabled={loading}
+          title="Knowledge base (meeting notes + indexed data)"
+          aria-pressed={useRag}
+          className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 font-medium border transition-colors disabled:opacity-50 ${
+            useRag
+              ? 'bg-violet-500/15 text-violet-600 border-violet-500/40 hover:bg-violet-500/25'
+              : 'bg-surface text-text-secondary border-border hover:border-violet-500/40 hover:text-violet-600'
+          }`}
+        >
+          <Sparkles size={11} /> RAG
+        </button>
+        <button
+          type="button"
+          onClick={() => setUseMcp(v => !v)}
+          disabled={loading}
+          title="Live database tools (SQL + toolbox)"
+          aria-pressed={useMcp}
+          className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 font-medium border transition-colors disabled:opacity-50 ${
+            useMcp
+              ? 'bg-amber-500/15 text-amber-600 border-amber-500/40 hover:bg-amber-500/25'
+              : 'bg-surface text-text-secondary border-border hover:border-amber-500/40 hover:text-amber-600'
+          }`}
+        >
+          <Wrench size={11} /> MCP
+        </button>
+      </div>
+
       {/* Input */}
-      <div className="mt-3 flex gap-2">
+      <div className="mt-2 flex gap-2">
         <div className="flex-1 relative">
           <textarea ref={inputRef} value={input} onChange={e => setInput(e.target.value)}
             onKeyDown={handleKey}
