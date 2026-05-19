@@ -72,7 +72,8 @@ async function callAI(settings, prompt) {
           gpt_api_key, gpt_model,
           gemini_api_key, gemini_model,
           openrouter_api_key, openrouter_model,
-          nvidia_api_key, nvidia_model } = settings;
+          nvidia_api_key, nvidia_model,
+          llamacpp_url, llamacpp_model, llamacpp_api_key } = settings;
 
   if (agent_provider === 'claude' && claude_api_key) {
     const res = await fetch('https://api.anthropic.com/v1/messages', {
@@ -109,6 +110,28 @@ async function callAI(settings, prompt) {
     if (!res.ok) throw new Error(`Ollama error ${res.status}`);
     const data = await res.json();
     return data.message?.content || '';
+  }
+
+  if (agent_provider === 'llamacpp') {
+    const base = (llamacpp_url || '').replace(/\/+$/, '');
+    const headers = { 'Content-Type': 'application/json' };
+    if (llamacpp_api_key) headers['Authorization'] = `Bearer ${llamacpp_api_key}`;
+    const res = await fetch(`${base}/v1/chat/completions`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        model: llamacpp_model || 'default',
+        messages: [
+          { role: 'system', content: 'Return only valid JSON. No markdown fences, no explanation.' },
+          { role: 'user', content: prompt },
+        ],
+        temperature: 0,
+      }),
+      signal: AbortSignal.timeout(180000),
+    });
+    if (!res.ok) throw new Error(`llama.cpp error ${res.status}`);
+    const data = await res.json();
+    return data.choices?.[0]?.message?.content || '';
   }
 
   if (agent_provider === 'gemini' && gemini_api_key) {

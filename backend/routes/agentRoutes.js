@@ -21,9 +21,11 @@ function createAgentRoutes(db, auditDb) {
     try {
       let body = req.body;
       if (req.user.role !== 'superadmin') {
-        // Admin may only configure Ollama settings
-        const { ollama_url, ollama_model, ollama_api_key } = body;
-        body = { ollama_url, ollama_model, ollama_api_key };
+        // Admin may only configure local providers (Ollama, llama.cpp)
+        const { ollama_url, ollama_model, ollama_api_key,
+                llamacpp_url, llamacpp_model, llamacpp_api_key } = body;
+        body = { ollama_url, ollama_model, ollama_api_key,
+                 llamacpp_url, llamacpp_model, llamacpp_api_key };
       }
       await agentService.updateSettings(db, body);
       const updated = await agentService.getSettings(db);
@@ -36,7 +38,9 @@ function createAgentRoutes(db, auditDb) {
   router.get('/models', authenticate, async (req, res) => {
     try {
       const settings = await agentService.getSettings(db);
-      const models = await agentService.getOllamaModels(settings.ollama_url, settings.ollama_api_key);
+      const models = settings.agent_provider === 'llamacpp'
+        ? await agentService.getLlamaCppModels(settings.llamacpp_url, settings.llamacpp_api_key)
+        : await agentService.getOllamaModels(settings.ollama_url, settings.ollama_api_key);
       return success(res, models);
     } catch (err) {
       return success(res, []);

@@ -16,6 +16,9 @@ const SETTING_KEYS = {
   nvidiaModel:        'agent_nvidia_model',
   openrouterApiKey:   'agent_openrouter_api_key',
   openrouterModel:    'agent_openrouter_model',
+  llamacppUrl:        'agent_llamacpp_url',
+  llamacppModel:      'agent_llamacpp_model',
+  llamacppApiKey:     'agent_llamacpp_api_key',
 };
 
 const FIELD_TO_KEY = {
@@ -33,6 +36,9 @@ const FIELD_TO_KEY = {
   nvidia_model:         SETTING_KEYS.nvidiaModel,
   openrouter_api_key:   SETTING_KEYS.openrouterApiKey,
   openrouter_model:     SETTING_KEYS.openrouterModel,
+  llamacpp_url:         SETTING_KEYS.llamacppUrl,
+  llamacpp_model:       SETTING_KEYS.llamacppModel,
+  llamacpp_api_key:     SETTING_KEYS.llamacppApiKey,
 };
 
 // These setting keys hold secrets — stored in the encrypted file, not the DB
@@ -43,6 +49,7 @@ const SECRET_DB_KEYS = new Set([
   SETTING_KEYS.gptApiKey,
   SETTING_KEYS.nvidiaApiKey,
   SETTING_KEYS.openrouterApiKey,
+  SETTING_KEYS.llamacppApiKey,
 ]);
 
 const TOOLBOX_URL = process.env.TOOLBOX_URL || 'http://localhost:5100';
@@ -102,6 +109,9 @@ async function getSettings(db) {
     nvidia_model:         m[SETTING_KEYS.nvidiaModel]               || 'minimaxai/minimax-m2.7',
     openrouter_api_key:   store.get(SETTING_KEYS.openrouterApiKey)  || '',
     openrouter_model:     m[SETTING_KEYS.openrouterModel]           || 'meta-llama/llama-3.3-70b-instruct',
+    llamacpp_url:         m[SETTING_KEYS.llamacppUrl]               || 'http://localhost:8080',
+    llamacpp_model:       m[SETTING_KEYS.llamacppModel]             || '',
+    llamacpp_api_key:     store.get(SETTING_KEYS.llamacppApiKey)    || '',
   };
 }
 
@@ -134,6 +144,22 @@ async function getOllamaModels(ollamaUrl, apiKey = '') {
     if (!res.ok) return [];
     const data = await res.json();
     return (data.models || []).map(m => ({ name: m.name, size: m.size }));
+  } catch {
+    return [];
+  }
+}
+
+// ── llama.cpp ─────────────────────────────────────────────────────────────────
+
+async function getLlamaCppModels(llamaCppUrl, apiKey = '') {
+  try {
+    const base = (llamaCppUrl || '').replace(/\/+$/, '');
+    const headers = {};
+    if (apiKey) headers['Authorization'] = `Bearer ${apiKey}`;
+    const res = await fetch(`${base}/v1/models`, { headers, signal: AbortSignal.timeout(5000) });
+    if (!res.ok) return [];
+    const data = await res.json();
+    return (data.data || []).map(m => ({ name: m.id }));
   } catch {
     return [];
   }
@@ -540,6 +566,12 @@ async function chatWithOpenRouter(settings, { message, history, db }) {
   return chatWithOpenAICompat('https://openrouter.ai/api/v1', settings.openrouter_model, settings.openrouter_api_key, { message, history, db, toolboxTools });
 }
 
+async function chatWithLlamaCpp(settings, { message, history, db }) {
+  const toolboxTools = await loadToolboxTools();
+  const base = (settings.llamacpp_url || '').replace(/\/+$/, '') + '/v1';
+  return chatWithOpenAICompat(base, settings.llamacpp_model || 'default', settings.llamacpp_api_key, { message, history, db, toolboxTools });
+}
+
 // ── Main dispatcher ───────────────────────────────────────────────────────────
 
 async function chat(db, { message, history = [] }) {
@@ -550,8 +582,9 @@ async function chat(db, { message, history = [] }) {
     case 'gpt':     return chatWithGPT(settings, { message, history, db });
     case 'nvidia':      return chatWithNvidia(settings, { message, history, db });
     case 'openrouter':  return chatWithOpenRouter(settings, { message, history, db });
+    case 'llamacpp':    return chatWithLlamaCpp(settings, { message, history, db });
     default:            return chatWithOllama(settings, { message, history, db });
   }
 }
 
-module.exports = { getSettings, updateSettings, getOllamaModels, chat, looksLikeSql, extractSql, stripSqlFromResponse };
+module.exports = { getSettings, updateSettings, getOllamaModels, getLlamaCppModels, chat, looksLikeSql, extractSql, stripSqlFromResponse };

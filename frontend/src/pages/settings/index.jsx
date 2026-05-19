@@ -29,7 +29,8 @@ const AVATAR_SEEDS = [
 ];
 
 const PROVIDERS = [
-  { value: 'ollama',  label: 'Ollama (local)' },
+  { value: 'ollama',    label: 'Ollama (local)' },
+  { value: 'llamacpp',  label: 'llama.cpp (local)' },
   { value: 'claude',  label: 'Claude (Anthropic)' },
   { value: 'gemini',  label: 'Gemini (Google)' },
   { value: 'gpt',     label: 'GPT (OpenAI)' },
@@ -61,6 +62,7 @@ const NVIDIA_MODELS = [
 
 const EMPTY_FORM = {
   ollama_url: '', ollama_model: '', ollama_api_key: '',
+  llamacpp_url: '', llamacpp_model: '', llamacpp_api_key: '',
   agent_provider: 'ollama',
   claude_api_key: '', claude_model: 'claude-sonnet-4-6',
   gemini_api_key: '', gemini_model: 'gemini-2.0-flash',
@@ -378,10 +380,7 @@ export default function SettingsPage() {
               )}
             </Card>
           )}
-        </div>
 
-        {/* ── Right column ─────────────────────────────────────────────── */}
-        <div className="space-y-6">
           {role === 'superadmin' && (
             <Card title="Avatar Style">
               <p className="text-sm text-text-secondary mb-4">
@@ -416,6 +415,11 @@ export default function SettingsPage() {
               </div>
             </Card>
           )}
+        </div>
+
+        {/* ── Right column ─────────────────────────────────────────────── */}
+        <div className="space-y-6">
+          {role === 'superadmin' && <GitHubBackupCard />}
 
           {(role === 'superadmin' || role === 'admin') && (
             <Card title="AI Agent">
@@ -503,6 +507,68 @@ export default function SettingsPage() {
                         className="w-full rounded-lg border border-border-dark px-3 py-2 text-sm outline-none focus:border-primary-500 bg-surface"
                       />
                       <p className="mt-1 text-xs text-text-secondary">Required for Ollama cloud; leave empty for local</p>
+                    </div>
+                  </>
+                )}
+
+                {/* ── llama.cpp fields (admin + superadmin when provider = llamacpp) ── */}
+                {(role === 'admin' || activeProvider === 'llamacpp') && (
+                  <>
+                    <p className="text-xs text-text-secondary -mt-1">
+                      Connects to a running <span className="font-mono text-text-primary">llama-server</span>{' '}
+                      via its OpenAI-compatible API.
+                    </p>
+                    <div>
+                      <label className="mb-1.5 block text-sm font-medium text-text-primary">llama.cpp Server URL</label>
+                      <input
+                        type="url"
+                        value={agentForm.llamacpp_url}
+                        onChange={e => setAgentForm(f => ({ ...f, llamacpp_url: e.target.value }))}
+                        placeholder="http://localhost:8080"
+                        className="w-full rounded-lg border border-border-dark px-3 py-2 text-sm outline-none focus:border-primary-500 bg-surface"
+                      />
+                      <p className="mt-1 text-xs text-text-secondary">Base URL of your llama-server (no trailing /v1)</p>
+                    </div>
+                    <div>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <label className="text-sm font-medium text-text-primary">Model</label>
+                        <button type="button" onClick={handleRefreshModels} className="text-xs text-primary-600 hover:underline">
+                          Refresh models
+                        </button>
+                      </div>
+                      {agentModels.length > 0 ? (
+                        <select
+                          value={agentForm.llamacpp_model}
+                          onChange={e => setAgentForm(f => ({ ...f, llamacpp_model: e.target.value }))}
+                          className="w-full rounded-lg border border-border-dark px-3 py-2 text-sm outline-none focus:border-primary-500 bg-surface appearance-none"
+                        >
+                          {agentModels.map(m => <option key={m.name} value={m.name}>{m.name}</option>)}
+                        </select>
+                      ) : (
+                        <input
+                          type="text"
+                          value={agentForm.llamacpp_model}
+                          onChange={e => setAgentForm(f => ({ ...f, llamacpp_model: e.target.value }))}
+                          placeholder="optional — llama-server uses its loaded model"
+                          className="w-full rounded-lg border border-border-dark px-3 py-2 text-sm outline-none focus:border-primary-500 bg-surface"
+                        />
+                      )}
+                      <p className="mt-1 text-xs text-text-secondary">
+                        {agentModels.length > 0
+                          ? `${agentModels.length} model${agentModels.length !== 1 ? 's' : ''} available`
+                          : 'Leave blank to use the model loaded by llama-server'}
+                      </p>
+                    </div>
+                    <div>
+                      <label className="mb-1.5 block text-sm font-medium text-text-primary">API Key</label>
+                      <input
+                        type="password"
+                        value={agentForm.llamacpp_api_key}
+                        onChange={e => setAgentForm(f => ({ ...f, llamacpp_api_key: e.target.value }))}
+                        placeholder="optional"
+                        className="w-full rounded-lg border border-border-dark px-3 py-2 text-sm outline-none focus:border-primary-500 bg-surface"
+                      />
+                      <p className="mt-1 text-xs text-text-secondary">Only needed if llama-server was started with --api-key</p>
                     </div>
                   </>
                 )}
@@ -659,7 +725,6 @@ export default function SettingsPage() {
             </Card>
           )}
 
-          {role === 'superadmin' && <GitHubBackupCard />}
         </div>
 
       </div>

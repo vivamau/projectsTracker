@@ -111,6 +111,16 @@ describe('agentService.getSettings', () => {
     expect(settings.ollama_api_key).toBe('');
   });
 
+  it('returns llama.cpp defaults', async () => {
+    const settings = await agentService.getSettings(db);
+    expect(settings).toHaveProperty('llamacpp_url');
+    expect(settings).toHaveProperty('llamacpp_model');
+    expect(settings).toHaveProperty('llamacpp_api_key');
+    expect(settings.llamacpp_url).toBe('http://localhost:8080');
+    expect(settings.llamacpp_model).toBe('');
+    expect(settings.llamacpp_api_key).toBe('');
+  });
+
   it('returns provider and proprietary model defaults', async () => {
     const settings = await agentService.getSettings(db);
     expect(settings.agent_provider).toBe('ollama');
@@ -178,6 +188,18 @@ describe('agentService.updateSettings', () => {
     expect(settings.gpt_api_key).toBe('sk-openai-test');
     expect(settings.gpt_model).toBe('gpt-4-turbo');
   });
+
+  it('updates llama.cpp settings', async () => {
+    await agentService.updateSettings(db, {
+      llamacpp_url: 'http://myllama:8080',
+      llamacpp_model: 'qwen2.5-coder',
+      llamacpp_api_key: 'llama-secret',
+    });
+    const settings = await agentService.getSettings(db);
+    expect(settings.llamacpp_url).toBe('http://myllama:8080');
+    expect(settings.llamacpp_model).toBe('qwen2.5-coder');
+    expect(settings.llamacpp_api_key).toBe('llama-secret');
+  });
 });
 
 describe('agentService.getOllamaModels', () => {
@@ -221,6 +243,51 @@ describe('agentService.getOllamaModels', () => {
       json: async () => ({})
     });
     const models = await agentService.getOllamaModels('http://localhost:11434');
+    expect(models).toEqual([]);
+  });
+});
+
+describe('agentService.getLlamaCppModels', () => {
+  afterEach(() => jest.restoreAllMocks());
+
+  it('returns models from the OpenAI-compatible /v1/models endpoint', async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ data: [{ id: 'qwen2.5-coder' }, { id: 'llama-3.1-8b' }] })
+    });
+    const models = await agentService.getLlamaCppModels('http://localhost:8080');
+    expect(global.fetch.mock.calls[0][0]).toBe('http://localhost:8080/v1/models');
+    expect(models.length).toBe(2);
+    expect(models[0].name).toBe('qwen2.5-coder');
+  });
+
+  it('strips a trailing slash from the base URL', async () => {
+    global.fetch = jest.fn().mockResolvedValue({ ok: true, json: async () => ({ data: [] }) });
+    await agentService.getLlamaCppModels('http://localhost:8080/');
+    expect(global.fetch.mock.calls[0][0]).toBe('http://localhost:8080/v1/models');
+  });
+
+  it('returns empty array when fetch fails', async () => {
+    global.fetch = jest.fn().mockRejectedValue(new Error('Connection refused'));
+    const models = await agentService.getLlamaCppModels('http://localhost:8080');
+    expect(models).toEqual([]);
+  });
+
+  it('returns empty array when response is not ok', async () => {
+    global.fetch = jest.fn().mockResolvedValue({ ok: false, status: 503 });
+    const models = await agentService.getLlamaCppModels('http://localhost:8080');
+    expect(models).toEqual([]);
+  });
+
+  it('sends Authorization header when apiKey is provided', async () => {
+    global.fetch = jest.fn().mockResolvedValue({ ok: true, json: async () => ({ data: [] }) });
+    await agentService.getLlamaCppModels('http://localhost:8080', 'my-key');
+    expect(global.fetch.mock.calls[0][1].headers['Authorization']).toBe('Bearer my-key');
+  });
+
+  it('returns empty array when data field is missing', async () => {
+    global.fetch = jest.fn().mockResolvedValue({ ok: true, json: async () => ({}) });
+    const models = await agentService.getLlamaCppModels('http://localhost:8080');
     expect(models).toEqual([]);
   });
 });
