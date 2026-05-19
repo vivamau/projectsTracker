@@ -2,13 +2,14 @@ const { getAll, getOne, runQuery } = require('../config/database');
 
 const PREVIEW_LEN = 120;
 
-async function logTokens(auditDb, { userId, userEmail, sessionId, model, promptTokens, completionTokens, messagePreview, requestedAt, respondedAt }) {
+async function logTokens(auditDb, { userId, userEmail, sessionId, model, promptTokens, completionTokens, messagePreview, requestedAt, respondedAt, provenance }) {
   const preview = messagePreview ? messagePreview.slice(0, PREVIEW_LEN) : null;
   const sentAt = requestedAt || Date.now();
+  const provenanceJson = provenance ? JSON.stringify(provenance) : null;
   return runQuery(auditDb,
-    `INSERT INTO ai_token_logs (user_id, user_email, session_id, model, prompt_tokens, completion_tokens, message_preview, created_at, responded_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [userId || null, userEmail || null, sessionId, model, promptTokens || 0, completionTokens || 0, preview, sentAt, respondedAt || null]
+    `INSERT INTO ai_token_logs (user_id, user_email, session_id, model, prompt_tokens, completion_tokens, message_preview, created_at, responded_at, provenance)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [userId || null, userEmail || null, sessionId, model, promptTokens || 0, completionTokens || 0, preview, sentAt, respondedAt || null, provenanceJson]
   );
 }
 
@@ -59,7 +60,7 @@ async function getSessionCount(auditDb, filters = {}) {
 
 async function getMessages(auditDb, sessionId) {
   return getAll(auditDb,
-    `SELECT id, user_email, model, prompt_tokens, completion_tokens, message_preview, created_at, responded_at
+    `SELECT id, user_email, model, prompt_tokens, completion_tokens, message_preview, created_at, responded_at, provenance
      FROM ai_token_logs
      WHERE session_id = ?
      ORDER BY created_at ASC`,

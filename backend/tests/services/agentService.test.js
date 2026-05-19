@@ -291,3 +291,86 @@ describe('agentService.getLlamaCppModels', () => {
     expect(models).toEqual([]);
   });
 });
+
+describe('agentService.buildMeta', () => {
+  const { buildMeta } = agentService;
+
+  it('reports ragUsed false and no tools for empty inputs', () => {
+    const m = buildMeta([], []);
+    expect(m).toEqual({ ragUsed: false, ragSources: [], tools: [], sqlQueries: 0 });
+  });
+
+  it('summarises rag sources and dedupes tool names', () => {
+    const m = buildMeta(
+      [{ source_type: 'note', source_ref: '7', score: 0.91 }],
+      [
+        { type: 'tool', name: 'list_projects' },
+        { type: 'tool', name: 'list_projects' },
+        { type: 'tool', name: 'get_budget' },
+        { type: 'sql' },
+        { type: 'sql' },
+      ]
+    );
+    expect(m.ragUsed).toBe(true);
+    expect(m.ragSources).toEqual([{ source_type: 'note', source_ref: '7', score: 0.91 }]);
+    expect(m.tools.sort()).toEqual(['get_budget', 'list_projects']);
+    expect(m.sqlQueries).toBe(2);
+  });
+
+  it('is defensive against undefined arguments', () => {
+    const m = buildMeta();
+    expect(m.ragUsed).toBe(false);
+    expect(m.tools).toEqual([]);
+  });
+});
+
+describe('agentService.chat — provenance meta', () => {
+  const { runQuery } = require('../../config/database');
+
+  afterEach(() => { delete global.fetch; });
+
+  it('attaches rag provenance when the index returns hits', async () => {
+    await runQuery(db, 'DELETE FROM rag_embeddings');
+    await runQuery(db,
+      `INSERT INTO rag_embeddings (source_type, source_ref, chunk_index, chunk_text, embedding, created_at)
+       VALUES ('note', '3', 0, 'Budget kickoff notes', ?, ?)`,
+      [JSON.stringify([1, 0]), Date.now()]);
+
+    global.fetch = jest.fn((url) => {
+      if (String(url).endsWith('/api/embeddings')) {
+        return Promise.resolve({ ok: true, json: async () => ({ embedding: [1, 0] }) });
+      }
+      if (String(url).endsWith('/api/chat')) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ message: { content: 'Here is the answer', tool_calls: [] }, prompt_eval_count: 5, eval_count: 7 }),
+        });
+      }
+      return Promise.resolve({ ok: false, status: 404, text: async () => 'no' });
+    });
+
+    const res = await agentService.chat(db, { message: 'tell me about the budget', history: [] });
+    expect(res.content).toContain('Here is the answer');
+    expect(res.meta.ragUsed).toBe(true);
+    expect(res.meta.ragSources[0]).toMatchObject({ source_type: 'note', source_ref: '3' });
+    expect(res.meta.sqlQueries).toBe(0);
+    expect(res.meta.tools).toEqual([]);
+  });
+
+  it('reports ragUsed false when the index is empty', async () => {
+    await runQuery(db, 'DELETE FROM rag_embeddings');
+    global.fetch = jest.fn((url) => {
+      if (String(url).endsWith('/api/chat')) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ message: { content: 'No context answer', tool_calls: [] }, prompt_eval_count: 1, eval_count: 1 }),
+        });
+      }
+      return Promise.resolve({ ok: false, status: 404, text: async () => 'no' });
+    });
+
+    const res = await agentService.chat(db, { message: 'hello', history: [] });
+    expect(res.meta.ragUsed).toBe(false);
+    expect(res.meta.ragSources).toEqual([]);
+  });
+});

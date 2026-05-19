@@ -18,7 +18,11 @@ jest.mock('../../services/agentService', () => ({
   }),
   updateSettings: jest.fn().mockResolvedValue(undefined),
   getOllamaModels: jest.fn().mockResolvedValue([{ name: 'llama3.2' }, { name: 'mistral' }]),
-  chat: jest.fn().mockResolvedValue({ role: 'assistant', content: 'Hello! I can help.' }),
+  chat: jest.fn().mockResolvedValue({
+    role: 'assistant',
+    content: 'Hello! I can help.',
+    meta: { ragUsed: true, ragSources: [{ source_type: 'note', source_ref: '3', score: 0.9 }], tools: [], sqlQueries: 1 },
+  }),
 }));
 
 const agentService = require('../../services/agentService');
@@ -52,7 +56,11 @@ beforeEach(() => {
   });
   agentService.updateSettings.mockResolvedValue(undefined);
   agentService.getOllamaModels.mockResolvedValue([{ name: 'llama3.2' }, { name: 'mistral' }]);
-  agentService.chat.mockResolvedValue({ role: 'assistant', content: 'Hello! I can help.' });
+  agentService.chat.mockResolvedValue({
+    role: 'assistant',
+    content: 'Hello! I can help.',
+    meta: { ragUsed: true, ragSources: [{ source_type: 'note', source_ref: '3', score: 0.9 }], tools: [], sqlQueries: 1 },
+  });
 });
 
 describe('Agent Routes', () => {
@@ -157,6 +165,20 @@ describe('Agent Routes', () => {
       expect(res.body.success).toBe(true);
       expect(res.body.data).toHaveProperty('content');
       expect(agentService.chat).toHaveBeenCalled();
+    });
+
+    it('returns provenance meta with the assistant response', async () => {
+      const res = await request(app)
+        .post('/api/agent/chat')
+        .set('Cookie', ['token=' + adminToken()])
+        .send({ message: 'tell me about the budget', history: [], sessionId: 'sess-meta-1' });
+      expect(res.status).toBe(200);
+      expect(res.body.data.meta).toMatchObject({
+        ragUsed: true,
+        ragSources: [{ source_type: 'note', source_ref: '3', score: 0.9 }],
+        tools: [],
+        sqlQueries: 1,
+      });
     });
 
     it('should return 400 when message is missing', async () => {

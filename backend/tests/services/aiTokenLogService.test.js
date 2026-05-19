@@ -23,7 +23,8 @@ beforeAll(async () => {
         completion_tokens INTEGER NOT NULL DEFAULT 0,
         message_preview TEXT,
         created_at INTEGER NOT NULL,
-        responded_at INTEGER
+        responded_at INTEGER,
+        provenance TEXT
       );
       CREATE INDEX idx_ai_token_logs_session_id ON ai_token_logs(session_id);
       CREATE INDEX idx_ai_token_logs_created_at ON ai_token_logs(created_at);
@@ -69,6 +70,24 @@ describe('aiTokenLogService.logTokens', () => {
     expect(Number(s.total_prompt_tokens)).toBe(100);
     expect(Number(s.total_completion_tokens)).toBe(50);
     expect(Number(s.message_count)).toBe(1);
+  });
+
+  it('stores provenance as JSON and returns it via getMessages', async () => {
+    const prov = { ragUsed: true, ragSources: [{ source_type: 'note', source_ref: '3', score: 0.9 }], tools: ['list_projects'], sqlQueries: 1 };
+    await aiTokenLogService.logTokens(auditDb, {
+      sessionId: 'sess-prov', model: 'llama3.2', messagePreview: 'q', provenance: prov,
+    });
+    const messages = await aiTokenLogService.getMessages(auditDb, 'sess-prov');
+    expect(messages).toHaveLength(1);
+    expect(JSON.parse(messages[0].provenance)).toEqual(prov);
+  });
+
+  it('stores null provenance when not provided', async () => {
+    await aiTokenLogService.logTokens(auditDb, {
+      sessionId: 'sess-noprov', model: 'llama3.2', messagePreview: 'q',
+    });
+    const messages = await aiTokenLogService.getMessages(auditDb, 'sess-noprov');
+    expect(messages[0].provenance).toBeNull();
   });
 
   it('truncates message_preview to 120 chars', async () => {

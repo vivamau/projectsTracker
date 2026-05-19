@@ -13,6 +13,7 @@ import ProjectRolesManagementModal from './ProjectRolesManagementModal';
 import { getAgentSettings, updateAgentSettings, getAgentModels } from '../../api/agentApi';
 import { Upload, CheckCircle, AlertCircle } from 'lucide-react';
 import GitHubBackupCard from './components/GitHubBackupCard';
+import RagLearningCard from './components/RagLearningCard';
 
 const DICEBEAR_STYLES = [
   'adventurer', 'adventurer-neutral', 'avataaars', 'big-ears', 'big-smile',
@@ -420,6 +421,7 @@ export default function SettingsPage() {
         {/* ── Right column ─────────────────────────────────────────────── */}
         <div className="space-y-6">
           {role === 'superadmin' && <GitHubBackupCard />}
+          {role === 'superadmin' && <RagLearningCard />}
 
           {(role === 'superadmin' || role === 'admin') && (
             <Card title="AI Agent">

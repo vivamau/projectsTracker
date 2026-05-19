@@ -1,12 +1,92 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useBlocker } from 'react-router-dom';
-import { Bot, User, Send, Trash2, Loader2, TriangleAlert, BookmarkPlus, FolderOpen, Download, X, Check, FilePlus, RotateCcw } from 'lucide-react';
+import { Bot, User, Send, Trash2, Loader2, TriangleAlert, BookmarkPlus, FolderOpen, Download, X, Check, FilePlus, RotateCcw, Sparkles, Database, Wrench, ChevronDown, ChevronRight } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { sendChatMessage, saveAgentSession, listAgentSessions, loadAgentSession, downloadAgentSession, deleteAgentSession, getAgentSettings } from '../../api/agentApi';
 import { useAuth } from '../../hooks/useAuth';
 
 const PROVIDER_LABELS = { ollama: 'Ollama', claude: 'Claude', gemini: 'Gemini', gpt: 'GPT', nvidia: 'NVIDIA NIM', openrouter: 'OpenRouter' };
+
+// ─── Provenance (RAG / SQL / tools) ────────────────────────────────────────
+
+function Provenance({ meta }) {
+  const [open, setOpen] = useState(false);
+  if (!meta) return null;
+
+  const ragSources = meta.ragSources || [];
+  const tools = meta.tools || [];
+  const sqlQueries = meta.sqlQueries || 0;
+  const hasAny = meta.ragUsed || tools.length > 0 || sqlQueries > 0;
+  if (!hasAny) {
+    return (
+      <div className="mt-2 pt-2 border-t border-border/60 text-[11px] text-text-secondary">
+        Answered from the model only — no knowledge base or database used.
+      </div>
+    );
+  }
+
+  const expandable = ragSources.length > 0 || tools.length > 0;
+
+  return (
+    <div className="mt-2 pt-2 border-t border-border/60">
+      <div className="flex flex-wrap items-center gap-1.5">
+        {meta.ragUsed && (
+          <span className="inline-flex items-center gap-1 rounded-full bg-violet-500/15 text-violet-600 px-2 py-0.5 text-[11px] font-medium">
+            <Sparkles size={11} /> RAG · {ragSources.length} source{ragSources.length !== 1 ? 's' : ''}
+          </span>
+        )}
+        {sqlQueries > 0 && (
+          <span className="inline-flex items-center gap-1 rounded-full bg-sky-500/15 text-sky-600 px-2 py-0.5 text-[11px] font-medium">
+            <Database size={11} /> {sqlQueries} SQL quer{sqlQueries !== 1 ? 'ies' : 'y'}
+          </span>
+        )}
+        {tools.length > 0 && (
+          <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 text-amber-600 px-2 py-0.5 text-[11px] font-medium">
+            <Wrench size={11} /> {tools.length} tool{tools.length !== 1 ? 's' : ''}
+          </span>
+        )}
+        {expandable && (
+          <button
+            onClick={() => setOpen(o => !o)}
+            className="inline-flex items-center gap-0.5 text-[11px] text-text-secondary hover:text-text-primary transition-colors"
+          >
+            {open ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+            {open ? 'Hide' : 'Details'}
+          </button>
+        )}
+      </div>
+
+      {open && expandable && (
+        <div className="mt-2 space-y-1.5 text-[11px] text-text-secondary">
+          {ragSources.length > 0 && (
+            <div>
+              <p className="font-medium text-text-primary mb-0.5">Retrieved context</p>
+              <ul className="space-y-0.5">
+                {ragSources.map((s, i) => (
+                  <li key={i} className="font-mono">
+                    {s.source_type}:{s.source_ref}
+                    {typeof s.score === 'number' && (
+                      <span className="opacity-60"> · {(s.score * 100).toFixed(0)}%</span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {tools.length > 0 && (
+            <div>
+              <p className="font-medium text-text-primary mb-0.5">Tools called</p>
+              <ul className="space-y-0.5">
+                {tools.map((t, i) => <li key={i} className="font-mono">{t}</li>)}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 // ─── Message bubble ────────────────────────────────────────────────────────
 
@@ -53,6 +133,7 @@ function Message({ msg }) {
             {msg.content}
           </ReactMarkdown>
         )}
+        {!isUser && !isError && msg.meta && <Provenance meta={msg.meta} />}
       </div>
     </div>
   );

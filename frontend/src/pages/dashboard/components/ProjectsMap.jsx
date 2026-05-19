@@ -152,8 +152,8 @@ export default function ProjectsMap() {
         )}
       </div>
 
-      {/* Map */}
-      <div className="relative" style={{ height: 400 }}>
+      {/* Map — isolation:isolate keeps Leaflet's internal z-indices from escaping this stacking context */}
+      <div className="relative" style={{ height: 400, isolation: 'isolate' }}>
         <MapContainer
           center={[20, 0]}
           zoom={2}

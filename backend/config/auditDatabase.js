@@ -30,7 +30,8 @@ const AUDIT_SCHEMA = `
     completion_tokens INTEGER NOT NULL DEFAULT 0,
     message_preview TEXT,
     created_at INTEGER NOT NULL,
-    responded_at INTEGER
+    responded_at INTEGER,
+    provenance TEXT
   );
   CREATE INDEX IF NOT EXISTS idx_ai_token_logs_session_id ON ai_token_logs(session_id);
   CREATE INDEX IF NOT EXISTS idx_ai_token_logs_created_at ON ai_token_logs(created_at);
@@ -41,6 +42,7 @@ const AUDIT_SCHEMA = `
 function applyAuditColumnMigrations(instance) {
   // Silently add new columns to existing tables — errors mean the column already exists
   instance.run('ALTER TABLE ai_token_logs ADD COLUMN responded_at INTEGER', () => {});
+  instance.run('ALTER TABLE ai_token_logs ADD COLUMN provenance TEXT', () => {});
 }
 
 function getAuditDb() {

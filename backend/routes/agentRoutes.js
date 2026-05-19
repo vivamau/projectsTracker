@@ -68,10 +68,11 @@ function createAgentRoutes(db, auditDb) {
           messagePreview: message.trim(),
           requestedAt,
           respondedAt,
+          provenance: result.meta,
         }).catch(() => {});
       }
 
-      return success(res, { role: result.role, content: result.content });
+      return success(res, { role: result.role, content: result.content, meta: result.meta });
     } catch (err) {
       return error(res, err.message || 'Chat failed');
     }

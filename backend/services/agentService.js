@@ -1,5 +1,6 @@
 const { getOne, runQuery } = require('../config/database');
 const { getStore } = require('./secretsStore');
+const ragService = require('./ragService');
 
 const SETTING_KEYS = {
   url:           'agent_ollama_url',
@@ -286,7 +287,7 @@ async function callOllama(baseUrl, model, messages, tools, apiKey = '') {
   return res.json();
 }
 
-async function chatWithOllama(settings, { message, history, db }) {
+async function chatWithOllama(settings, { message, history, db, trace = [] }) {
   const { ollama_url, ollama_model, ollama_api_key } = settings;
   const toolboxTools = await loadToolboxTools();
   const ollamaTools = buildOllamaTools(toolboxTools);
@@ -306,6 +307,7 @@ async function chatWithOllama(settings, { message, history, db }) {
         let queryResult;
         try { queryResult = await runQueryDirectly(db, sql); }
         catch (err) { queryResult = `Error running query: ${err.message}`; }
+        trace.push({ type: 'sql' });
         messages.push({ role: 'assistant', content: assistantMsg.content });
         messages.push({ role: 'tool', content: queryResult });
         messages.push({ role: 'user', content: 'Please summarise these query results in plain language. Do not show any SQL.' });
@@ -316,6 +318,7 @@ async function chatWithOllama(settings, { message, history, db }) {
 
     messages.push(assistantMsg);
     for (const toolCall of assistantMsg.tool_calls) {
+      trace.push({ type: 'tool', name: toolCall.function.name });
       const tool = toolboxTools.find(t => t.toolName === toolCall.function.name);
       let result;
       try {
@@ -351,7 +354,7 @@ async function callClaude(model, system, messages, tools, apiKey) {
   return res.json();
 }
 
-async function chatWithClaude(settings, { message, history, db }) {
+async function chatWithClaude(settings, { message, history, db, trace = [] }) {
   const { claude_api_key, claude_model } = settings;
   const toolboxTools = await loadToolboxTools();
   const claudeTools = buildClaudeTools(toolboxTools);
@@ -378,6 +381,7 @@ async function chatWithClaude(settings, { message, history, db }) {
         let queryResult;
         try { queryResult = await runQueryDirectly(db, sql); }
         catch (err) { queryResult = `Error: ${err.message}`; }
+        trace.push({ type: 'sql' });
         claudeMessages.push({ role: 'assistant', content });
         claudeMessages.push({ role: 'user', content: [{ type: 'tool_result', tool_use_id: 'inline', content: queryResult }] });
         claudeMessages.push({ role: 'user', content: 'Please summarise these query results in plain language. Do not show any SQL.' });
@@ -389,6 +393,7 @@ async function chatWithClaude(settings, { message, history, db }) {
     claudeMessages.push({ role: 'assistant', content });
     const toolResults = [];
     for (const block of toolBlocks) {
+      trace.push({ type: 'tool', name: block.name });
       const tool = toolboxTools.find(t => t.toolName === block.name);
       let result;
       try {
@@ -427,7 +432,7 @@ async function callGemini(model, system, contents, tools, apiKey) {
   return res.json();
 }
 
-async function chatWithGemini(settings, { message, history, db }) {
+async function chatWithGemini(settings, { message, history, db, trace = [] }) {
   const { gemini_api_key, gemini_model } = settings;
   const toolboxTools = await loadToolboxTools();
   const geminiTools = buildGeminiTools(toolboxTools);
@@ -454,6 +459,7 @@ async function chatWithGemini(settings, { message, history, db }) {
         let queryResult;
         try { queryResult = await runQueryDirectly(db, sql); }
         catch (err) { queryResult = `Error: ${err.message}`; }
+        trace.push({ type: 'sql' });
         contents.push({ role: 'model', parts });
         contents.push({ role: 'user', parts: [{ functionResponse: { name: 'execute_sql', response: { result: queryResult } } }] });
         contents.push({ role: 'user', parts: [{ text: 'Please summarise these query results in plain language. Do not show any SQL.' }] });
@@ -466,6 +472,7 @@ async function chatWithGemini(settings, { message, history, db }) {
     const fnResponses = [];
     for (const fnCall of fnCalls) {
       const toolName = fnCall.functionCall.name;
+      trace.push({ type: 'tool', name: toolName });
       const tool = toolboxTools.find(t => t.toolName === toolName);
       let result;
       try {
@@ -503,7 +510,7 @@ async function callOpenAICompat(baseUrl, model, messages, tools, apiKey) {
   return res.json();
 }
 
-async function chatWithOpenAICompat(baseUrl, model, settings_key, { message, history, db, toolboxTools }) {
+async function chatWithOpenAICompat(baseUrl, model, settings_key, { message, history, db, toolboxTools, trace = [] }) {
   const messages = [{ role: 'system', content: SYSTEM_PROMPT }, ...history, { role: 'user', content: message }];
   const tools = buildOllamaTools(toolboxTools); // OpenAI-compatible tool format
   let totalPrompt = 0, totalCompletion = 0;
@@ -520,6 +527,7 @@ async function chatWithOpenAICompat(baseUrl, model, settings_key, { message, his
         let queryResult;
         try { queryResult = await runQueryDirectly(db, sql); }
         catch (err) { queryResult = `Error: ${err.message}`; }
+        trace.push({ type: 'sql' });
         messages.push({ role: 'assistant', content: assistantMsg.content });
         messages.push({ role: 'tool', tool_call_id: 'inline', content: queryResult });
         messages.push({ role: 'user', content: 'Please summarise these query results in plain language. Do not show any SQL.' });
@@ -531,6 +539,7 @@ async function chatWithOpenAICompat(baseUrl, model, settings_key, { message, his
     messages.push(assistantMsg);
     for (const toolCall of assistantMsg.tool_calls) {
       const toolName = toolCall.function.name;
+      trace.push({ type: 'tool', name: toolName });
       let toolArgs;
       try { toolArgs = typeof toolCall.function.arguments === 'string' ? JSON.parse(toolCall.function.arguments) : toolCall.function.arguments; }
       catch { toolArgs = {}; }
@@ -551,40 +560,68 @@ async function chatWithOpenAICompat(baseUrl, model, settings_key, { message, his
   return { role: 'assistant', content: stripSqlFromResponse(final.choices[0].message.content), model, promptTokens: totalPrompt, completionTokens: totalCompletion };
 }
 
-async function chatWithGPT(settings, { message, history, db }) {
+async function chatWithGPT(settings, { message, history, db, trace = [] }) {
   const toolboxTools = await loadToolboxTools();
-  return chatWithOpenAICompat('https://api.openai.com/v1', settings.gpt_model, settings.gpt_api_key, { message, history, db, toolboxTools });
+  return chatWithOpenAICompat('https://api.openai.com/v1', settings.gpt_model, settings.gpt_api_key, { message, history, db, toolboxTools, trace });
 }
 
-async function chatWithNvidia(settings, { message, history, db }) {
+async function chatWithNvidia(settings, { message, history, db, trace = [] }) {
   const toolboxTools = await loadToolboxTools();
-  return chatWithOpenAICompat('https://integrate.api.nvidia.com/v1', settings.nvidia_model, settings.nvidia_api_key, { message, history, db, toolboxTools });
+  return chatWithOpenAICompat('https://integrate.api.nvidia.com/v1', settings.nvidia_model, settings.nvidia_api_key, { message, history, db, toolboxTools, trace });
 }
 
-async function chatWithOpenRouter(settings, { message, history, db }) {
+async function chatWithOpenRouter(settings, { message, history, db, trace = [] }) {
   const toolboxTools = await loadToolboxTools();
-  return chatWithOpenAICompat('https://openrouter.ai/api/v1', settings.openrouter_model, settings.openrouter_api_key, { message, history, db, toolboxTools });
+  return chatWithOpenAICompat('https://openrouter.ai/api/v1', settings.openrouter_model, settings.openrouter_api_key, { message, history, db, toolboxTools, trace });
 }
 
-async function chatWithLlamaCpp(settings, { message, history, db }) {
+async function chatWithLlamaCpp(settings, { message, history, db, trace = [] }) {
   const toolboxTools = await loadToolboxTools();
   const base = (settings.llamacpp_url || '').replace(/\/+$/, '') + '/v1';
-  return chatWithOpenAICompat(base, settings.llamacpp_model || 'default', settings.llamacpp_api_key, { message, history, db, toolboxTools });
+  return chatWithOpenAICompat(base, settings.llamacpp_model || 'default', settings.llamacpp_api_key, { message, history, db, toolboxTools, trace });
 }
 
 // ── Main dispatcher ───────────────────────────────────────────────────────────
 
-async function chat(db, { message, history = [] }) {
-  const settings = await getSettings(db);
-  switch (settings.agent_provider) {
-    case 'claude':  return chatWithClaude(settings, { message, history, db });
-    case 'gemini':  return chatWithGemini(settings, { message, history, db });
-    case 'gpt':     return chatWithGPT(settings, { message, history, db });
-    case 'nvidia':      return chatWithNvidia(settings, { message, history, db });
-    case 'openrouter':  return chatWithOpenRouter(settings, { message, history, db });
-    case 'llamacpp':    return chatWithLlamaCpp(settings, { message, history, db });
-    default:            return chatWithOllama(settings, { message, history, db });
-  }
+function buildMeta(ragSources = [], trace = []) {
+  const t = trace || [];
+  const tools = [...new Set(t.filter(e => e.type === 'tool').map(e => e.name))];
+  const sqlQueries = t.filter(e => e.type === 'sql').length;
+  const src = ragSources || [];
+  return {
+    ragUsed: src.length > 0,
+    ragSources: src.map(s => ({ source_type: s.source_type, source_ref: s.source_ref, score: s.score })),
+    tools,
+    sqlQueries,
+  };
 }
 
-module.exports = { getSettings, updateSettings, getOllamaModels, getLlamaCppModels, chat, looksLikeSql, extractSql, stripSqlFromResponse };
+async function chat(db, { message, history = [] }) {
+  const settings = await getSettings(db);
+
+  let augmented = message;
+  let ragSources = [];
+  try {
+    const { context, sources } = await ragService.retrieveWithContext(db, message);
+    if (context) { augmented = `${context}\n\nUser question: ${message}`; ragSources = sources; }
+  } catch {
+    augmented = message;
+    ragSources = [];
+  }
+
+  const trace = [];
+  const opts = { message: augmented, history, db, trace };
+  let result;
+  switch (settings.agent_provider) {
+    case 'claude':      result = await chatWithClaude(settings, opts); break;
+    case 'gemini':      result = await chatWithGemini(settings, opts); break;
+    case 'gpt':         result = await chatWithGPT(settings, opts); break;
+    case 'nvidia':      result = await chatWithNvidia(settings, opts); break;
+    case 'openrouter':  result = await chatWithOpenRouter(settings, opts); break;
+    case 'llamacpp':    result = await chatWithLlamaCpp(settings, opts); break;
+    default:            result = await chatWithOllama(settings, opts); break;
+  }
+  return { ...result, meta: buildMeta(ragSources, trace) };
+}
+
+module.exports = { getSettings, updateSettings, getOllamaModels, getLlamaCppModels, chat, buildMeta, looksLikeSql, extractSql, stripSqlFromResponse };
