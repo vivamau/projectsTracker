@@ -120,6 +120,7 @@
   - Required for **API endpoints** using `supertest`.
   - Must verify the flow from Route -> Controller -> Database (using in-memory or test DB).
   - Essential for critical user flows (auth, booking logic, library scanning).
+- **Regression Tests**: if not exist, create a QA_TEST_PLAN.md with scenario to be tested as a QA engineer. This file needs to be updated everytime a new feature is added to the application.
 - **Tooling**: Jest (Runner/Assertions) and Supertest (HTTP assertions).
 - **PR instructions**:
 	- Title format: project name, title
