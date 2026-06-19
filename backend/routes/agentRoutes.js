@@ -47,7 +47,7 @@ function createAgentRoutes(db, auditDb) {
     }
   });
 
-  router.post('/chat', authenticate, async (req, res) => {
+  router.post('/chat', authenticate, authorize('admin', 'superadmin'), async (req, res) => {
     const { message, history, sessionId, useRag, useMcp } = req.body;
     if (!message || !message.trim()) {
       return error(res, 'Message is required', 400);

@@ -1,4 +1,4 @@
-# FindAJob Agent Context
+# Projects Tracker Agent Context
 
 ## Session Tracking
 - Create a session log file in .agents/memory/sessions/YYYY-MM-DD_HH-MM-SS.md

@@ -1,7 +1,7 @@
 const request = require('supertest');
 const { initTestDb, seedTestDb, closeTestDb } = require('../helpers/testDb');
 const { createTestApp } = require('../helpers/testApp');
-const { adminToken, readerToken, superadminToken } = require('../helpers/testAuth');
+const { adminToken, readerToken, superadminToken, guestToken } = require('../helpers/testAuth');
 
 jest.mock('../../services/agentService', () => ({
   getSettings: jest.fn().mockResolvedValue({
@@ -194,6 +194,42 @@ describe('Agent Routes', () => {
         .post('/api/agent/chat')
         .send({ message: 'Hello' });
       expect(res.status).toBe(401);
+    });
+
+    it('should allow admin to chat', async () => {
+      const res = await request(app)
+        .post('/api/agent/chat')
+        .set('Cookie', ['token=' + adminToken()])
+        .send({ message: 'How many projects?' });
+      expect(res.status).toBe(200);
+      expect(agentService.chat).toHaveBeenCalled();
+    });
+
+    it('should allow superadmin to chat', async () => {
+      const res = await request(app)
+        .post('/api/agent/chat')
+        .set('Cookie', ['token=' + superadminToken()])
+        .send({ message: 'How many projects?' });
+      expect(res.status).toBe(200);
+      expect(agentService.chat).toHaveBeenCalled();
+    });
+
+    it('should deny reader role (403) and not invoke the agent', async () => {
+      const res = await request(app)
+        .post('/api/agent/chat')
+        .set('Cookie', ['token=' + readerToken()])
+        .send({ message: 'How many projects?' });
+      expect(res.status).toBe(403);
+      expect(agentService.chat).not.toHaveBeenCalled();
+    });
+
+    it('should deny guest role (403) and not invoke the agent', async () => {
+      const res = await request(app)
+        .post('/api/agent/chat')
+        .set('Cookie', ['token=' + guestToken()])
+        .send({ message: 'How many projects?' });
+      expect(res.status).toBe(403);
+      expect(agentService.chat).not.toHaveBeenCalled();
     });
 
     it('should pass conversation history to service', async () => {

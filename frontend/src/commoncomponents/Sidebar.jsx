@@ -34,7 +34,7 @@ const navItems = [
   { label: 'Countries', path: '/countries', icon: Globe },
   { label: 'Budgets', path: '/budgets', icon: DollarSign },
   { label: 'Purchase Orders', path: '/purchase-orders', icon: ShoppingCart },
-  { label: 'AI Assistant', path: '/agent', icon: Bot },
+  { label: 'AI Assistant', path: '/agent', icon: Bot, roles: ['superadmin', 'admin'] },
   { label: 'Vendors', path: '/vendors', icon: Store },
   { label: 'Users', path: '/users', icon: Users, roles: ['superadmin', 'admin'] },
   { label: 'Logs', path: '/logs', icon: FileText, roles: ['superadmin'] },
